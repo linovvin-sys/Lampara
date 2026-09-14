@@ -1,3 +1,4 @@
+<?php $cssVer = filemtime(__DIR__ . '/../assets/css/tailwind.css'); ?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -6,7 +7,7 @@
 <title>Lampara — Scan Signage</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/tailwind.css">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <style>
   html, body { margin: 0; font-family: 'Outfit', sans-serif; }

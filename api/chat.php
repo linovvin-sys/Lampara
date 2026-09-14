@@ -29,6 +29,7 @@ require_once $secretsPath;
 $input = json_decode(file_get_contents('php://input'), true);
 $buildingId = $input['building_id'] ?? null;
 $message = trim($input['message'] ?? '');
+$history = is_array($input['history'] ?? null) ? $input['history'] : [];
 
 if (!$buildingId || $message === '') {
     http_response_code(400);
@@ -80,23 +81,63 @@ if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === 'PASTE_YOUR_KEY_HERE') {
     exit;
 }
 
-$prompt = <<<PROMPT
-You are Lampara, a campus guide assistant for {$building['name']}. Answer ONLY using
-the facts below. If the answer isn't in these facts, say exactly: "I don't have that
-information — you may want to confirm with the office directly." Never guess or
-invent details. Also refuse (politely) anything not about this building or campus
-navigation, even if you personally know the answer — stay strictly on topic.
+$systemPrompt = <<<PROMPT
+You are Lampara, a warm and knowledgeable campus guide assistant for {$building['name']}.
+Answer ONLY using the facts below — never guess or invent anything not stated there.
+If the answer isn't in these facts, say exactly: "I don't have that information —
+you may want to confirm with the office directly." Also refuse (politely) anything
+not about this building or campus navigation, even if you personally know the
+answer — stay strictly on topic.
+
+Within those limits, be genuinely helpful and complete, not just minimal. The facts
+below may be either a structured list of specific rooms, or plain descriptive text
+about the building in general (or both) — either is a completely valid, fully
+answerable source. Summarizing or paraphrasing what the facts say is NOT guessing;
+only stating something the facts never mention at all counts as guessing.
+- If specific details are present (room numbers, hours, floor, notes), mention all
+  relevant ones together in one answer rather than making the student ask separately,
+  and wrap them in **bold** so they stand out.
+- If the facts are general/descriptive rather than room-by-room, just answer in
+  your own words using that description — don't refuse just because there's no
+  room number to cite.
+- If the question is about one room but a nearby/related room is clearly useful
+  context (e.g. they asked for the Registrar and the Treasury is on the same
+  floor), you may mention it briefly — but only using facts actually listed below.
+- Keep it conversational and concise — a helpful answer, not a wall of text or
+  padded filler sentences.
+- The conversation may reference earlier turns (e.g. "where is it near") — use
+  that history to understand what the student means, still grounded only in
+  the facts below.
 
 FACTS:
 {$groundingFacts}
-
-QUESTION: {$message}
 PROMPT;
 
-$url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . GEMINI_API_KEY;
+// Conversation history lets the model resolve things like "where is it near"
+// referring to a building/room mentioned a turn or two earlier — without it,
+// every question was answered with zero memory of what was just discussed.
+$contents = [];
+$recentHistory = array_slice($history, -12);
+foreach ($recentHistory as $turn) {
+    $text = trim($turn['text'] ?? '');
+    if ($text === '') continue;
+    $role = ($turn['role'] ?? '') === 'user' ? 'user' : 'model';
+    $contents[] = ['role' => $role, 'parts' => [['text' => $text]]];
+}
+$contents[] = ['role' => 'user', 'parts' => [['text' => $message]]];
+
+// flash-lite: much higher free-tier daily quota than the full flash model
+// (which caps at just 20 requests/day free) — and the "-latest" alias tracks
+// Google's newest Lite model automatically instead of pinning a version that
+// eventually gets retired (like gemini-2.0-flash did).
+$url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=' . GEMINI_API_KEY;
 $payload = json_encode([
-    'contents' => [['parts' => [['text' => $prompt]]]],
-    'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 300],
+    'systemInstruction' => ['parts' => [['text' => $systemPrompt]]],
+    'contents' => $contents,
+    // This model spends some of maxOutputTokens on internal reasoning before
+    // writing the visible reply — budget generously so a short grounded
+    // answer doesn't get cut off before it's actually written.
+    'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 1024],
 ]);
 
 $ch = curl_init($url);

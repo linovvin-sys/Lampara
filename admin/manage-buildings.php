@@ -1,4 +1,4 @@
-<?php require_once __DIR__ . '/_auth.php'; ?>
+<?php require_once __DIR__ . '/_auth.php'; $cssVer = filemtime(__DIR__ . '/../assets/css/tailwind.css'); ?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,8 +7,10 @@
 <title>Lampara — Admin · Manage Buildings</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/tailwind.css">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>body { font-family: 'Outfit', sans-serif; }</style>
 </head>
 <body class="bg-white min-h-screen">
@@ -69,17 +71,8 @@
           <span class="text-xs font-semibold text-zinc-900">Campus Map Preview</span>
           <span class="ml-auto text-[10px] font-bold text-zinc-400">N ↑</span>
         </div>
-        <div class="relative h-64 sm:h-[360px]" ref="mapArea">
-          <svg class="absolute inset-0 w-full h-full">
-            <circle v-for="(d,i) in dots" :key="i" :cx="d.x" :cy="d.y" r="1.2" fill="#d4d4d8" />
-          </svg>
-          <div v-for="pin in pins" :key="pin.id" class="absolute -translate-x-1/2 -translate-y-1/2" :style="{ left: pin.x + '%', top: pin.y + '%' }">
-            <div class="w-9 h-9 rounded-full opacity-20 absolute inset-0 -m-2.5" :style="{ background: colorFor(pin.id) }"></div>
-            <div class="w-6 h-6 rounded-lg text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-lg relative" :style="{ background: colorFor(pin.id) }">{{ pin.name.charAt(0) }}</div>
-            <div class="absolute left-7 top-0 bg-white border border-zinc-200 rounded-md px-1.5 py-0.5 text-[9px] font-medium text-zinc-900 whitespace-nowrap shadow-sm">{{ pin.name.split(' (')[0] }}</div>
-          </div>
-          <p v-if="pins.length === 0" class="absolute inset-0 flex items-center justify-center text-zinc-400 text-xs">No coordinates to plot yet.</p>
-        </div>
+        <div class="relative h-[60vh] min-h-[420px]" ref="mapArea"></div>
+        <p v-if="buildings.length === 0" class="absolute inset-0 top-11 flex items-center justify-center text-zinc-400 text-xs pointer-events-none">No coordinates to plot yet.</p>
       </div>
     </div>
   </div>
@@ -90,41 +83,52 @@ const { createApp } = Vue;
 const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 createApp({
-  data() { return { buildings: [], q: '', dots: [] }; },
+  data() { return { buildings: [], q: '', map: null, markers: [] }; },
   computed: {
     filtered() {
       if (!this.q.trim()) return this.buildings;
       const q = this.q.toLowerCase();
       return this.buildings.filter(b => b.name.toLowerCase().includes(q));
-    },
-    pins() {
-      if (this.buildings.length === 0) return [];
-      const lats = this.buildings.map(b => b.lat), lngs = this.buildings.map(b => b.lng);
-      const latMin = Math.min(...lats) - 0.0003, latMax = Math.max(...lats) + 0.0003;
-      const lngMin = Math.min(...lngs) - 0.0003, lngMax = Math.max(...lngs) + 0.0003;
-      const latRange = (latMax - latMin) || 1, lngRange = (lngMax - lngMin) || 1;
-      return this.buildings.map(b => ({
-        id: b.id,
-        name: b.name,
-        x: 10 + ((b.lng - lngMin) / lngRange) * 80,
-        y: 10 + (1 - (b.lat - latMin) / latRange) * 80
-      }));
     }
   },
   mounted() {
+    this.initMap();
     this.loadBuildings();
-    // subtle dotted grid texture for the map card
-    const rows = 12, cols = 16;
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      this.dots.push({ x: (c / (cols - 1)) * 100 + '%', y: (r / (rows - 1)) * 100 + '%' });
-    }
   },
   methods: {
     colorFor(id) { return COLORS[id % COLORS.length]; },
+    initMap() {
+      // Amafel Building as a sane default center before real data loads.
+      this.map = L.map(this.$refs.mapArea).setView([14.3283, 120.9372], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(this.map);
+    },
+    renderMarkers() {
+      if (!this.map) return;
+      this.markers.forEach(m => this.map.removeLayer(m));
+      this.markers = [];
+      const latlngs = [];
+      this.buildings.forEach(b => {
+        const marker = L.marker([b.lat, b.lng]).addTo(this.map);
+        marker.bindPopup(`<strong>${b.name}</strong><br>${b.room_count} room(s)`);
+        this.markers.push(marker);
+        latlngs.push([b.lat, b.lng]);
+      });
+      if (latlngs.length === 1) {
+        this.map.setView(latlngs[0], 17);
+      } else if (latlngs.length > 1) {
+        this.map.fitBounds(latlngs, { padding: [40, 40] });
+      }
+    },
     async loadBuildings() {
       const res = await fetch('../api/buildings.php');
       const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
+      if (data.success) {
+        this.buildings = data.buildings;
+        this.renderMarkers();
+      }
     },
     async deleteBuilding(b) {
       if (!confirm(`Delete "${b.name}"? This also deletes its ${b.room_count} registered room(s). This can't be undone.`)) return;
