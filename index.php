@@ -142,7 +142,7 @@
             <div v-if="m.role !== 'user'" class="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
             </div>
-            <span class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%]" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></span>
+            <div class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%] text-left" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></div>
           </div>
           <div v-if="chatLoading" key="typing" class="flex items-end gap-2 justify-start">
             <div class="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
@@ -355,11 +355,23 @@ createApp({
         this.chatLoading = false;
       }
     },
-    // Renders **bold** from the AI's reply as real bold — escape first so
-    // neither the AI's text nor anything a user types can inject raw HTML.
+    // Renders **bold** and markdown bullet lists (lines starting with "- "
+    // or "* ") as real HTML instead of raw asterisks/dashes on one squished
+    // line. Escapes first so neither the AI's text nor anything a user types
+    // can inject raw HTML.
     formatMessage(text) {
       const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      const bolded = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      return bolded.split(/\n\s*\n/).map(block => {
+        const lines = block.split('\n').filter(l => l.trim() !== '');
+        if (lines.length === 0) return '';
+        const isList = lines.every(l => /^[-*]\s+/.test(l.trim()));
+        if (isList) {
+          const items = lines.map(l => '<li>' + l.trim().replace(/^[-*]\s+/, '') + '</li>').join('');
+          return '<ul class="list-disc pl-4 space-y-0.5 my-1">' + items + '</ul>';
+        }
+        return '<p class="mb-1.5 last:mb-0">' + lines.join('<br>') + '</p>';
+      }).join('');
     }
   }
 }).mount('#app');
