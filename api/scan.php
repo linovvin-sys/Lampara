@@ -21,15 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$secretsPath = __DIR__ . '/../secrets.php';
+$secretsPath = __DIR__ . '/../config/secrets.php';
 if (!file_exists($secretsPath)) {
-    echo json_encode(['success' => false, 'error' => "(setup needed) Copy secrets.example.php to secrets.php and add your Gemini key."]);
+    echo json_encode(['success' => false, 'error' => "(setup needed) Copy config/secrets.example.php to config/secrets.php and add your Gemini key."]);
     exit;
 }
 require_once $secretsPath;
 
 if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === 'PASTE_YOUR_KEY_HERE') {
-    echo json_encode(['success' => false, 'error' => "(setup needed) Add your real Gemini key to lampara/secrets.php."]);
+    echo json_encode(['success' => false, 'error' => "(setup needed) Add your real Gemini key to lampara/config/secrets.php."]);
     exit;
 }
 

@@ -9,22 +9,27 @@ preview, manual offline-search fallback, outdated-info flagging, and full CRUD
 
 ```
 lampara/
-├── index.php              student guide: outdoor AR arrow + grounded AI chat
-├── config.php              DB connection
-├── secrets.php              your real Gemini key (gitignored — see Setup)
-├── secrets.example.php      committed template for secrets.php
-├── schema.sql               buildings, rooms, outdated_flags
+├── index.php              landing page: what Lampara is + Start Navigating / Admin Login
+├── guide.php              student guide: outdoor AR arrow + grounded AI chat
+├── config/
+│   ├── config.php             DB connection
+│   ├── secrets.php            your real Gemini key (gitignored — see Setup)
+│   ├── secrets.example.php    committed template for secrets.php
+│   └── schema.sql             buildings, rooms, outdated_flags
+├── create-admin.php       CLI script: create/reset an admin login
 ├── student/
 │   ├── scan.php              indoor room lookup + "report outdated info"
 │   └── manual-search.php     offline-fallback directory browser
 ├── admin/
-│   ├── register-building.php   add/edit/delete buildings
-│   ├── register-room.php       add/edit/delete rooms (Office/Classroom toggle)
-│   └── manage-buildings.php    building list + live campus map
+│   ├── dashboard.php            stats, recent buildings, open outdated-info reports
+│   ├── register-building.php    add/edit/delete buildings
+│   ├── register-room.php        add/edit/delete rooms (Office/Classroom toggle)
+│   ├── manage-buildings.php     building list + live campus map
+│   └── _nav.php                 shared sidebar/top-bar nav include
 └── api/
     ├── buildings.php   GET / POST / PUT / DELETE
     ├── rooms.php       GET / POST / PUT / DELETE
-    ├── flags.php       POST (report outdated room info)
+    ├── flags.php       GET (admin) / POST (report) / PUT (admin, resolve)
     └── chat.php        POST — real Gemini-backed grounded chat
 ```
 
@@ -34,18 +39,19 @@ lampara/
    ```sql
    CREATE DATABASE lampara_db CHARACTER SET utf8mb4;
    ```
-2. **Fresh database:** import `schema.sql` as-is — it creates all three tables and
-   seeds one building (Amafel) with 5 example rooms.
+2. **Fresh database:** import `config/schema.sql` as-is — it creates all three tables
+   and seeds one building (Amafel) with 5 example rooms.
    **Existing database from the old single-table version:** don't re-run the whole
    file — run just the new `CREATE TABLE` statements (`rooms`, `outdated_flags`) and,
    if wanted, the `INSERT INTO rooms` block (adjust `@amafel_id` to your real building
    id first).
-3. Check `config.php` matches your MAMP MySQL port.
-4. **Gemini key:** copy `secrets.example.php` to `secrets.php` (same folder) and put
+3. Check `config/config.php` matches your MAMP MySQL port.
+4. **Gemini key:** copy `config/secrets.example.php` to `config/secrets.php` and put
    your real key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-   in it. `secrets.php` is gitignored, so it's safe to put a real key there.
-5. Visit `admin/manage-buildings.php` first to see the admin flow, or `index.php` on
-   an actual phone (via ngrok, see below) for the live guide.
+   in it. `config/secrets.php` is gitignored, so it's safe to put a real key there.
+5. Visit `admin/login.php` first to see the admin flow (lands on `dashboard.php`), or `guide.php` on
+   an actual phone (via ngrok, see below) for the live guide. `index.php` is the
+   landing page visitors see first — it links to both.
 
 ## Why there's a `assets/css/tailwind.css` now
 

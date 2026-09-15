@@ -9,9 +9,9 @@ class Database
 {
     private string $host = 'localhost';
     private string $username = 'root';
-    private string $password = 'root';
+    private string $password = '';
     private string $database = 'lampara_db';
-    private string $port = '8889'; // MAMP's default MySQL port — check yours in the MAMP start page if this fails
+    private int $port = 3306; // XAMPP's default MySQL port
 
     public $conn;
 

@@ -1,474 +1,795 @@
-<?php $cssVer = filemtime(__DIR__ . '/assets/css/tailwind.css'); ?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lampara — Guide</title>
+<title>Lampara — Campus AR Guide</title>
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/tailwind.css?v=<?= $cssVer ?>">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <style>
-  /* 100% first as a fallback, then 100dvh (dynamic viewport height) overrides
-     it on browsers that support it — dvh tracks the REAL visible viewport as
-     the browser's own address bar/nav collapses or the keyboard opens, so
-     content doesn't end up sized for a viewport that no longer exists. */
-  html, body { margin: 0; height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; }
-  #app { height: 100dvh; }
-  #camera-feed { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
-  .lamp-glow { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 0.55)); }
-  .fade-bg { background: linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.05) 45%, rgba(0,0,0,.05) 60%, rgba(0,0,0,.85)); }
-  @keyframes ar-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-  .ar-bounce { animation: ar-bounce 900ms ease-in-out infinite; }
-
-  /* Press feedback — makes buttons feel like they're actually listening. */
-  .press { transition: transform 160ms ease-out; }
-  .press:active { transform: scale(0.97); }
-
-  /* Chat message entrance */
-  .msg-enter-active { transition: opacity 200ms ease-out, transform 200ms ease-out; }
-  .msg-enter-from { opacity: 0; transform: translateY(8px); }
-
-  /* Chat sheet slide-up */
-  .sheet-enter-active { transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1); }
-  .sheet-leave-active { transition: transform 200ms ease-in; }
-  .sheet-enter-from, .sheet-leave-to { transform: translateY(100%); }
-
-  /* "AI is thinking" typing indicator */
-  .typing-dot { width: 6px; height: 6px; border-radius: 9999px; background: #a1a1aa; animation: typing-bounce 1.1s infinite ease-in-out; }
-  .typing-dot:nth-child(2) { animation-delay: 150ms; }
-  .typing-dot:nth-child(3) { animation-delay: 300ms; }
-  @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
-
-  /* Opening sequence — the app's actual first impression, worth real polish. */
-  :root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); }
-
-  /* Lamp icon "breathes" while silently checking for an already-granted
-     permission, instead of a flat opacity pulse — feels alive, not stuck. */
-  @keyframes lamp-breathe {
-    0%, 100% { filter: drop-shadow(0 0 16px rgba(245,158,11,.5)); transform: scale(1); }
-    50% { filter: drop-shadow(0 0 26px rgba(245,158,11,.8)); transform: scale(1.05); }
+  :root {
+    --green-50:  #f0fdf4;
+    --green-100: #dcfce7;
+    --green-200: #bbf7d0;
+    --green-300: #86efac;
+    --green-500: #22c55e;
+    --green-600: #16a34a;
+    --green-700: #15803d;
+    --green-800: #14532d;
+    --moss-100:  #ecfccb;
+    --moss-500:  #65a30d;
+    --ink:       #14251c;
+    --muted:     #5b6b63;
+    --line:      #e3ede6;
   }
-  .lamp-breathe { animation: lamp-breathe 1.8s var(--ease-in-out) infinite; }
 
-  /* Gate screen entrance — icon pops in first with a touch of overshoot
-     (nothing appears from nothing), then heading/description/button cascade
-     up right after, each slightly later than the last. */
-  @keyframes icon-pop {
-    0% { opacity: 0; transform: scale(0.85) translateY(6px); }
-    65% { opacity: 1; transform: scale(1.06) translateY(0); }
-    100% { transform: scale(1); }
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; min-height: 100%; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    color: var(--ink);
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
   }
+
+  /* Layered green wash backdrop — a few different green tints so it doesn't
+     read as flat white. Mobile-first: fewer, closer blobs; desktop spreads
+     them out more (see media query below). */
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(560px 380px at 12% -6%, var(--green-100), transparent 60%),
+      radial-gradient(480px 420px at 100% 8%, var(--green-200), transparent 58%),
+      radial-gradient(520px 460px at 100% 100%, var(--green-50), transparent 55%),
+      radial-gradient(460px 380px at -4% 82%, var(--moss-100), transparent 58%),
+      #ffffff;
+  }
+
+  @media (min-width: 1024px) {
+    .backdrop {
+      background:
+        radial-gradient(760px 520px at 8% -10%, var(--green-100), transparent 60%),
+        radial-gradient(680px 560px at 104% 4%, var(--green-200), transparent 55%),
+        radial-gradient(700px 600px at 96% 104%, var(--green-50), transparent 55%),
+        radial-gradient(620px 520px at -6% 88%, var(--moss-100), transparent 55%),
+        #ffffff;
+    }
+  }
+
+  /* ---- Nav bar (SPA: Home / About switch views, no page reload) ---- */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1.25rem;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 1.0625rem;
+  }
+
+  .brand .brand-mark {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.55rem;
+    background: linear-gradient(155deg, var(--green-500), var(--green-700));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .nav-link {
+    display: inline-block;
+    padding: 0.5rem 0.875rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--muted);
+    transition: background-color 160ms ease-out, color 160ms ease-out;
+  }
+  .nav-link:hover { background: var(--green-50); color: var(--ink); }
+  .nav-link.is-active { background: var(--green-600); color: #ffffff; }
+
+  main { flex: 1; display: flex; }
+
+  .view { display: none; width: 100%; }
+  .view.is-active { display: block; }
+
+  /* ---- Home view ---- */
+  #view-home .home-inner { padding: 0 0 3rem; }
+
+  .hero-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100dvh - 4rem);
+    padding: 2.5rem 1.5rem 2rem;
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 26rem;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .logo {
+    width: 4rem;
+    height: 4rem;
+    margin: 0 auto 1.25rem;
+    border-radius: 1.25rem;
+    background: linear-gradient(155deg, var(--green-500), var(--green-700));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 28px -10px rgba(22, 163, 74, 0.5);
+  }
+
+  h1 {
+    font-size: 1.875rem;
+    line-height: 1.2;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+  }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    margin: 0 0 2rem;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 2.25rem;
+  }
+
+  .feature-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: 1rem 0.75rem;
+    box-shadow: 0 1px 2px rgba(20, 37, 28, 0.04);
+  }
+
+  .feature-card .icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0 auto 0.4rem;
+    border-radius: 0.7rem;
+    background: var(--green-50);
+    color: var(--green-700);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .feature-card:nth-child(2) .icon { background: var(--green-200); }
+  .feature-card:nth-child(3) .icon { background: var(--green-300); }
+
+  .feature-card .label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 160ms ease-out, filter 160ms ease-out, background-color 160ms ease-out;
+  }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--green-600);
+    color: #ffffff;
+    box-shadow: 0 10px 24px -8px rgba(22, 163, 74, 0.45);
+  }
+  .btn-primary:hover { filter: brightness(1.06); }
+
+  .btn-secondary {
+    background: #ffffff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .btn-secondary:hover { background: var(--green-50); }
+
+  .panel { display: none; }
+
+  /* ---- Home: extra content below the fold ---- */
+  .home-extra {
+    width: 100%;
+    max-width: 26rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .section-heading {
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 1.25rem;
+  }
+
+  .mini-steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.875rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .mini-step {
+    display: flex;
+    gap: 0.875rem;
+    align-items: flex-start;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+
+  .mini-step .mini-icon {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    background: var(--green-50);
+    color: var(--green-700);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mini-step:nth-child(2) .mini-icon { background: var(--green-200); }
+  .mini-step:nth-child(3) .mini-icon { background: var(--moss-100); }
+
+  .mini-step .mini-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .mini-step .mini-body {
+    color: var(--muted);
+    font-size: 0.8438rem;
+    line-height: 1.55;
+  }
+
+  .cta-banner {
+    text-align: center;
+    background: linear-gradient(150deg, var(--green-500) 0%, var(--green-600) 45%, var(--green-800) 100%);
+    color: #ffffff;
+    border-radius: 1.5rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .cta-banner h3 {
+    font-size: 1.375rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .cta-banner p {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin: 0 0 1.5rem;
+  }
+
+  .cta-banner .btn-primary {
+    background: #ffffff;
+    color: var(--green-700);
+    box-shadow: none;
+  }
+  .cta-banner .btn-primary:hover { filter: brightness(0.97); }
+
+  .cta-banner .learn-more {
+    display: block;
+    margin-top: 1rem;
+    padding: 0;
+    border-radius: 0;
+    color: #ffffff;
+    font-size: 0.8438rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .cta-banner .learn-more:hover { background: none; color: #ffffff; }
+
+  footer {
+    text-align: center;
+    color: #9aa79f;
+    font-size: 0.75rem;
+    padding: 1.5rem 1.5rem;
+  }
+
   @keyframes fade-up {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-  .gate-icon { animation: icon-pop 520ms var(--ease-out) both; }
-  .gate-heading { animation: fade-up 420ms var(--ease-out) both; animation-delay: 120ms; }
-  .gate-desc { animation: fade-up 420ms var(--ease-out) both; animation-delay: 190ms; }
-  .gate-button { animation: fade-up 420ms var(--ease-out) both; animation-delay: 260ms; }
+  .fade-up { animation: fade-up 480ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+  .fade-up-1 { animation-delay: 60ms; }
+  .fade-up-2 { animation-delay: 140ms; }
+  .fade-up-3 { animation-delay: 220ms; }
+  .fade-up-4 { animation-delay: 300ms; }
+  .fade-up-5 { animation-delay: 380ms; }
 
-  /* The whole pre-app overlay (checking + gate) cross-fades out smoothly into
-     the live camera/AR view instead of cutting instantly. */
-  .gate-transition-leave-active { transition: opacity 380ms var(--ease-in-out), transform 380ms var(--ease-in-out); }
-  .gate-transition-leave-to { opacity: 0; transform: scale(1.03); }
+  /* ---- About view ---- */
+  #view-about .about-inner {
+    padding: 2.5rem 1.5rem 3rem;
+  }
 
-  /* Main UI fades/slides in right as the gate clears. */
-  @keyframes main-fade-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-  .main-fade-in { animation: main-fade-in 450ms var(--ease-out) both; animation-delay: 150ms; }
+  .about-shell {
+    width: 100%;
+    max-width: 40rem;
+    margin: 0 auto;
+  }
+
+  .about-shell .eyebrow {
+    display: inline-block;
+    color: var(--green-700);
+    background: var(--green-50);
+    border: 1px solid var(--green-100);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+
+  .about-shell h2 {
+    font-size: 1.625rem;
+    line-height: 1.25;
+    margin: 0 0 0.75rem;
+  }
+
+  .about-shell .lede {
+    color: var(--muted);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    margin: 0 0 2rem;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.875rem;
+    margin-bottom: 2rem;
+  }
+
+  .step {
+    display: flex;
+    gap: 0.875rem;
+    align-items: flex-start;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: 1rem;
+  }
+
+  .step .num {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--green-600);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step:nth-child(2) .num { background: var(--green-500); }
+  .step:nth-child(4) .num { background: var(--moss-500); }
+
+  .step .step-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .step .step-body {
+    color: var(--muted);
+    font-size: 0.8438rem;
+    line-height: 1.55;
+  }
+
+  .why-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.875rem;
+    margin-bottom: 2rem;
+  }
+
+  .why-card {
+    background: linear-gradient(160deg, var(--green-50), #ffffff);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: 1.125rem;
+  }
+  .why-card:nth-child(2) { background: linear-gradient(160deg, var(--green-200), #ffffff); }
+  .why-card:nth-child(3) { background: linear-gradient(160deg, var(--moss-100), #ffffff); }
+
+  .why-card .why-title {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    margin-bottom: 0.35rem;
+    color: var(--green-700);
+  }
+  .why-card:nth-child(2) .why-title { color: var(--green-700); }
+  .why-card:nth-child(3) .why-title { color: var(--moss-500); }
+
+  .why-card .why-body {
+    color: var(--muted);
+    font-size: 0.8438rem;
+    line-height: 1.6;
+  }
+
+  .about-cta {
+    text-align: center;
+    border-top: 1px solid var(--line);
+    padding-top: 1.75rem;
+  }
+
+  .about-cta p {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin: 0 0 1rem;
+  }
+
+  .about-cta .btn { display: inline-block; width: auto; padding-left: 1.75rem; padding-right: 1.75rem; }
+
+  /* Tablet and up: feature cards / steps move into rows. */
+  @media (min-width: 480px) {
+    .features { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  @media (min-width: 640px) {
+    .why-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .mini-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  /* Desktop: wider shell, two-column hero so the page doesn't look like a
+     stretched phone screen on a big monitor. */
+  @media (min-width: 1024px) {
+    .navbar { padding: 1rem 3rem; }
+
+    .hero-wrap { padding: 4rem 3rem; }
+
+    .home-extra { max-width: 64rem; padding: 0 3rem; }
+    .mini-step { padding: 1.5rem; }
+    .cta-banner { padding: 3rem 4rem; }
+    .cta-banner h3 { font-size: 1.75rem; }
+    .cta-banner p { font-size: 0.9375rem; max-width: 32rem; margin-left: auto; margin-right: auto; }
+
+    .shell {
+      max-width: 64rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      text-align: left;
+    }
+
+    .hero { text-align: left; }
+    .logo { margin: 0 0 1.5rem; }
+    h1 { font-size: 2.75rem; }
+    .tagline { font-size: 1.0625rem; margin-bottom: 2.5rem; max-width: 30rem; }
+
+    .actions { flex-direction: row; }
+    .btn { width: auto; padding-left: 1.75rem; padding-right: 1.75rem; }
+
+    .hero-features { display: none; }
+
+    .panel {
+      display: block;
+      background: linear-gradient(160deg, var(--green-50), #ffffff);
+      border: 1px solid var(--line);
+      border-radius: 1.75rem;
+      padding: 2.5rem;
+    }
+    .panel .features { grid-template-columns: 1fr; gap: 1rem; margin-bottom: 0; }
+    .panel .feature-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      text-align: left;
+      padding: 1.25rem;
+    }
+    .panel .feature-card .icon {
+      margin: 0;
+      flex-shrink: 0;
+      width: 2.75rem;
+      height: 2.75rem;
+    }
+    .panel .feature-card .icon svg { width: 22px; height: 22px; }
+
+    #view-about .about-inner { padding: 4rem 3rem; }
+    .about-shell { max-width: 56rem; }
+    .about-shell h2 { font-size: 2.25rem; }
+    .about-shell .lede { font-size: 1.0625rem; max-width: 42rem; }
+    .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 </style>
 </head>
-<body class="bg-black">
+<body>
 
-<div id="app" class="relative w-screen h-screen text-white select-none overflow-hidden">
+<div class="backdrop"></div>
 
-  <!-- live camera background -->
-  <video id="camera-feed" autoplay playsinline muted></video>
-  <div class="absolute inset-0 z-0 fade-bg"></div>
+<nav class="navbar">
+  <a href="#home" class="brand nav-link-home" data-target="home">
+    <span class="brand-mark">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+    </span>
+    Lampara
+  </a>
+  <ul class="nav-links">
+    <li><a href="#home" class="nav-link" data-target="home">Home</a></li>
+    <li><a href="#about" class="nav-link" data-target="about">About</a></li>
+  </ul>
+</nav>
 
-  <!-- Pre-app overlay: silent permission check, then (if needed) the gate
-       screen — both live under one transition so the whole thing cross-fades
-       smoothly into the live camera/AR view instead of cutting instantly. -->
-  <transition name="gate-transition">
-    <div v-if="checking || quickStart || !started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
-      <!-- brief silent check for an already-granted permission — avoids a
-           flash of the full gate screen for returning users who'll skip it -->
-      <div v-if="checking" class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow lamp-breathe">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </div>
+<main>
 
-      <!-- returning visitor, permission already granted — one lightweight
-           tap (not the full explanation) still gets a real gesture for the
-           compass permission request inside start() -->
-      <div v-else-if="quickStart" class="text-center">
-        <button @click="start" class="gate-icon press w-16 h-16 mx-auto rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </button>
-        <p class="gate-heading text-white/50 text-xs mt-3">Tap to continue</p>
-      </div>
+  <section id="view-home" class="view" data-view="home">
+    <div class="home-inner">
 
-      <!-- setup / permission screen — only reached on a genuine first visit,
-           or if permission was previously denied/reset -->
-      <div v-else class="text-center max-w-sm px-6">
-        <div class="gate-icon w-14 h-14 mx-auto mb-5 rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </div>
-        <h1 class="gate-heading text-2xl font-bold mb-2">Start Lampara</h1>
-        <p class="gate-desc text-white/60 text-sm mb-6 leading-relaxed">Needs camera, location, and compass permission to point you toward nearby registered buildings.</p>
-        <button @click="start" class="gate-button press bg-amber-500 hover:bg-amber-400 text-zinc-900 rounded-2xl px-6 py-3.5 font-semibold w-full transition">
-          Enable Camera &amp; Location
-        </button>
-        <p v-if="statusText && !statusOk" class="text-amber-400 text-xs font-mono mt-4">{{ statusText }}</p>
-      </div>
-    </div>
-  </transition>
+      <div class="hero-wrap">
+        <div class="shell">
 
-  <!-- top status row + search -->
-  <div v-if="started" class="main-fade-in relative z-20 p-4 flex flex-col gap-2">
-    <div class="flex items-center gap-2">
-      <div class="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full pl-2.5 pr-3 py-1.5">
-        <span class="w-1.5 h-1.5 rounded-full" :class="(statusOk && headingInit) ? 'bg-emerald-400' : 'bg-amber-400'"></span>
-        <span class="text-xs font-medium text-white">{{ !statusOk ? 'GPS + Compass' : (headingInit ? 'GPS + Compass' : 'GPS ready · Compass…') }}</span>
-      </div>
-      <a href="student/manual-search.php" class="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 8.7a9.9 9.9 0 0 1 10.9 2M5 12a9.9 9.9 0 0 1 3-2.2M12 19.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM8.8 15.2a5.5 5.5 0 0 1 6.6.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        No signal? Search manually
-      </a>
-    </div>
-    <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3.5 py-2.5">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="flex-shrink-0"><circle cx="10.5" cy="10.5" r="6.5" stroke="#fff" stroke-opacity="0.5" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="#fff" stroke-opacity="0.5" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <input v-model="searchQuery" type="text" placeholder="Search a building to get directions…"
-             class="flex-1 bg-transparent text-sm text-white placeholder-white/40 focus:outline-none">
-      <button v-if="searchQuery" @click="searchQuery = ''" class="text-white/50 text-xs font-medium flex-shrink-0">Clear</button>
-    </div>
-  </div>
-
-  <!-- ambient idle labels: every nearby building's name, dim, positioned left/right by
-       relative compass bearing so it roughly matches the direction you'd turn to face it -->
-  <div v-if="started" class="absolute inset-0 z-10 pointer-events-none">
-    <div v-for="b in ambientBuildings" :key="b.id"
-         class="absolute top-[30%] -translate-x-1/2 transition-all duration-300 bg-black/40 text-white/70 text-xs font-medium rounded-full px-3 py-1.5 whitespace-nowrap"
-         :style="{ left: b.leftPercent + '%' }">
-      {{ b.name }}
-    </div>
-  </div>
-
-  <!-- target building: bouncing arrow + card, promoted once search finds a match -->
-  <div v-if="started && target" class="absolute top-[36%] -translate-x-1/2 z-10 text-center transition-all duration-300" :style="{ left: target.leftPercent + '%' }">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="mx-auto mb-2 lamp-glow ar-bounce" :style="{ transform: 'rotate(' + (target.offscreen ? (target.offscreen === 'left' ? -90 : 90) : 0) + 'deg)' }">
-      <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#f59e0b"/>
-    </svg>
-    <div class="bg-white text-zinc-900 rounded-2xl px-4 py-3 inline-block shadow-2xl">
-      <div class="font-semibold text-base">{{ target.name }}</div>
-      <div class="text-xs mt-0.5">
-        <span class="font-mono font-medium text-amber-600">{{ target.distance }}m</span>
-        <span class="text-zinc-500">{{ target.offscreen ? '— turn to face it' : 'away' }}</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- bottom action row: only once a search finds a target building -->
-  <div v-if="started && target" class="absolute bottom-10 inset-x-0 z-20 flex flex-col items-center gap-3">
-    <a href="student/scan.php" class="press flex items-center gap-2 bg-white/95 text-zinc-900 rounded-full px-4 py-2.5 text-xs font-medium shadow-lg">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2" stroke="#111" stroke-width="1.6"/></svg>
-      Scan signage (indoor)
-    </a>
-    <button @click="openChat(target)" class="press flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 rounded-full px-6 py-3.5 font-semibold shadow-2xl transition lamp-glow">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 12c0 4.418-4.03 8-9 8-1.06 0-2.078-.163-3.024-.463L3 21l1.5-4.5C3.55 15.06 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" stroke="#111" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Ask Lampara
-    </button>
-  </div>
-
-  <!-- chat panel -->
-  <transition name="sheet">
-    <div v-if="chatOpenFor" class="absolute inset-0 z-40 bg-zinc-950/60" @click.self="chatOpenFor = null">
-      <div class="bg-white text-zinc-900 w-full h-full flex flex-col">
-        <div class="flex justify-between items-center px-5 pt-5 pb-3 border-b border-zinc-100">
-          <h2 class="font-bold">Ask Lampara</h2>
-          <button @click="chatOpenFor = null" class="press text-zinc-400 text-2xl leading-none">&times;</button>
-        </div>
-        <div class="px-5 pt-3">
-          <div class="flex items-center gap-2 bg-amber-50 text-amber-800 text-[11px] font-medium rounded-xl px-3 py-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>
-            Grounded on {{ chatOpenFor.name }}'s registered directory only
-          </div>
-        </div>
-        <transition-group tag="div" name="msg" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm" ref="chatLog">
-          <div v-for="(m, i) in chatMessages" :key="i" class="flex items-end gap-2" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div v-if="m.role !== 'user'" class="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          <div class="hero">
+            <div class="fade-up fade-up-1 logo">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
             </div>
-            <div class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%] text-left" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></div>
-          </div>
-          <div v-if="chatLoading" key="typing" class="flex items-end gap-2 justify-start">
-            <div class="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+
+            <h1 class="fade-up fade-up-1">Lampara</h1>
+            <p class="fade-up fade-up-2 tagline">
+              Your AR-powered campus guide. Point your phone toward a building for a live
+              compass arrow, scan room signage to find exactly where you're headed, or just
+              ask the built-in AI assistant.
+            </p>
+
+            <div class="features hero-features fade-up fade-up-3">
+              <div class="feature-card">
+                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg></div>
+                <div class="label">AR Outdoor Guide</div>
+              </div>
+              <div class="feature-card">
+                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+                <div class="label">Room Scan &amp; Search</div>
+              </div>
+              <div class="feature-card">
+                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg></div>
+                <div class="label">Ask Lampara AI</div>
+              </div>
             </div>
-            <span class="inline-flex items-center gap-1 bg-zinc-100 rounded-2xl px-4 py-3.5">
-              <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-            </span>
+
+            <div class="actions fade-up fade-up-4">
+              <a href="guide.php" class="btn btn-primary">Start Navigating</a>
+              <a href="admin/login.php" class="btn btn-secondary">Admin Login</a>
+            </div>
           </div>
-        </transition-group>
-        <form @submit.prevent="sendChat" class="flex gap-2 p-4 pb-6 border-t border-zinc-100">
-          <input v-model="chatInput" type="text" placeholder="Ask about this building…" :disabled="chatLoading"
-                 class="flex-1 bg-zinc-100 rounded-full px-4 py-3 text-sm focus:outline-none disabled:opacity-60">
-          <button class="press w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 disabled:opacity-60" :disabled="chatLoading">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12.5 20 4l-4.5 16-4-6.5L4 12.5Z" stroke="#111" stroke-width="1.7" stroke-linejoin="round"/></svg>
-          </button>
-        </form>
+
+          <div class="panel fade-up fade-up-3" aria-hidden="true">
+            <div class="features">
+              <div class="feature-card">
+                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg></div>
+                <div class="label">AR Outdoor Guide</div>
+              </div>
+              <div class="feature-card">
+                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+                <div class="label">Room Scan &amp; Search</div>
+              </div>
+              <div class="feature-card">
+                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg></div>
+                <div class="label">Ask Lampara AI</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="home-extra">
+
+        <h2 class="section-heading">Why students reach for Lampara</h2>
+        <div class="mini-steps">
+          <div class="mini-step">
+            <div class="mini-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg></div>
+            <div>
+              <div class="mini-title">No more wrong turns</div>
+              <div class="mini-body">The outdoor AR arrow points straight at your building in real time, so you stop guessing which path to take.</div>
+            </div>
+          </div>
+          <div class="mini-step">
+            <div class="mini-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg></div>
+            <div>
+              <div class="mini-title">Find rooms in seconds</div>
+              <div class="mini-body">Scan signage or search the directory to land on the exact office, classroom, or lab — with floor and hours.</div>
+            </div>
+          </div>
+          <div class="mini-step">
+            <div class="mini-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5-10-5Z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg></div>
+            <div>
+              <div class="mini-title">Made for every visit</div>
+              <div class="mini-body">New student, transferee, or a parent visiting for the first time — Lampara works the same from day one.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cta-banner">
+          <h3>Ready to explore campus?</h3>
+          <p>Start navigating now, or read more about how Lampara keeps you from getting lost.</p>
+          <a href="guide.php" class="btn btn-primary">Start Navigating</a>
+          <button type="button" class="learn-more nav-link" data-target="about">Learn more about Lampara &rarr;</button>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <section id="view-about" class="view" data-view="about">
+    <div class="about-inner">
+      <div class="about-shell">
+
+        <span class="eyebrow fade-up fade-up-1">About Lampara</span>
+        <h2 class="fade-up fade-up-1">Never wander campus lost again.</h2>
+        <p class="fade-up fade-up-2 lede">
+          Lampara is an AR-powered wayfinding guide built for students, staff, and
+          visitors who don't know a campus by heart. Instead of squinting at a printed
+          map or wandering hallways, point your phone, scan a sign, or just ask —
+          and get an answer grounded in the campus's real building and room data.
+        </p>
+
+        <div class="steps fade-up fade-up-3">
+          <div class="step">
+            <div class="num">1</div>
+            <div>
+              <div class="step-title">Point your phone</div>
+              <div class="step-body">A live compass arrow overlays your camera view and points straight at the building you're heading to, using your phone's GPS and compass.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div>
+              <div class="step-title">Scan or search a room</div>
+              <div class="step-body">Once you're inside, scan room signage or use manual search to find the exact office, classroom, or lab — with floor and hours.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div>
+              <div class="step-title">Ask Lampara AI</div>
+              <div class="step-body">Not sure what to look for? Ask in plain language — the assistant answers using real, up-to-date campus building and room records.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">4</div>
+            <div>
+              <div class="step-title">Flag what's outdated</div>
+              <div class="step-body">Found a wrong room number or old office hours? Report it in one tap so admins can keep the directory accurate for everyone else.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="why-grid fade-up fade-up-4">
+          <div class="why-card">
+            <div class="why-title">Built for mobile</div>
+            <div class="why-body">Designed first for the phone in your pocket — the way most students actually find their way around.</div>
+          </div>
+          <div class="why-card">
+            <div class="why-title">Always current</div>
+            <div class="why-body">Admins manage buildings and rooms directly, so directions and room info stay accurate as campus changes.</div>
+          </div>
+          <div class="why-card">
+            <div class="why-title">Works offline</div>
+            <div class="why-body">Manual search caches the directory on your device, so you can still find a room with a weak signal.</div>
+          </div>
+        </div>
+
+        <div class="about-cta fade-up fade-up-5">
+          <p>Ready to find your way?</p>
+          <a href="guide.php" class="btn btn-primary">Start Navigating</a>
+        </div>
+
       </div>
     </div>
-  </transition>
+  </section>
 
-</div>
+</main>
+
+<footer>
+  Lampara &mdash; find your way around campus.
+</footer>
 
 <script>
-const { createApp } = Vue;
+(function () {
+  var views = document.querySelectorAll('.view');
+  var links = document.querySelectorAll('.nav-link, .nav-link-home');
 
-function haversineMeters(a, b) {
-  const R = 6371000;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-  const lat1 = a.lat * Math.PI / 180, lat2 = b.lat * Math.PI / 180;
-  const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
-}
-function bearingDeg(a, b) {
-  const lat1 = a.lat * Math.PI / 180, lat2 = b.lat * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-// Signed angular difference in [-180, 180]: positive = b is clockwise (right) of a.
-function relativeAngle(fromDeg, toDeg) {
-  return ((toDeg - fromDeg + 540) % 360) - 180;
-}
-
-createApp({
-  data() {
-    return {
-      started: false,
-      checking: true, // briefly true on load while we silently check for an already-granted permission
-      quickStart: false, // permission was already granted — skip the explanation, but still need one real tap
-      statusText: '',
-      statusOk: false,
-      buildings: [],
-      myPos: null,
-      heading: 0,
-      headingInit: false,
-      searchQuery: '',
-      target: null,
-      ambientBuildings: [],
-      chatOpenFor: null,
-      chatMessages: [],
-      chatInput: '',
-      chatLoading: false
-    };
-  },
-  computed: {
-    matchedBuilding() {
-      const q = this.searchQuery.trim().toLowerCase();
-      if (q.length < 2) return null;
-      return this.buildings.find(b => b.name.toLowerCase().includes(q)) || null;
-    }
-  },
-  watch: {
-    matchedBuilding(building) { this.target = building ? { ...building } : null; this.recompute(); }
-  },
-  async mounted() {
-    // Skip the full explanation screen on repeat visits when permission was
-    // genuinely already granted (checked without triggering a prompt) — but
-    // still require one real tap before calling start(), not a fully silent
-    // auto-start. iOS ties its compass permission specifically to a live user
-    // gesture; a silent automatic call can make just the compass silently
-    // fail even when camera/GPS succeed fine, with no visible error at all.
-    // One lightweight tap guarantees correctness on every device instead of
-    // gambling on undocumented platform behavior.
-    try {
-      if (navigator.permissions && navigator.permissions.query) {
-        const status = await navigator.permissions.query({ name: 'camera' });
-        if (status.state === 'granted') {
-          this.quickStart = true;
-          this.checking = false;
-          return;
-        }
-      }
-    } catch (e) { /* Permissions API unsupported for 'camera' on this browser — fall back to the full gate */ }
-    this.checking = false;
-  },
-  methods: {
-    async start() {
-      this.checking = true;
-      this.quickStart = false;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        document.getElementById('camera-feed').srcObject = stream;
-      } catch (e) {
-        this.statusText = 'Camera permission denied.';
-        this.checking = false;
-        return;
-      }
-
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
-      }
-      // Registering both event types made Android phones fire two different,
-      // sometimes-conflicting heading readings per physical movement — that
-      // conflict, not sensor noise, is what smoothing alone couldn't fix.
-      // Use "absolute" (true compass-referenced) when the browser supports
-      // it; only fall back to plain deviceorientation otherwise.
-      const primaryEvent = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
-      window.addEventListener(primaryEvent, this.onOrientation, true);
-      // Some Android OEM browsers report an event type as supported (feature
-      // detection passes) but never actually dispatch it — no permission
-      // prompt, no error, it just silently never fires. If nothing arrives
-      // shortly, fall back to the other event type instead of leaving the
-      // compass permanently stuck at its default heading.
-      setTimeout(() => {
-        if (!this.headingInit && primaryEvent === 'deviceorientationabsolute') {
-          window.removeEventListener('deviceorientationabsolute', this.onOrientation, true);
-          window.addEventListener('deviceorientation', this.onOrientation, true);
-        }
-      }, 2500);
-
-      if (!navigator.geolocation) {
-        this.statusText = 'Geolocation not supported.';
-        this.checking = false;
-        return;
-      }
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          const raw = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          // GPS wobbles a few meters even standing still — at short range to a
-          // building that noise alone swings the calculated bearing enough to
-          // make labels visibly drift. Smooth position the same way heading is
-          // smoothed, so it settles instead of sliding on its own.
-          if (!this.myPos) {
-            this.myPos = raw;
-          } else {
-            this.myPos = {
-              lat: this.myPos.lat + (raw.lat - this.myPos.lat) * 0.2,
-              lng: this.myPos.lng + (raw.lng - this.myPos.lng) * 0.2
-            };
-          }
-          this.statusOk = true;
-          this.recompute();
-        },
-        (err) => { this.statusText = 'GPS error: ' + err.message; },
-        { enableHighAccuracy: true }
-      );
-
-      const res = await fetch('api/buildings.php');
-      const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
-
-      this.started = true;
-      this.checking = false;
-    },
-    onOrientation(e) {
-      const raw = e.webkitCompassHeading != null ? e.webkitCompassHeading : (360 - e.alpha) % 360;
-      // Raw compass readings jitter several degrees per event — smooth with a
-      // circular exponential moving average so labels glide instead of shaking.
-      if (!this.headingInit) {
-        this.heading = raw;
-        this.headingInit = true;
-      } else {
-        const delta = relativeAngle(this.heading, raw);
-        this.heading = (this.heading + delta * 0.15 + 360) % 360;
-      }
-      this.recompute();
-    },
-    // Maps a relative bearing to a horizontal screen position (50% = straight
-    // ahead). Buildings outside a wide-ish cone are hidden for ambient labels,
-    // but the searched target always shows, clamped to a screen edge with an
-    // "offscreen" flag so you know which way to turn.
-    bearingToScreen(relDeg, halfConeDeg) {
-      const clamped = Math.max(-halfConeDeg, Math.min(halfConeDeg, relDeg));
-      return 50 + (clamped / halfConeDeg) * 42;
-    },
-    recompute() {
-      if (!this.myPos || !this.buildings.length) return;
-
-      const ambient = [];
-      for (const b of this.buildings) {
-        if (this.target && b.id === this.target.id) continue;
-        const dist = haversineMeters(this.myPos, b);
-        if (dist > 300) continue;
-        const rel = relativeAngle(this.heading, bearingDeg(this.myPos, b));
-        // Hysteresis: wider cone to keep a label shown than to first show it,
-        // so jitter right at the edge doesn't flicker it on/off.
-        const wasVisible = this.ambientBuildings.some(x => x.id === b.id);
-        const cone = wasVisible ? 75 : 60;
-        if (Math.abs(rel) > cone) continue;
-        ambient.push({ id: b.id, name: b.name, leftPercent: this.bearingToScreen(rel, 70) });
-      }
-      this.ambientBuildings = ambient;
-
-      if (this.target) {
-        const dist = Math.round(haversineMeters(this.myPos, this.target));
-        const rel = relativeAngle(this.heading, bearingDeg(this.myPos, this.target));
-        this.target = {
-          ...this.target,
-          distance: dist,
-          leftPercent: this.bearingToScreen(rel, 70),
-          offscreen: rel > 70 ? 'right' : (rel < -70 ? 'left' : false)
-        };
-      }
-    },
-    openChat(building) {
-      // Keep the running conversation when reopening the same building's chat
-      // — only start fresh when it's actually a different building.
-      const isSameBuilding = this.chatOpenFor && this.chatOpenFor.id === building.id;
-      this.chatOpenFor = building;
-      if (!isSameBuilding || this.chatMessages.length === 0) {
-        this.chatMessages = [{ role: 'assistant', text: `Ask me anything about ${building.name} — I'll only answer from what's registered.` }];
-      }
-    },
-    async sendChat() {
-      if (!this.chatInput.trim() || this.chatLoading) return;
-      const userText = this.chatInput;
-      // Snapshot before pushing the new message — the server appends it separately.
-      const history = this.chatMessages.map(m => ({ role: m.role, text: m.text }));
-      this.chatMessages.push({ role: 'user', text: userText });
-      this.chatInput = '';
-      this.chatLoading = true;
-      try {
-        const res = await fetch('api/chat.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ building_id: this.chatOpenFor.id, message: userText, history })
-        });
-        const data = await res.json();
-        this.chatMessages.push({ role: 'assistant', text: data.reply || "I don't have that information." });
-      } catch (e) {
-        this.chatMessages.push({ role: 'assistant', text: "Couldn't reach the server — try again once you're back online." });
-      } finally {
-        this.chatLoading = false;
-      }
-    },
-    // Renders **bold** and markdown bullet lists (lines starting with "- "
-    // or "* ") as real HTML instead of raw asterisks/dashes on one squished
-    // line. Escapes first so neither the AI's text nor anything a user types
-    // can inject raw HTML.
-    formatMessage(text) {
-      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const bolded = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      return bolded.split(/\n\s*\n/).map(block => {
-        const lines = block.split('\n').filter(l => l.trim() !== '');
-        if (lines.length === 0) return '';
-        const isList = lines.every(l => /^[-*]\s+/.test(l.trim()));
-        if (isList) {
-          const items = lines.map(l => '<li>' + l.trim().replace(/^[-*]\s+/, '') + '</li>').join('');
-          return '<ul class="list-disc pl-4 space-y-0.5 my-1">' + items + '</ul>';
-        }
-        return '<p class="mb-1.5 last:mb-0">' + lines.join('<br>') + '</p>';
-      }).join('');
-    }
+  function resolveView() {
+    var hash = (location.hash || '').replace('#', '');
+    return hash === 'about' ? 'about' : 'home';
   }
-}).mount('#app');
+
+  function render(name, updateHash) {
+    views.forEach(function (v) {
+      v.classList.toggle('is-active', v.dataset.view === name);
+    });
+    links.forEach(function (l) {
+      l.classList.toggle('is-active', l.dataset.target === name);
+    });
+    if (updateHash && location.hash !== '#' + name) {
+      history.pushState(null, '', '#' + name);
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  links.forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      render(link.dataset.target, true);
+    });
+  });
+
+  window.addEventListener('popstate', function () {
+    render(resolveView(), false);
+  });
+
+  render(resolveView(), false);
+})();
 </script>
 
 </body>

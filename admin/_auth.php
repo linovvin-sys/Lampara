@@ -9,7 +9,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 if (empty($_SESSION['admin_id'])) {
-    $next = urlencode($_SERVER['REQUEST_URI'] ?? 'manage-buildings.php');
+    $next = urlencode($_SERVER['REQUEST_URI'] ?? 'dashboard.php');
     header('Location: login.php?next=' . $next);
     exit;
 }

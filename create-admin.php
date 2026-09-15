@@ -11,7 +11,7 @@ if (php_sapi_name() !== 'cli') {
     die("Run this from the command line, not a browser: php create-admin.php\n");
 }
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/config/config.php';
 
 fwrite(STDOUT, "Admin username: ");
 $username = trim(fgets(STDIN));

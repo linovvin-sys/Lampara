@@ -1,123 +1,149 @@
-<?php require_once __DIR__ . '/_auth.php'; $cssVer = filemtime(__DIR__ . '/../assets/css/tailwind.css'); ?>
+<?php
+require_once __DIR__ . '/_auth.php';
+$activeNav = 'register-room';
+$cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
+?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Register Room</title>
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="../assets/css/admin.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<style>body { font-family: 'Outfit', sans-serif; }</style>
 </head>
-<body class="bg-white min-h-screen">
+<body class="admin-body">
 
-<div id="app">
-  <div class="bg-zinc-900 px-4 sm:px-6 py-3.5 sm:py-4">
-    <div class="flex items-center justify-between mb-2.5">
-      <h1 class="text-white font-semibold text-sm sm:text-base">Admin · Register Room</h1>
-      <a href="logout.php" class="text-white/40 hover:text-white/70 text-xs font-medium flex-shrink-0">Logout</a>
-    </div>
-    <nav class="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-      <a href="register-building.php" class="flex-shrink-0 text-xs font-medium rounded-full px-3.5 py-2 bg-white/10 text-white/70">Register Building</a>
-      <a href="manage-buildings.php" class="flex-shrink-0 text-xs font-medium rounded-full px-3.5 py-2 bg-white/10 text-white/70">Manage Buildings</a>
-      <a href="register-room.php" class="flex-shrink-0 text-xs font-semibold rounded-full px-3.5 py-2 bg-amber-500 text-zinc-900">Register Room</a>
-    </nav>
-  </div>
+<div class="admin-shell">
+  <?php include __DIR__ . '/_nav.php'; ?>
 
-  <div class="max-w-4xl mx-auto p-4 sm:p-7 relative overflow-hidden">
-    <div class="absolute -top-24 -right-24 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl pointer-events-none"></div>
+  <main class="admin-main" id="app">
+    <div class="admin-container narrow">
 
-    <h2 class="text-2xl font-bold text-zinc-900 relative">{{ editingId ? 'Edit Room' : 'Register a Room' }}</h2>
-    <p class="text-zinc-500 text-xs mt-1 mb-6 relative">Structured fields — this is what signage scanning matches against.</p>
-    <div class="border-t border-zinc-200 mb-6 relative"></div>
-
-    <div class="grid md:grid-cols-2 gap-6 sm:gap-8 relative">
-      <form @submit.prevent="submitRoom">
-        <div class="mb-4">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Building</label>
-          <select v-model="form.building_id" required class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-            <option value="" disabled>Select a building…</option>
-            <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
-          </select>
+      <div class="page-head">
+        <div>
+          <h1>{{ editingId ? 'Edit Room' : 'Register a Room' }}</h1>
+          <p>Structured fields — this is what signage scanning matches against.</p>
         </div>
+      </div>
 
-        <div class="mb-4">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Room type</label>
-          <div class="inline-flex bg-zinc-100 rounded-lg p-1">
-            <button type="button" @click="form.room_type = 'office'"
-                    :class="form.room_type === 'office' ? 'bg-white shadow text-zinc-900' : 'text-zinc-500'"
-                    class="text-xs font-semibold rounded-md px-4 py-2 transition">Office</button>
-            <button type="button" @click="form.room_type = 'classroom'"
-                    :class="form.room_type === 'classroom' ? 'bg-amber-500 text-white shadow' : 'text-zinc-500'"
-                    class="text-xs font-semibold rounded-md px-4 py-2 transition">Classroom / Lab</button>
+      <div class="form-grid">
+        <form @submit.prevent="submitRoom" class="card">
+          <div class="field">
+            <label>Building</label>
+            <select v-model="form.building_id" required>
+              <option value="" disabled>Select a building…</option>
+              <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
           </div>
-        </div>
 
-        <div class="mb-4 grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-zinc-500 mb-1.5">Room number</label>
-            <input v-model="form.room_number" type="text" required placeholder="204" class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+          <div class="field">
+            <label>Room type</label>
+            <div class="toggle-group">
+              <button type="button" @click="form.room_type = 'office'" :class="form.room_type === 'office' ? 'is-active' : ''">Office</button>
+              <button type="button" @click="form.room_type = 'classroom'" :class="form.room_type === 'classroom' ? 'is-active' : ''">Classroom / Lab</button>
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-medium text-zinc-500 mb-1.5">Floor</label>
-            <input v-model="form.floor" type="text" required placeholder="2nd Floor" class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+
+          <div class="field field-row">
+            <div>
+              <label>Room number</label>
+              <input v-model="form.room_number" type="text" required placeholder="204" style="font-family:'JetBrains Mono',monospace;">
+            </div>
+            <div>
+              <label>Floor</label>
+              <input v-model="form.floor" type="text" required placeholder="2nd Floor">
+            </div>
           </div>
-        </div>
 
-        <div class="mb-4">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Room name</label>
-          <input v-model="form.room_name" type="text" required placeholder="Treasury" class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-        </div>
-
-        <div v-if="form.room_type === 'office'" class="mb-4">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Hours</label>
-          <input v-model="form.hours" type="text" placeholder="8:00 AM – 5:00 PM, Mon–Fri" class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-        </div>
-        <div v-else class="mb-4 flex items-center gap-2 bg-zinc-50 rounded-lg px-3 py-2.5 text-xs text-zinc-400">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="#a1a1aa" stroke-width="1.6" stroke-dasharray="3 3"/></svg>
-          No fixed hours for classrooms/labs — class scheduling is a separate scope.
-        </div>
-
-        <div class="mb-6">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Notes (optional)</label>
-          <input v-model="form.notes" type="text" placeholder="e.g. 3rd floor, past the stairwell" class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-        </div>
-
-        <div class="flex items-center gap-3">
-          <button type="submit" :disabled="submitting"
-                  class="bg-zinc-900 hover:bg-zinc-800 text-amber-400 rounded-lg px-8 py-2.5 font-semibold transition disabled:opacity-50">
-            {{ submitting ? 'Saving...' : (editingId ? 'Save Changes' : 'Add Room') }}
-          </button>
-          <button v-if="editingId" type="button" @click="cancelEdit" class="text-zinc-500 text-sm font-medium">Cancel</button>
-        </div>
-      </form>
-
-      <div class="space-y-4">
-        <div class="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm">
-          <div class="flex items-center gap-1.5 mb-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <h3 class="font-semibold text-sm text-zinc-900">Why room numbers, not text</h3>
+          <div class="field">
+            <label>Room name</label>
+            <input v-model="form.room_name" type="text" required placeholder="Treasury">
           </div>
-          <p class="text-xs text-zinc-500 leading-relaxed">When the AI reads a signage ("ROOM 204"), it matches that number directly against a room record — not a keyword search through a paragraph. Structured fields also power Manual Search and Nearby suggestions.</p>
-        </div>
 
-        <div class="bg-zinc-900 rounded-2xl p-5">
-          <p class="text-[10px] font-bold tracking-widest text-zinc-400 mb-3">ROOMS {{ form.building_id ? 'IN THIS BUILDING' : '' }} ({{ filteredRooms.length }})</p>
-          <div v-if="filteredRooms.length === 0" class="text-zinc-500 text-xs italic">None yet.</div>
-          <div v-for="r in filteredRooms" :key="r.id" class="flex items-center gap-2.5 py-1.5 text-sm group">
-            <span class="font-mono text-[11px] bg-zinc-800 text-amber-400 rounded px-1.5 py-0.5">{{ r.room_number }}</span>
-            <span class="text-white flex-1 truncate">{{ r.room_name }}</span>
-            <span class="text-[10px] font-semibold" :class="r.room_type === 'office' ? 'text-amber-400' : 'text-emerald-400'">{{ r.room_type === 'office' ? 'Office' : 'Room' }}</span>
-            <button @click="startEdit(r)" class="text-[10px] font-semibold text-zinc-400 hover:text-amber-400 ml-2">Edit</button>
-            <button @click="deleteRoom(r)" class="text-[10px] font-semibold text-zinc-400 hover:text-red-400">Delete</button>
+          <div class="field" v-if="form.room_type === 'office'">
+            <label>Hours</label>
+            <input v-model="form.hours" type="text" placeholder="8:00 AM – 5:00 PM, Mon–Fri">
+          </div>
+          <div v-else class="no-hours-note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="#9aa79f" stroke-width="1.6" stroke-dasharray="3 3"/></svg>
+            No fixed hours for classrooms/labs — class scheduling is a separate scope.
+          </div>
+
+          <div class="field">
+            <label>Notes (optional)</label>
+            <input v-model="form.notes" type="text" placeholder="e.g. 3rd floor, past the stairwell">
+          </div>
+
+          <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.5rem;">
+            <button type="submit" :disabled="submitting" class="btn btn-primary">
+              {{ submitting ? 'Saving…' : (editingId ? 'Save Changes' : 'Add Room') }}
+            </button>
+            <button v-if="editingId" type="button" @click="cancelEdit" class="btn-link" style="color: var(--muted); font-size:0.8125rem;">Cancel</button>
+          </div>
+        </form>
+
+        <div class="side-col">
+          <div class="tinted-card">
+            <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
+              <span class="dot dot-green"></span>
+              <h3 style="font-weight:600; font-size:0.875rem; margin:0;">Why room numbers, not text</h3>
+            </div>
+            <p style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0;">
+              When the AI reads a signage ("ROOM 204"), it matches that number directly against a
+              room record — not a keyword search through a paragraph. Structured fields also power
+              Manual Search and Nearby suggestions.
+            </p>
+          </div>
+
+          <div class="rooms-panel">
+            <p class="rooms-panel-label">ROOMS {{ form.building_id ? 'IN THIS BUILDING' : '' }} ({{ filteredRooms.length }})</p>
+            <div v-if="filteredRooms.length === 0" class="empty-state" style="color: rgba(255,255,255,0.4);">None yet.</div>
+            <div v-for="r in filteredRooms" :key="r.id" class="room-row">
+              <span class="room-num">{{ r.room_number }}</span>
+              <span class="room-name truncate">{{ r.room_name }}</span>
+              <span class="room-type" :class="r.room_type === 'office' ? 'type-office' : 'type-classroom'">{{ r.room_type === 'office' ? 'Office' : 'Room' }}</span>
+              <button @click="startEdit(r)" class="btn-link room-action">Edit</button>
+              <button @click="deleteRoom(r)" class="btn-link room-action room-delete">Delete</button>
+            </div>
           </div>
         </div>
       </div>
+
     </div>
-  </div>
+  </main>
 </div>
+
+<style>
+  .form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  @media (min-width: 800px) { .form-grid { grid-template-columns: 1.3fr 1fr; align-items: start; } }
+  .side-col { display: flex; flex-direction: column; gap: 1.25rem; }
+  .no-hours-note {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--green-50); border-radius: 0.65rem;
+    padding: 0.7rem 0.85rem; font-size: 0.75rem; color: #9aa79f;
+    margin-bottom: 1rem;
+  }
+  .dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; display:inline-block; }
+  .dot-green { background: var(--green-500); }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .rooms-panel { background: var(--ink); border-radius: 1rem; padding: 1.25rem; }
+  .rooms-panel-label { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; color: rgba(255,255,255,0.45); margin: 0 0 0.75rem; }
+  .room-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; font-size: 0.875rem; }
+  .room-num { font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; background: rgba(255,255,255,0.1); color: var(--green-500); border-radius: 0.3rem; padding: 0.1rem 0.4rem; flex-shrink: 0; }
+  .room-name { color: #ffffff; flex: 1; min-width: 0; }
+  .room-type { font-size: 0.625rem; font-weight: 700; flex-shrink: 0; }
+  .type-office { color: var(--green-200); }
+  .type-classroom { color: var(--green-500); }
+  .room-action { font-size: 0.625rem; font-weight: 700; color: rgba(255,255,255,0.4); }
+  .room-action:hover { color: var(--green-500); }
+  .room-delete:hover { color: #f87171; }
+</style>
 
 <script>
 const { createApp } = Vue;

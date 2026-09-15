@@ -1,86 +1,114 @@
-<?php require_once __DIR__ . '/_auth.php'; $cssVer = filemtime(__DIR__ . '/../assets/css/tailwind.css'); ?>
+<?php
+require_once __DIR__ . '/_auth.php';
+$activeNav = 'manage-buildings';
+$cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
+?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Manage Buildings</title>
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="../assets/css/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<style>body { font-family: 'Outfit', sans-serif; }</style>
 </head>
-<body class="bg-white min-h-screen">
+<body class="admin-body">
 
-<div id="app">
-  <div class="bg-zinc-900 px-4 sm:px-6 py-3.5 sm:py-4">
-    <div class="flex items-center justify-between mb-2.5">
-      <h1 class="text-white font-semibold text-sm sm:text-base">Admin · Manage Buildings &amp; Directory</h1>
-      <a href="logout.php" class="text-white/40 hover:text-white/70 text-xs font-medium flex-shrink-0">Logout</a>
-    </div>
-    <nav class="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-      <a href="register-building.php" class="flex-shrink-0 text-xs font-medium rounded-full px-3.5 py-2 bg-white/10 text-white/70">Register Building</a>
-      <a href="manage-buildings.php" class="flex-shrink-0 text-xs font-semibold rounded-full px-3.5 py-2 bg-amber-500 text-zinc-900">Manage Buildings</a>
-      <a href="register-room.php" class="flex-shrink-0 text-xs font-medium rounded-full px-3.5 py-2 bg-white/10 text-white/70">Register Room</a>
-    </nav>
-  </div>
+<div class="admin-shell">
+  <?php include __DIR__ . '/_nav.php'; ?>
 
-  <div class="max-w-6xl mx-auto p-4 sm:p-7 relative overflow-hidden">
-    <div class="absolute -top-24 right-40 w-72 h-72 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none"></div>
+  <main class="admin-main" id="app">
+    <div class="admin-container">
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1 relative">
-      <h2 class="text-xl sm:text-2xl font-bold text-zinc-900">Registered Buildings</h2>
-      <div class="flex items-center gap-2 bg-zinc-100 rounded-full px-3 py-2.5 sm:py-2">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" class="flex-shrink-0"><circle cx="10.5" cy="10.5" r="6.5" stroke="#a1a1aa" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="#a1a1aa" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <input v-model="q" type="text" placeholder="Search buildings" class="bg-transparent text-sm sm:text-xs focus:outline-none w-full sm:w-32">
+      <div class="page-head">
+        <div>
+          <h1>Manage Buildings</h1>
+          <p>{{ buildings.length }} building(s) on file</p>
+        </div>
+        <div class="search-box">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="#9aa79f" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="#9aa79f" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input v-model="q" type="text" placeholder="Search buildings">
+        </div>
       </div>
-    </div>
-    <p class="text-zinc-500 text-xs mb-5 sm:mb-6 relative">{{ buildings.length }} building(s) on file</p>
 
-    <div class="grid md:grid-cols-2 gap-6 relative">
-      <!-- Left: compact list -->
-      <div class="space-y-3">
-        <div v-for="b in filtered" :key="b.id" class="flex items-start gap-3 bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
-          <div class="w-9 h-9 rounded-xl text-white text-xs font-semibold flex items-center justify-center flex-shrink-0" :style="{ background: colorFor(b.id) }">{{ b.name.charAt(0) }}</div>
-          <div class="flex-1 min-w-0">
-            <div class="font-semibold text-sm text-zinc-900 truncate">{{ b.name }}</div>
-            <div class="text-[10px] font-mono text-zinc-400">{{ b.lat }}, {{ b.lng }}</div>
-            <div class="flex items-center gap-1.5 mt-1">
-              <span class="w-1.5 h-1.5 rounded-full" :class="isStale(b.updated_at) ? 'bg-amber-500' : 'bg-emerald-500'"></span>
-              <span class="text-[11px]" :class="isStale(b.updated_at) ? 'text-amber-600 font-semibold' : 'text-zinc-500'">{{ timeAgo(b.updated_at) }}</span>
-              <span class="text-[11px] text-zinc-400">· {{ b.room_count }} room(s)</span>
-              <span v-if="b.open_flags > 0" class="flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-semibold rounded-full px-2 py-0.5">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 22 20.5H2L12 3.5Z" stroke="#b45309" stroke-width="2.1" stroke-linejoin="round"/></svg>
-                {{ b.open_flags }}
-              </span>
-              <a :href="'register-building.php?edit=' + b.id" class="ml-auto text-[11px] font-semibold text-zinc-600 hover:text-amber-600">Edit</a>
-              <button @click="deleteBuilding(b)" class="text-[11px] font-semibold text-red-600 hover:text-red-700">Delete</button>
+      <div class="manage-grid">
+        <div>
+          <div v-for="b in filtered" :key="b.id" class="card building-row">
+            <div class="avatar" :style="{ background: colorFor(b.id) }">{{ b.name.charAt(0) }}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; font-size:0.875rem;" class="truncate">{{ b.name }}</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:0.6875rem; color:#9aa79f;">{{ b.lat }}, {{ b.lng }}</div>
+              <div class="building-meta">
+                <span class="dot" :class="isStale(b.updated_at) ? 'dot-amber' : 'dot-green'"></span>
+                <span :class="isStale(b.updated_at) ? 'stale-text' : 'meta-text'">{{ timeAgo(b.updated_at) }}</span>
+                <span class="meta-text">&middot; {{ b.room_count }} room(s)</span>
+                <span v-if="b.open_flags > 0" class="badge badge-amber">{{ b.open_flags }}</span>
+                <a :href="'register-building.php?edit=' + b.id" class="btn-link edit-link">Edit</a>
+                <button @click="deleteBuilding(b)" class="btn-link delete-link">Delete</button>
+              </div>
             </div>
           </div>
+          <div v-if="filtered.length === 0" class="empty-state">No buildings match.</div>
         </div>
-        <div v-if="filtered.length === 0" class="text-zinc-400 text-sm italic py-6 text-center">No buildings match.</div>
+
+        <div class="card map-card">
+          <div class="map-head">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 20l-6-2V6l6 2 6-2 6 2v12l-6-2-6 2Z" stroke="#5b6b63" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8v12M15 6v12" stroke="#5b6b63" stroke-width="1.7"/></svg>
+            <span style="font-weight:600; font-size:0.8125rem;">Campus Map Preview</span>
+            <span class="map-n">N &uarr;</span>
+          </div>
+          <div class="map-area" ref="mapArea"></div>
+          <p v-if="buildings.length === 0" class="map-empty">No coordinates to plot yet.</p>
+        </div>
       </div>
 
-      <!-- Right: live campus map -->
-      <div class="bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden relative">
-        <div class="flex items-center gap-1.5 p-3.5">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 20l-6-2V6l6 2 6-2 6 2v12l-6-2-6 2Z" stroke="#71717a" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8v12M15 6v12" stroke="#71717a" stroke-width="1.7"/></svg>
-          <span class="text-xs font-semibold text-zinc-900">Campus Map Preview</span>
-          <span class="ml-auto text-[10px] font-bold text-zinc-400">N ↑</span>
-        </div>
-        <div class="relative h-[60vh] min-h-[420px]" ref="mapArea"></div>
-        <p v-if="buildings.length === 0" class="absolute inset-0 top-11 flex items-center justify-center text-zinc-400 text-xs pointer-events-none">No coordinates to plot yet.</p>
-      </div>
     </div>
-  </div>
+  </main>
 </div>
+
+<style>
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.6rem 1rem;
+  }
+  .search-box input { border: none; background: none; font-family: inherit; font-size: 0.8125rem; outline: none; width: 12rem; max-width: 100%; }
+
+  .manage-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  @media (min-width: 900px) { .manage-grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+  .building-row { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .building-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem; }
+  .dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; }
+  .dot-green { background: var(--green-500); }
+  .dot-amber { background: var(--moss-500); }
+  .meta-text { font-size: 0.7rem; color: var(--muted); }
+  .stale-text { font-size: 0.7rem; color: var(--moss-500); font-weight: 600; }
+  .edit-link { margin-left: auto; font-size: 0.7rem; color: var(--muted); }
+  .edit-link:hover { color: var(--green-700); }
+  .delete-link { font-size: 0.7rem; color: var(--red-600); }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .map-card { padding: 0; overflow: hidden; }
+  .map-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem; }
+  .map-n { margin-left: auto; font-size: 0.6875rem; font-weight: 700; color: #9aa79f; }
+  .map-area { position: relative; height: 60vh; min-height: 380px; }
+  .map-empty { position: absolute; inset: 0; top: 2.75rem; display: flex; align-items: center; justify-content: center; color: #9aa79f; font-size: 0.8125rem; pointer-events: none; }
+</style>
 
 <script>
 const { createApp } = Vue;
-const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4'];
+const COLORS = ['#22c55e', '#16a34a', '#15803d', '#86efac', '#65a30d', '#14532d'];
 
 createApp({
   data() { return { buildings: [], q: '', map: null, markers: [] }; },

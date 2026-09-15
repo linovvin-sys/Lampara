@@ -1,106 +1,117 @@
-<?php require_once __DIR__ . '/_auth.php'; $cssVer = filemtime(__DIR__ . '/../assets/css/tailwind.css'); ?>
+<?php
+require_once __DIR__ . '/_auth.php';
+$activeNav = 'register-building';
+$cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
+?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Register Building</title>
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=<?= $cssVer ?>">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/admin.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<style>body { font-family: 'Outfit', sans-serif; }</style>
 </head>
-<body class="bg-white min-h-screen">
+<body class="admin-body">
 
-<div id="app">
-  <div class="bg-zinc-900 px-4 sm:px-6 py-3.5 sm:py-4">
-    <div class="flex items-center justify-between mb-2.5">
-      <h1 class="text-white font-semibold text-sm sm:text-base">Admin · Register Building</h1>
-      <a href="logout.php" class="text-white/40 hover:text-white/70 text-xs font-medium flex-shrink-0">Logout</a>
-    </div>
-    <nav class="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-      <a href="register-building.php" class="flex-shrink-0 text-xs font-semibold rounded-full px-3.5 py-2 bg-amber-500 text-zinc-900">Register Building</a>
-      <a href="manage-buildings.php" class="flex-shrink-0 text-xs font-medium rounded-full px-3.5 py-2 bg-white/10 text-white/70">Manage Buildings</a>
-      <a href="register-room.php" class="flex-shrink-0 text-xs font-medium rounded-full px-3.5 py-2 bg-white/10 text-white/70">Register Room</a>
-    </nav>
-  </div>
+<div class="admin-shell">
+  <?php include __DIR__ . '/_nav.php'; ?>
 
-  <div class="max-w-4xl mx-auto p-4 sm:p-7 relative overflow-hidden">
-    <div class="absolute -top-24 -right-24 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl pointer-events-none"></div>
+  <main class="admin-main" id="app">
+    <div class="admin-container narrow">
 
-    <h2 class="text-2xl font-bold text-zinc-900 relative">{{ editingId ? 'Edit Building' : 'Register a Building' }}</h2>
-    <p class="text-zinc-500 text-xs mt-1 mb-6 relative">{{ editingId ? 'Update this building\'s details.' : 'Add a new building with its GPS location. Rooms are added separately.' }}</p>
-    <div class="border-t border-zinc-200 mb-6 relative"></div>
-
-    <div class="grid md:grid-cols-2 gap-6 sm:gap-8 relative">
-      <form @submit.prevent="submitBuilding">
-        <div class="mb-4">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Building name</label>
-          <input v-model="form.name" type="text" required placeholder="e.g. Amafel Building (NCST)"
-                 class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+      <div class="page-head">
+        <div>
+          <h1>{{ editingId ? 'Edit Building' : 'Register a Building' }}</h1>
+          <p>{{ editingId ? "Update this building's details." : 'Add a new building with its GPS location. Rooms are added separately.' }}</p>
         </div>
+      </div>
 
-        <div class="mb-4 grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-zinc-500 mb-1.5">Latitude</label>
-            <input v-model="form.lat" type="text" required placeholder="14.328300"
-                   class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+      <div class="form-grid">
+        <form @submit.prevent="submitBuilding" class="card">
+          <div class="field">
+            <label>Building name</label>
+            <input v-model="form.name" type="text" required placeholder="e.g. Amafel Building (NCST)">
           </div>
-          <div>
-            <label class="block text-xs font-medium text-zinc-500 mb-1.5">Longitude</label>
-            <input v-model="form.lng" type="text" required placeholder="120.937200"
-                   class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+
+          <div class="field field-row">
+            <div>
+              <label>Latitude</label>
+              <input v-model="form.lat" type="text" required placeholder="14.328300" style="font-family:'JetBrains Mono',monospace;">
+            </div>
+            <div>
+              <label>Longitude</label>
+              <input v-model="form.lng" type="text" required placeholder="120.937200" style="font-family:'JetBrains Mono',monospace;">
+            </div>
           </div>
-        </div>
 
-        <button type="button" @click="captureLocation"
-                class="mb-4 flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-amber-100 transition">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="#92400e" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" stroke="#92400e" stroke-width="1.8"/></svg>
-          Capture My Current Location
-        </button>
-        <p v-if="geoStatus" class="text-xs font-mono mb-4" :class="geoError ? 'text-red-600' : 'text-emerald-600'">{{ geoStatus }}</p>
-
-        <div class="mb-6">
-          <label class="block text-xs font-medium text-zinc-500 mb-1.5">Notes (optional — general, not room-specific)</label>
-          <textarea v-model="form.directory" rows="4"
-                    placeholder="Any campus-wide facts not tied to a specific room."
-                    class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"></textarea>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <button type="submit" :disabled="submitting"
-                  class="bg-amber-500 hover:bg-amber-400 text-white rounded-lg px-8 py-2.5 font-semibold transition disabled:opacity-50 shadow-lg shadow-amber-500/25">
-            {{ submitting ? 'Saving...' : (editingId ? 'Save Changes' : 'Register Building') }}
+          <button type="button" @click="captureLocation" class="btn btn-secondary geo-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="#15803d" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" stroke="#15803d" stroke-width="1.8"/></svg>
+            Capture My Current Location
           </button>
-          <button v-if="editingId" type="button" @click="cancelEdit" class="text-zinc-500 text-sm font-medium">Cancel</button>
-        </div>
-      </form>
+          <p v-if="geoStatus" class="geo-status" :class="geoError ? 'geo-error' : 'geo-ok'">{{ geoStatus }}</p>
 
-      <div class="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm h-fit">
-        <div class="flex items-center gap-1.5 mb-2">
-          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-          <h3 class="font-semibold text-sm text-zinc-900">Why this matters</h3>
-        </div>
-        <p class="text-xs text-zinc-500 leading-relaxed">The AI chat only answers from facts registered here and per-room — it will refuse ("I don't have that information") rather than guess. After registering the building, add its rooms individually on the Register Room page.</p>
-      </div>
-    </div>
+          <div class="field" style="margin-top:1rem;">
+            <label>Notes (optional — general, not room-specific)</label>
+            <textarea v-model="form.directory" rows="4" placeholder="Any campus-wide facts not tied to a specific room."></textarea>
+          </div>
 
-    <div class="mt-10 relative">
-      <h3 class="text-sm font-bold text-zinc-900 mb-3">Registered Buildings ({{ buildings.length }})</h3>
-      <div v-if="buildings.length === 0" class="text-zinc-400 text-sm italic">None yet — add one above.</div>
-      <div v-for="b in buildings" :key="b.id" class="flex items-center gap-3 border-b border-zinc-100 py-3 last:border-0">
-        <div class="w-8 h-8 rounded-lg bg-amber-500 text-white text-xs font-semibold flex items-center justify-center flex-shrink-0">{{ b.name.charAt(0) }}</div>
-        <div class="flex-1">
-          <div class="font-medium text-sm text-zinc-900">{{ b.name }}</div>
-          <div class="text-xs font-mono text-zinc-400">{{ b.lat }}, {{ b.lng }} · {{ b.room_count }} room(s)</div>
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <button type="submit" :disabled="submitting" class="btn btn-primary">
+              {{ submitting ? 'Saving…' : (editingId ? 'Save Changes' : 'Register Building') }}
+            </button>
+            <button v-if="editingId" type="button" @click="cancelEdit" class="btn-link" style="color: var(--muted); font-size:0.8125rem;">Cancel</button>
+          </div>
+        </form>
+
+        <div class="tinted-card">
+          <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
+            <span class="dot dot-green"></span>
+            <h3 style="font-weight:600; font-size:0.875rem; margin:0;">Why this matters</h3>
+          </div>
+          <p style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0;">
+            The AI chat only answers from facts registered here and per-room — it will refuse
+            ("I don't have that information") rather than guess. After registering the building,
+            add its rooms individually on the Register Room page.
+          </p>
         </div>
-        <button @click="startEdit(b)" class="text-xs font-semibold text-zinc-700 hover:text-amber-600">Edit</button>
-        <button @click="deleteBuilding(b)" class="text-xs font-semibold text-red-600 hover:text-red-700">Delete</button>
       </div>
+
+      <div style="margin-top: 2.5rem;">
+        <h3 class="section-title">Registered Buildings ({{ buildings.length }})</h3>
+        <div class="card">
+          <div v-if="buildings.length === 0" class="empty-state">None yet — add one above.</div>
+          <div v-for="b in buildings" :key="b.id" class="list-row">
+            <div class="avatar" style="background: var(--green-600);">{{ b.name.charAt(0) }}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; font-size:0.875rem;" class="truncate">{{ b.name }}</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:0.6875rem; color:#9aa79f;">{{ b.lat }}, {{ b.lng }} &middot; {{ b.room_count }} room(s)</div>
+            </div>
+            <button @click="startEdit(b)" class="btn-link" style="font-size:0.75rem; color: var(--muted);">Edit</button>
+            <button @click="deleteBuilding(b)" class="btn-link" style="font-size:0.75rem; color: var(--red-600); margin-left:0.75rem;">Delete</button>
+          </div>
+        </div>
+      </div>
+
     </div>
-  </div>
+  </main>
 </div>
+
+<style>
+  .form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  @media (min-width: 800px) { .form-grid { grid-template-columns: 1.3fr 1fr; align-items: start; } }
+  .geo-btn { margin-bottom: 0.5rem; font-size: 0.8125rem; padding: 0.6rem 1rem; }
+  .geo-status { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; margin: 0.4rem 0 0; }
+  .geo-ok { color: var(--green-700); }
+  .geo-error { color: var(--red-600); }
+  .dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; display:inline-block; }
+  .dot-green { background: var(--green-500); }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
 
 <script>
 const { createApp } = Vue;

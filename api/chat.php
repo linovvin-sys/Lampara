@@ -17,11 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../config/config.php';
 
-$secretsPath = __DIR__ . '/../secrets.php';
+$secretsPath = __DIR__ . '/../config/secrets.php';
 if (!file_exists($secretsPath)) {
-    echo json_encode(['success' => false, 'reply' => "(setup needed) Copy secrets.example.php to secrets.php and add your Gemini key — see the Lampara README."]);
+    echo json_encode(['success' => false, 'reply' => "(setup needed) Copy config/secrets.example.php to config/secrets.php and add your Gemini key — see the Lampara README."]);
     exit;
 }
 require_once $secretsPath;
@@ -77,7 +77,7 @@ $groundingFacts = trim(
 );
 
 if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === 'PASTE_YOUR_KEY_HERE') {
-    echo json_encode(['success' => true, 'reply' => "(setup needed) Add your real Gemini key to lampara/secrets.php — see the README."]);
+    echo json_encode(['success' => true, 'reply' => "(setup needed) Add your real Gemini key to lampara/config/secrets.php — see the README."]);
     exit;
 }
 
