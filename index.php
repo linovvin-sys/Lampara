@@ -42,6 +42,42 @@
   .typing-dot:nth-child(3) { animation-delay: 300ms; }
   @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
+  /* Opening sequence — the app's actual first impression, worth real polish. */
+  :root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); }
+
+  /* Lamp icon "breathes" while silently checking for an already-granted
+     permission, instead of a flat opacity pulse — feels alive, not stuck. */
+  @keyframes lamp-breathe {
+    0%, 100% { filter: drop-shadow(0 0 16px rgba(245,158,11,.5)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 26px rgba(245,158,11,.8)); transform: scale(1.05); }
+  }
+  .lamp-breathe { animation: lamp-breathe 1.8s var(--ease-in-out) infinite; }
+
+  /* Gate screen entrance — icon pops in first with a touch of overshoot
+     (nothing appears from nothing), then heading/description/button cascade
+     up right after, each slightly later than the last. */
+  @keyframes icon-pop {
+    0% { opacity: 0; transform: scale(0.85) translateY(6px); }
+    65% { opacity: 1; transform: scale(1.06) translateY(0); }
+    100% { transform: scale(1); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .gate-icon { animation: icon-pop 520ms var(--ease-out) both; }
+  .gate-heading { animation: fade-up 420ms var(--ease-out) both; animation-delay: 120ms; }
+  .gate-desc { animation: fade-up 420ms var(--ease-out) both; animation-delay: 190ms; }
+  .gate-button { animation: fade-up 420ms var(--ease-out) both; animation-delay: 260ms; }
+
+  /* The whole pre-app overlay (checking + gate) cross-fades out smoothly into
+     the live camera/AR view instead of cutting instantly. */
+  .gate-transition-leave-active { transition: opacity 380ms var(--ease-in-out), transform 380ms var(--ease-in-out); }
+  .gate-transition-leave-to { opacity: 0; transform: scale(1.03); }
+
+  /* Main UI fades/slides in right as the gate clears. */
+  @keyframes main-fade-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .main-fade-in { animation: main-fade-in 450ms var(--ease-out) both; animation-delay: 150ms; }
 </style>
 </head>
 <body class="bg-black">
@@ -52,27 +88,49 @@
   <video id="camera-feed" autoplay playsinline muted></video>
   <div class="absolute inset-0 z-0 fade-bg"></div>
 
-  <!-- setup / permission screen -->
-  <div v-if="!started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
-    <div class="text-center max-w-sm px-6">
-      <div class="w-14 h-14 mx-auto mb-5 rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow">
+  <!-- Pre-app overlay: silent permission check, then (if needed) the gate
+       screen — both live under one transition so the whole thing cross-fades
+       smoothly into the live camera/AR view instead of cutting instantly. -->
+  <transition name="gate-transition">
+    <div v-if="checking || quickStart || !started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
+      <!-- brief silent check for an already-granted permission — avoids a
+           flash of the full gate screen for returning users who'll skip it -->
+      <div v-if="checking" class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow lamp-breathe">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
       </div>
-      <h1 class="text-2xl font-bold mb-2">Start Lampara</h1>
-      <p class="text-white/60 text-sm mb-6 leading-relaxed">Needs camera, location, and compass permission to point you toward nearby registered buildings.</p>
-      <button @click="start" class="press bg-amber-500 hover:bg-amber-400 text-zinc-900 rounded-2xl px-6 py-3.5 font-semibold w-full transition">
-        Enable Camera &amp; Location
-      </button>
-      <p v-if="statusText && !statusOk" class="text-amber-400 text-xs font-mono mt-4">{{ statusText }}</p>
+
+      <!-- returning visitor, permission already granted — one lightweight
+           tap (not the full explanation) still gets a real gesture for the
+           compass permission request inside start() -->
+      <div v-else-if="quickStart" class="text-center">
+        <button @click="start" class="gate-icon press w-16 h-16 mx-auto rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <p class="gate-heading text-white/50 text-xs mt-3">Tap to continue</p>
+      </div>
+
+      <!-- setup / permission screen — only reached on a genuine first visit,
+           or if permission was previously denied/reset -->
+      <div v-else class="text-center max-w-sm px-6">
+        <div class="gate-icon w-14 h-14 mx-auto mb-5 rounded-2xl bg-amber-500 flex items-center justify-center lamp-glow">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h1 class="gate-heading text-2xl font-bold mb-2">Start Lampara</h1>
+        <p class="gate-desc text-white/60 text-sm mb-6 leading-relaxed">Needs camera, location, and compass permission to point you toward nearby registered buildings.</p>
+        <button @click="start" class="gate-button press bg-amber-500 hover:bg-amber-400 text-zinc-900 rounded-2xl px-6 py-3.5 font-semibold w-full transition">
+          Enable Camera &amp; Location
+        </button>
+        <p v-if="statusText && !statusOk" class="text-amber-400 text-xs font-mono mt-4">{{ statusText }}</p>
+      </div>
     </div>
-  </div>
+  </transition>
 
   <!-- top status row + search -->
-  <div v-if="started" class="relative z-20 p-4 flex flex-col gap-2">
+  <div v-if="started" class="main-fade-in relative z-20 p-4 flex flex-col gap-2">
     <div class="flex items-center gap-2">
       <div class="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full pl-2.5 pr-3 py-1.5">
-        <span class="w-1.5 h-1.5 rounded-full" :class="statusOk ? 'bg-emerald-400' : 'bg-amber-400'"></span>
-        <span class="text-xs font-medium text-white">GPS + Compass</span>
+        <span class="w-1.5 h-1.5 rounded-full" :class="(statusOk && headingInit) ? 'bg-emerald-400' : 'bg-amber-400'"></span>
+        <span class="text-xs font-medium text-white">{{ !statusOk ? 'GPS + Compass' : (headingInit ? 'GPS + Compass' : 'GPS ready · Compass…') }}</span>
       </div>
       <a href="student/manual-search.php" class="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 8.7a9.9 9.9 0 0 1 10.9 2M5 12a9.9 9.9 0 0 1 3-2.2M12 19.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM8.8 15.2a5.5 5.5 0 0 1 6.6.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -193,6 +251,8 @@ createApp({
   data() {
     return {
       started: false,
+      checking: true, // briefly true on load while we silently check for an already-granted permission
+      quickStart: false, // permission was already granted — skip the explanation, but still need one real tap
       statusText: '',
       statusOk: false,
       buildings: [],
@@ -218,13 +278,37 @@ createApp({
   watch: {
     matchedBuilding(building) { this.target = building ? { ...building } : null; this.recompute(); }
   },
+  async mounted() {
+    // Skip the full explanation screen on repeat visits when permission was
+    // genuinely already granted (checked without triggering a prompt) — but
+    // still require one real tap before calling start(), not a fully silent
+    // auto-start. iOS ties its compass permission specifically to a live user
+    // gesture; a silent automatic call can make just the compass silently
+    // fail even when camera/GPS succeed fine, with no visible error at all.
+    // One lightweight tap guarantees correctness on every device instead of
+    // gambling on undocumented platform behavior.
+    try {
+      if (navigator.permissions && navigator.permissions.query) {
+        const status = await navigator.permissions.query({ name: 'camera' });
+        if (status.state === 'granted') {
+          this.quickStart = true;
+          this.checking = false;
+          return;
+        }
+      }
+    } catch (e) { /* Permissions API unsupported for 'camera' on this browser — fall back to the full gate */ }
+    this.checking = false;
+  },
   methods: {
     async start() {
+      this.checking = true;
+      this.quickStart = false;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         document.getElementById('camera-feed').srcObject = stream;
       } catch (e) {
         this.statusText = 'Camera permission denied.';
+        this.checking = false;
         return;
       }
 
@@ -236,14 +320,23 @@ createApp({
       // conflict, not sensor noise, is what smoothing alone couldn't fix.
       // Use "absolute" (true compass-referenced) when the browser supports
       // it; only fall back to plain deviceorientation otherwise.
-      if ('ondeviceorientationabsolute' in window) {
-        window.addEventListener('deviceorientationabsolute', this.onOrientation, true);
-      } else {
-        window.addEventListener('deviceorientation', this.onOrientation, true);
-      }
+      const primaryEvent = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
+      window.addEventListener(primaryEvent, this.onOrientation, true);
+      // Some Android OEM browsers report an event type as supported (feature
+      // detection passes) but never actually dispatch it — no permission
+      // prompt, no error, it just silently never fires. If nothing arrives
+      // shortly, fall back to the other event type instead of leaving the
+      // compass permanently stuck at its default heading.
+      setTimeout(() => {
+        if (!this.headingInit && primaryEvent === 'deviceorientationabsolute') {
+          window.removeEventListener('deviceorientationabsolute', this.onOrientation, true);
+          window.addEventListener('deviceorientation', this.onOrientation, true);
+        }
+      }, 2500);
 
       if (!navigator.geolocation) {
         this.statusText = 'Geolocation not supported.';
+        this.checking = false;
         return;
       }
       navigator.geolocation.watchPosition(
@@ -273,6 +366,7 @@ createApp({
       if (data.success) this.buildings = data.buildings;
 
       this.started = true;
+      this.checking = false;
     },
     onOrientation(e) {
       const raw = e.webkitCompassHeading != null ? e.webkitCompassHeading : (360 - e.alpha) % 360;
