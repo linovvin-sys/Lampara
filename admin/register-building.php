@@ -9,12 +9,14 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Register Building</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/admin.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
 
@@ -54,6 +56,19 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
             Capture My Current Location
           </button>
           <p v-if="geoStatus" class="geo-status" :class="geoError ? 'geo-error' : 'geo-ok'">{{ geoStatus }}</p>
+
+          <!-- Nearby-building warning: two GPS points close enough that a visitor's
+               compass cone could catch both, risking the misidentification gap
+               flagged Critical in the project proposal. Advisory only — never blocks saving. -->
+          <div v-if="nearbyWarnings.length" class="tinted-card warn-card">
+            <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
+              <span class="dot dot-amber"></span>
+              <h3 style="font-weight:600; font-size:0.875rem; margin:0;">Close to {{ nearbyWarnings.length > 1 ? 'other buildings' : 'another building' }}</h3>
+            </div>
+            <p v-for="w in nearbyWarnings" :key="w.id" style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0 0 0.35rem;">
+              <strong style="color: var(--fg, #1a1a1a);">{{ w.name }}</strong> is only {{ w.distance }}m away — visitors standing nearby may get the wrong building labeled. Consider spacing GPS points further apart, or double-check both points are accurate.
+            </p>
+          </div>
 
           <div class="field" style="margin-top:1rem;">
             <label>Notes (optional — general, not room-specific)</label>
@@ -110,11 +125,29 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
   .geo-error { color: var(--red-600); }
   .dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; display:inline-block; }
   .dot-green { background: var(--green-500); }
+  .dot-amber { background: #d97706; }
+  .warn-card { border-color: #fde68a; background: #fffbeb; margin-top: 0.75rem; }
   .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 
 <script>
 const { createApp } = Vue;
+
+// Two buildings this close together will fall inside the same wide compass
+// cone (guide.php uses up to ±70°) for most of the distance a visitor
+// approaches from, risking the Critical misidentification gap.
+const NEARBY_WARN_METERS = 40;
+
+function haversineMeters(a, b) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
 createApp({
   data() {
     return {
@@ -125,6 +158,18 @@ createApp({
       geoError: false,
       editingId: null
     };
+  },
+  computed: {
+    nearbyWarnings() {
+      const lat = parseFloat(this.form.lat), lng = parseFloat(this.form.lng);
+      if (!isFinite(lat) || !isFinite(lng)) return [];
+      const here = { lat, lng };
+      return this.buildings
+        .filter(b => b.id !== this.editingId)
+        .map(b => ({ id: b.id, name: b.name, distance: Math.round(haversineMeters(here, { lat: parseFloat(b.lat), lng: parseFloat(b.lng) })) }))
+        .filter(b => b.distance <= NEARBY_WARN_METERS)
+        .sort((a, b) => a.distance - b.distance);
+    }
   },
   async mounted() {
     await this.loadBuildings();
@@ -182,21 +227,30 @@ createApp({
           this.cancelEdit();
           await this.loadBuildings();
         } else {
-          alert('Error: ' + (data.error || 'unknown'));
+          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
         }
       } finally {
         this.submitting = false;
       }
     },
     async deleteBuilding(b) {
-      if (!confirm(`Delete "${b.name}"? This also deletes its ${b.room_count} registered room(s). This can't be undone.`)) return;
+      const result = await Swal.fire({
+        title: `Delete "${b.name}"?`,
+        text: `This also deletes its ${b.room_count} registered room(s). This can't be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280'
+      });
+      if (!result.isConfirmed) return;
       const res = await fetch('../api/buildings.php?id=' + b.id, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         await this.loadBuildings();
         if (this.editingId === b.id) this.cancelEdit();
       } else {
-        alert('Error: ' + (data.error || 'unknown'));
+        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
       }
     }
   }

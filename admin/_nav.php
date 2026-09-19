@@ -31,6 +31,11 @@ $navItems = [
         'href'  => 'register-room.php',
         'icon'  => '<path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16"/><path d="M4 21h16M9 12v.01"/>',
     ],
+    'test-chat' => [
+        'label' => 'Test Chat',
+        'href'  => 'test-chat.php',
+        'icon'  => '<path d="M21 12c0 4.418-4.03 8-9 8-1.06 0-2.078-.163-3.024-.463L3 21l1.5-4.5C3.55 15.06 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z"/>',
+    ],
 ];
 
 $initial = strtoupper(substr($adminUsername, 0, 1));
@@ -112,6 +117,28 @@ $initial = strtoupper(substr($adminUsername, 0, 1));
   backdrop.addEventListener('click', closeSidebar);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeSidebar();
+  });
+})();
+
+// Confirm before logging out — mirrors the delete confirmations elsewhere
+// in the admin panel instead of navigating away on a single misclick.
+(function () {
+  if (typeof Swal === 'undefined') return;
+  document.querySelectorAll('a.admin-logout').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      Swal.fire({
+        title: 'Log out?',
+        text: "You'll need to sign in again to manage the directory.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Log out',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280'
+      }).then(function (result) {
+        if (result.isConfirmed) window.location.href = link.href;
+      });
+    });
   });
 })();
 </script>

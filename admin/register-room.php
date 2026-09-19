@@ -9,12 +9,14 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Register Room</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/admin.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
 
@@ -199,21 +201,30 @@ createApp({
           this.cancelEdit();
           await this.loadRooms();
         } else {
-          alert('Error: ' + (data.error || 'unknown'));
+          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
         }
       } finally {
         this.submitting = false;
       }
     },
     async deleteRoom(r) {
-      if (!confirm(`Delete Room ${r.room_number} — ${r.room_name}? This can't be undone.`)) return;
+      const result = await Swal.fire({
+        title: `Delete Room ${r.room_number} — ${r.room_name}?`,
+        text: "This can't be undone.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280'
+      });
+      if (!result.isConfirmed) return;
       const res = await fetch('../api/rooms.php?id=' + r.id, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         await this.loadRooms();
         if (this.editingId === r.id) this.cancelEdit();
       } else {
-        alert('Error: ' + (data.error || 'unknown'));
+        Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
       }
     }
   }

@@ -15,6 +15,7 @@ if (!empty($_SESSION['admin_id'])) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin Login</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -275,11 +276,11 @@ if (!empty($_SESSION['admin_id'])) {
       <form @submit.prevent="login">
         <div class="field">
           <label>Username</label>
-          <input v-model="username" type="text" required autocapitalize="off" autocorrect="off">
+          <input v-model="username" type="text" required autocapitalize="off" autocorrect="off" placeholder="Enter your username">
         </div>
         <div class="field">
           <label>Password</label>
-          <input v-model="password" type="password" required>
+          <input v-model="password" type="password" required placeholder="Enter your password">
         </div>
 
         <p v-if="error" class="form-error">{{ error }}</p>

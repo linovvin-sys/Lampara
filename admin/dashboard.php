@@ -9,12 +9,14 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/admin.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
 
@@ -112,113 +114,6 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
 
       </div>
 
-      <div class="roadmap-section">
-        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; margin-bottom:0.9rem;">
-          <h2 class="section-title" style="margin:0;">Coming soon</h2>
-          <span style="font-size:0.75rem; color: var(--muted);">Design previews — not wired up yet</span>
-        </div>
-
-        <div class="roadmap-grid">
-
-          <div class="roadmap-card">
-            <div class="roadmap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/></svg></div>
-            <div class="roadmap-title">
-              Building Disambiguation
-              <span class="badge badge-amber">In Design</span>
-            </div>
-            <p class="roadmap-body">
-              When two registered buildings are close together and inside the same compass cone, the
-              student app will ask "Did you mean X or Y?" instead of silently guessing wrong.
-            </p>
-            <div class="roadmap-mock">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--moss-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:0.15rem;"><path d="M12 3.5 22 20.5H2L12 3.5Z"/><path d="M12 10v4M12 17h.01"/></svg>
-              Amafel Building &amp; Amafel Annex are 12m apart and may be hard to tell apart outdoors.
-              <span style="display:block; margin-top:0.4rem; font-weight:600; color: var(--green-700);">Review conflict (preview)</span>
-            </div>
-          </div>
-
-          <div class="roadmap-card">
-            <div class="roadmap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M4.5 9A8 8 0 0 1 18 5.5L20 7.5"/><path d="M19.5 15A8 8 0 0 1 6 18.5L4 16.5"/></svg></div>
-            <div class="roadmap-title">
-              Directory Reconfirmation
-              <span class="badge badge-amber">In Design</span>
-            </div>
-            <p class="roadmap-body">
-              Extends the existing "stale" indicator into a real workflow — periodically ask admins to
-              reconfirm a room's info is still accurate instead of trusting it indefinitely.
-            </p>
-            <div class="roadmap-mock">
-              Room 204 — Treasury hasn't been reconfirmed in 94 days.
-              <span style="display:block; margin-top:0.4rem; font-weight:600; color: var(--green-700);">Mark as still accurate (preview)</span>
-            </div>
-          </div>
-
-          <div class="roadmap-card">
-            <div class="roadmap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M4 5h13l3 3-3 3H4V5Z"/></svg></div>
-            <div class="roadmap-title">
-              Signage Quality Coverage
-              <span class="badge badge-neutral">Planned</span>
-            </div>
-            <p class="roadmap-body">
-              Since scanning reads whatever signage already exists, a per-building rating helps admins
-              know where scanning will be less reliable and manual selection matters more.
-            </p>
-            <div class="roadmap-mock">
-              Signage quality: <strong>Fair</strong> &middot; 3 rooms flagged with unclear or missing signs
-            </div>
-          </div>
-
-          <div class="roadmap-card">
-            <div class="roadmap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="4" height="7"/><rect x="10" y="9" width="4" height="12"/><rect x="17" y="4" width="4" height="17"/></svg></div>
-            <div class="roadmap-title">
-              Gemini API Usage Monitor
-              <span class="badge badge-neutral">Planned</span>
-            </div>
-            <p class="roadmap-body">
-              Visibility into free-tier rate-limit usage, so a busy demo or class period doesn't
-              unexpectedly fail chat or signage scans.
-            </p>
-            <div class="roadmap-mock">
-              ▓▓▓▓▓▓▓▓░░ 62% of today's free-tier quota used
-            </div>
-          </div>
-
-          <div class="roadmap-card">
-            <div class="roadmap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div>
-            <div class="roadmap-title">
-              Voice Chat (Stretch)
-              <span class="badge badge-neutral">Stretch</span>
-            </div>
-            <p class="roadmap-body">
-              Optional voice input/output for the student-facing AI chat via the Web Speech API — off
-              by default, toggled per campus.
-            </p>
-            <div class="roadmap-mock">
-              Enable voice input/output for student chat &nbsp;
-              <span style="display:inline-block; width:2rem; height:1.1rem; border-radius:999px; background:var(--line); vertical-align:middle; position:relative;">
-                <span style="position:absolute; top:2px; left:2px; width:0.9rem; height:0.9rem; border-radius:999px; background:#fff;"></span>
-              </span>
-            </div>
-          </div>
-
-          <div class="roadmap-card">
-            <div class="roadmap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg></div>
-            <div class="roadmap-title">
-              Turn-by-Turn Indoor Guidance
-              <span class="badge badge-neutral">Stretch</span>
-            </div>
-            <p class="roadmap-body">
-              Beyond confirming a room, step-by-step guidance from anywhere on the same floor —
-              requires mapping how hallways connect, out of scope for the current defense build.
-            </p>
-            <div class="roadmap-mock">
-              Room connections editor — not started
-            </div>
-          </div>
-
-        </div>
-      </div>
-
     </div>
   </main>
 </div>
@@ -228,7 +123,6 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
   @media (min-width: 960px) { .grid-2 { grid-template-columns: 1.1fr 1fr; } }
   .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .btn-sm-pad { padding: 0.4rem 0.9rem; font-size: 0.75rem; flex-shrink: 0; }
-  .roadmap-section { margin-top: 2.5rem; }
 </style>
 
 <script>
@@ -272,7 +166,7 @@ createApp({
       const res = await fetch('../api/flags.php?id=' + f.id, { method: 'PUT' });
       const data = await res.json();
       if (data.success) this.openFlags = this.openFlags.filter(x => x.id !== f.id);
-      else alert('Error: ' + (data.error || 'unknown'));
+      else Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
     },
     timeAgo(dateStr) {
       const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);

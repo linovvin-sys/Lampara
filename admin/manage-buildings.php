@@ -9,6 +9,7 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Manage Buildings</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +18,7 @@ $cssVer = filemtime(__DIR__ . '/../assets/css/admin.css');
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
 
@@ -159,11 +161,20 @@ createApp({
       }
     },
     async deleteBuilding(b) {
-      if (!confirm(`Delete "${b.name}"? This also deletes its ${b.room_count} registered room(s). This can't be undone.`)) return;
+      const result = await Swal.fire({
+        title: `Delete "${b.name}"?`,
+        text: `This also deletes its ${b.room_count} registered room(s). This can't be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280'
+      });
+      if (!result.isConfirmed) return;
       const res = await fetch('../api/buildings.php?id=' + b.id, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) await this.loadBuildings();
-      else alert('Error: ' + (data.error || 'unknown'));
+      else Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
     },
     isStale(updatedAt) {
       const days = (Date.now() - new Date(updatedAt).getTime()) / 86400000;

@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Guide</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -172,6 +173,16 @@
              class="flex-1 bg-transparent text-sm text-white placeholder-white/40 focus:outline-none">
       <button v-if="searchQuery" @click="searchQuery = ''" class="text-white/50 text-xs font-medium flex-shrink-0">Clear</button>
     </div>
+
+    <!-- Disambiguation: several buildings match the query, so don't silently
+         pick one (the Critical misidentification gap) — ask instead. -->
+    <div v-if="searchMatches.length > 1 && !(target && searchMatches.some(b => b.id === target.id))" class="bg-white/10 border border-white/15 rounded-2xl overflow-hidden">
+      <div class="px-3.5 pt-2.5 pb-1 text-[11px] font-medium text-white/50">Did you mean…</div>
+      <button v-for="b in searchMatches" :key="b.id" @click="selectBuilding(b)"
+              class="press w-full text-left px-3.5 py-2.5 text-sm text-white hover:bg-white/10 transition border-t border-white/10">
+        {{ b.name }}
+      </button>
+    </div>
   </div>
 
   <!-- Location turned off mid-session (see toggleLocation) — ambient labels
@@ -189,13 +200,13 @@
   <div v-if="started && locationOn" class="absolute inset-0 z-10 pointer-events-none">
     <div v-for="b in ambientBuildings" :key="b.id"
          class="absolute top-[30%] -translate-x-1/2 transition-all duration-300 bg-black/40 text-white/70 text-xs font-medium rounded-full px-3 py-1.5 whitespace-nowrap"
-         :style="{ left: b.leftPercent + '%' }">
+         :style="{ left: 'clamp(70px, ' + b.leftPercent + '%, calc(100% - 70px))' }">
       {{ b.name }}
     </div>
   </div>
 
   <!-- target building: bouncing arrow + card, promoted once search finds a match -->
-  <div v-if="started && locationOn && target" class="absolute top-[36%] -translate-x-1/2 z-10 text-center transition-all duration-300" :style="{ left: target.leftPercent + '%' }">
+  <div v-if="started && locationOn && target" class="absolute top-[36%] -translate-x-1/2 z-10 text-center transition-all duration-300" :style="{ left: 'clamp(140px, ' + target.leftPercent + '%, calc(100% - 140px))' }">
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="mx-auto mb-2 lamp-glow ar-bounce" :style="{ transform: 'rotate(' + (target.offscreen ? (target.offscreen === 'left' ? -90 : 90) : 0) + 'deg)' }">
       <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#10b981"/>
     </svg>
@@ -316,14 +327,24 @@ createApp({
     };
   },
   computed: {
-    matchedBuilding() {
+    // All name matches, not just the first — a single match auto-selects,
+    // but multiple matches are shown as a "did you mean?" list instead of
+    // silently picking one (the Critical misidentification gap).
+    searchMatches() {
       const q = this.searchQuery.trim().toLowerCase();
-      if (q.length < 2) return null;
-      return this.buildings.find(b => b.name.toLowerCase().includes(q)) || null;
+      if (q.length < 2) return [];
+      return this.buildings.filter(b => b.name.toLowerCase().includes(q));
     }
   },
   watch: {
-    matchedBuilding(building) { this.target = building ? { ...building } : null; this.recompute(); }
+    searchMatches(matches) {
+      // A manual pick from the disambiguation list already set the target —
+      // don't stomp it just because the query still matches multiple names.
+      if (this.target && matches.some(b => b.id === this.target.id) && matches.length > 1) return;
+      const building = matches.length === 1 ? matches[0] : null;
+      this.target = building ? { ...building } : null;
+      this.recompute();
+    }
   },
   async mounted() {
     // Skip the full explanation screen on repeat visits when permission was
@@ -510,6 +531,11 @@ createApp({
           offscreen: rel > 70 ? 'right' : (rel < -70 ? 'left' : false)
         };
       }
+    },
+    // Explicit pick from the "did you mean?" disambiguation list.
+    selectBuilding(building) {
+      this.target = { ...building };
+      this.recompute();
     },
     openChat(building) {
       // Keep the running conversation when reopening the same building's chat
