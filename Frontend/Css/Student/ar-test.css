@@ -1,0 +1,55 @@
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: sans-serif; }
+a-scene { position: fixed; inset: 0; z-index: 0; }
+/* Lessons from the first attempt: AR.js appends its real camera <video>
+   straight to <body> (id=arjs-video, NOT nested in <a-scene>), and only
+   ever sets position/top/left/z-index on it itself — no width, height, or
+   object-fit. Left alone it renders at raw native camera resolution in
+   CSS pixels, which reads as squeezed. */
+/* dvh/dvw (dynamic viewport units), not vh/vw — the diagnostic on the
+   first attempt showed the CSS box (via 100vh) reporting a TALLER size
+   than window.innerHeight (784 vs 728), while the JS sizing code below
+   uses window.innerHeight directly. That mismatch between what CSS thinks
+   the viewport is and what JS thinks it is very likely the actual source
+   of the black bar — dvh/dvw track the real visible viewport instead. */
+#arjs-video {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
+  object-fit: cover !important;
+  transform: none !important;
+  /* THE actual bug, confirmed via the raw inline style AR.js sets:
+     width:546px + margin-left:-93px — it computes its own "cover" scale
+     (480x640 native, scaled to fill height 728 -> 546 wide) and centers
+     that with a negative margin. My width override successfully forces
+     the box down to 360px, but that margin was calculated for the OLD
+     546px width and never got recalculated — it's now shoving a
+     360px-wide box 93px too far left, for a width that no longer exists. */
+  margin: 0 !important;
+}
+/* A-Frame's own WebGL canvas also defaults to the raw camera resolution in
+   CSS pixels — without this it overflows or crops to a fraction of the
+   actual screen instead of filling it (this was the "10% visible, rest
+   black" bug last time). */
+.a-canvas {
+  width: 100dvw !important;
+  height: 100dvh !important;
+}
+
+#status {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 50;
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  font-size: 11px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+#status b { color: #4ade80; }

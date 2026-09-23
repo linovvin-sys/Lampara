@@ -1,0 +1,4 @@
+.grid-2 { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+@media (min-width: 960px) { .grid-2 { grid-template-columns: 1.1fr 1fr; } }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-sm-pad { padding: 0.4rem 0.9rem; font-size: 0.75rem; flex-shrink: 0; }

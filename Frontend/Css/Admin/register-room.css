@@ -1,0 +1,25 @@
+.warn-card { border-color: #fde68a; background: #fffbeb; }
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+@media (min-width: 800px) { .form-grid { grid-template-columns: 1.3fr 1fr; align-items: start; } }
+.side-col { display: flex; flex-direction: column; gap: 1.25rem; }
+.no-hours-note {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--green-50); border-radius: 0.65rem;
+  padding: 0.7rem 0.85rem; font-size: 0.75rem; color: #9aa79f;
+  margin-bottom: 1rem;
+}
+.dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; display:inline-block; }
+.dot-green { background: var(--green-500); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rooms-panel { background: var(--ink); border-radius: 1rem; padding: 1.25rem; }
+.rooms-panel-label { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; color: rgba(255,255,255,0.45); margin: 0 0 0.75rem; }
+.room-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; font-size: 0.875rem; }
+.room-num { font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; background: rgba(255,255,255,0.1); color: var(--green-500); border-radius: 0.3rem; padding: 0.1rem 0.4rem; flex-shrink: 0; }
+.room-name { color: #ffffff; flex: 1; min-width: 0; }
+.room-type { font-size: 0.625rem; font-weight: 700; flex-shrink: 0; }
+.type-office { color: var(--green-200); }
+.type-classroom { color: var(--green-500); }
+.room-action { font-size: 0.625rem; font-weight: 700; color: rgba(255,255,255,0.4); }
+.room-action:hover { color: var(--green-500); }
+.room-delete:hover { color: #f87171; }

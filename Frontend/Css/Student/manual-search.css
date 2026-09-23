@@ -1,0 +1,156 @@
+:root {
+  --green-50:  #f0fdf4;
+  --green-100: #dcfce7;
+  --green-200: #bbf7d0;
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+  --green-700: #15803d;
+  --moss-100:  #ecfccb;
+  --moss-500:  #65a30d;
+  --ink:       #14251c;
+  --muted:     #5b6b63;
+  --line:      #e3ede6;
+  --bg:        #f8faf7;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: 'Outfit', sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.shell { max-width: 30rem; margin: 0 auto; min-height: 100dvh; background: #ffffff; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  background: var(--green-50);
+  color: var(--green-700);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.topbar h1 { font-size: 1rem; font-weight: 700; margin: 0; }
+
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1.1rem;
+  background: var(--green-50);
+  border-bottom: 1px solid var(--green-100);
+}
+.status-strip.is-offline { background: var(--moss-100); border-bottom-color: #ddec9e; }
+.status-strip .status-icon { flex-shrink: 0; color: var(--green-700); }
+.status-strip.is-offline .status-icon { color: var(--moss-500); }
+.status-strip .status-title { font-size: 0.8125rem; font-weight: 700; color: var(--ink); }
+.status-strip .status-sub { font-size: 0.75rem; color: var(--muted); }
+
+.page-intro { padding: 1.25rem 1.1rem 0.5rem; }
+.page-intro h2 { font-size: 1.375rem; font-weight: 800; margin: 0 0 0.3rem; }
+.page-intro p { color: var(--muted); font-size: 0.8125rem; margin: 0; line-height: 1.5; }
+
+.search-box {
+  margin: 0.9rem 1.1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+}
+.search-box svg { flex-shrink: 0; color: #9aa79f; }
+.search-box input {
+  flex: 1;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+  outline: none;
+}
+
+.filter-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.9rem 1.1rem;
+  overflow-x: auto;
+}
+.filter-pill {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.filter-pill.is-active { background: var(--green-600); color: #ffffff; }
+
+.room-list { padding: 0 1.1rem 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.empty-state { text-align: center; color: #9aa79f; font-size: 0.875rem; padding: 2.5rem 0; }
+
+.room-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.8rem 0.9rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+}
+.room-row:hover { border-color: var(--green-200); background: var(--green-50); }
+
+.room-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ink);
+}
+.room-icon.type-office { background: var(--green-100); }
+.room-icon.type-classroom { background: var(--moss-100); }
+
+.room-info { flex: 1; min-width: 0; }
+.room-info .room-name { font-weight: 700; font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-info .room-meta { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+.room-chevron { flex-shrink: 0; color: #c7d1cb; }
+
+.offline-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0 1.1rem 2rem;
+  background: var(--moss-100);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+}
+.offline-note svg { flex-shrink: 0; margin-top: 0.1rem; color: var(--moss-500); }
+.offline-note p { margin: 0; font-size: 0.75rem; color: #4d6b1f; line-height: 1.5; }

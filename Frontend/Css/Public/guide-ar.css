@@ -1,0 +1,63 @@
+/* !important on margin specifically: the diagnostic caught body itself
+   with an inline margin-left:-305px — an exact centering calculation
+   ((body.scrollWidth 971 - window.innerWidth 360) / 2 = 305.5), the same
+   pattern as the earlier #arjs-video bug, just applied to body this time.
+   A plain (non-important) rule loses to whatever sets that inline style. */
+html, body { margin: 0 !important; height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; }
+#app { position: relative; height: 100dvh; color: #fff; }
+a-scene { position: fixed; inset: 0; z-index: 0; }
+
+/* Everything below this line: the exact, hard-won fixes from ar-test.php.
+   Do not "simplify" any of these — each one maps to a specific, confirmed
+   bug (see docs/ or the session history for how each was diagnosed). */
+#arjs-video {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
+  object-fit: cover !important;
+  transform: none !important;
+  margin: 0 !important; /* THE fix — AR.js's own stale margin-left for a width it no longer uses */
+}
+.a-canvas { width: 100dvw !important; height: 100dvh !important; }
+
+.fade-bg { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.05) 45%, rgba(0,0,0,.05) 60%, rgba(0,0,0,.85)); }
+.lamp-glow { filter: drop-shadow(0 0 18px rgba(16, 185, 129, 0.55)); }
+@keyframes ar-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.ar-bounce { animation: ar-bounce 900ms ease-in-out infinite; }
+.press { transition: transform 160ms ease-out; }
+.press:active { transform: scale(0.97); }
+.msg-enter-active { transition: opacity 200ms ease-out, transform 200ms ease-out; }
+.msg-enter-from { opacity: 0; transform: translateY(8px); }
+.sheet-enter-active { transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+.sheet-leave-active { transition: transform 200ms ease-in; }
+.sheet-enter-from, .sheet-leave-to { transform: translateY(100%); }
+.typing-dot { width: 6px; height: 6px; border-radius: 9999px; background: #a1a1aa; animation: typing-bounce 1.1s infinite ease-in-out; }
+.typing-dot:nth-child(2) { animation-delay: 150ms; }
+.typing-dot:nth-child(3) { animation-delay: 300ms; }
+@keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); }
+@keyframes lamp-breathe { 0%, 100% { filter: drop-shadow(0 0 16px rgba(16,185,129,.5)); transform: scale(1); } 50% { filter: drop-shadow(0 0 26px rgba(16,185,129,.8)); transform: scale(1.05); } }
+.lamp-breathe { animation: lamp-breathe 1.8s var(--ease-in-out) infinite; }
+@keyframes icon-pop { 0% { opacity: 0; transform: scale(0.85) translateY(6px); } 65% { opacity: 1; transform: scale(1.06) translateY(0); } 100% { transform: scale(1); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.gate-icon { animation: icon-pop 520ms var(--ease-out) both; }
+.gate-heading { animation: fade-up 420ms var(--ease-out) both; animation-delay: 120ms; }
+.gate-desc { animation: fade-up 420ms var(--ease-out) both; animation-delay: 190ms; }
+.gate-button { animation: fade-up 420ms var(--ease-out) both; animation-delay: 260ms; }
+.gate-transition-leave-active { transition: opacity 380ms var(--ease-in-out), transform 380ms var(--ease-in-out); }
+.gate-transition-leave-to { opacity: 0; transform: scale(1.03); }
+@keyframes main-fade-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.main-fade-in { animation: main-fade-in 450ms var(--ease-out) both; animation-delay: 150ms; }
+.flex-wrap { flex-wrap: wrap; }
+.self-start { align-self: flex-start; }
+.bg-black\/60 { background-color: rgba(0, 0, 0, 0.6); }
+
+/* Building dropdown — scales in from the top (where the search bar/toggle
+   that triggers it actually sits), not from center, so it reads as
+   unfolding from its trigger rather than just materializing mid-air. */
+.dropdown-enter-active { transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); transform-origin: top center; }
+.dropdown-leave-active { transition: opacity 130ms ease-in, transform 130ms ease-in; transform-origin: top center; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: scaleY(0.92) translateY(-4px); }
