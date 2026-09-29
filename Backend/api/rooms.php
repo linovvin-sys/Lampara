@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $sql = "SELECT r.id, r.building_id, b.name AS building_name, r.room_number, r.room_name,
-                   r.floor, r.room_type, r.category, r.hours, r.notes, r.updated_at,
+                   r.floor, r.room_type, r.category, r.hours, r.notes, r.map_x, r.map_y, r.path_node_id, r.updated_at,
                    (SELECT COUNT(*) FROM outdated_flags f WHERE f.room_id = r.id AND f.resolved = 0) AS open_flags
             FROM rooms r
             JOIN buildings b ON b.id = r.building_id";
@@ -68,6 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $rooms = [];
     while ($row = $result->fetch_assoc()) {
         $row['open_flags'] = (int) $row['open_flags'];
+        $row['map_x'] = $row['map_x'] !== null ? (float) $row['map_x'] : null;
+        $row['map_y'] = $row['map_y'] !== null ? (float) $row['map_y'] : null;
+        $row['path_node_id'] = $row['path_node_id'] !== null ? (int) $row['path_node_id'] : null;
         $rooms[] = $row;
     }
     $stmt->close();
@@ -99,6 +102,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // get fixed hours (class scheduling is a deliberately separate scope).
     $hours = $roomType === 'office' ? trim($input['hours'] ?? '') : null;
     $notes = trim($input['notes'] ?? '') ?: null;
+    // Where this room sits on its floor's plan image (percentage, not
+    // pixels) — null until an admin places it, or if that floor has no
+    // plan uploaded at all.
+    $mapX = isset($input['map_x']) && $input['map_x'] !== '' ? (float) $input['map_x'] : null;
+    $mapY = isset($input['map_y']) && $input['map_y'] !== '' ? (float) $input['map_y'] : null;
+    // Which walkable-path node this room's doorway connects to — the entry
+    // point pathfinding routes to/from. Null until an admin links it (or if
+    // that floor has no path graph drawn at all yet).
+    $pathNodeId = isset($input['path_node_id']) && $input['path_node_id'] !== '' ? (int) $input['path_node_id'] : null;
 
     if (!$buildingId || $roomName === '' || $floor === '') {
         http_response_code(400);
@@ -106,8 +118,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $stmt = $conn->prepare("INSERT INTO rooms (building_id, room_number, room_name, floor, room_type, category, hours, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param('isssssss', $buildingId, $roomNumber, $roomName, $floor, $roomType, $category, $hours, $notes);
+    $stmt = $conn->prepare("INSERT INTO rooms (building_id, room_number, room_name, floor, room_type, category, hours, notes, map_x, map_y, path_node_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('isssssssddi', $buildingId, $roomNumber, $roomName, $floor, $roomType, $category, $hours, $notes, $mapX, $mapY, $pathNodeId);
 
     // mysqli throws on error by default (PHP 8.1+) rather than returning
     // false from execute() — the duplicate-key case has to be caught, not
@@ -145,6 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $roomType = in_array($category, ['office', 'canteen'], true) ? 'office' : 'classroom';
     $hours = $roomType === 'office' ? trim($input['hours'] ?? '') : null;
     $notes = trim($input['notes'] ?? '') ?: null;
+    $mapX = isset($input['map_x']) && $input['map_x'] !== '' ? (float) $input['map_x'] : null;
+    $mapY = isset($input['map_y']) && $input['map_y'] !== '' ? (float) $input['map_y'] : null;
+    $pathNodeId = isset($input['path_node_id']) && $input['path_node_id'] !== '' ? (int) $input['path_node_id'] : null;
 
     if (!$id || $roomName === '' || $floor === '') {
         http_response_code(400);
@@ -152,8 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         exit;
     }
 
-    $stmt = $conn->prepare("UPDATE rooms SET room_number = ?, room_name = ?, floor = ?, room_type = ?, category = ?, hours = ?, notes = ? WHERE id = ?");
-    $stmt->bind_param('sssssssi', $roomNumber, $roomName, $floor, $roomType, $category, $hours, $notes, $id);
+    $stmt = $conn->prepare("UPDATE rooms SET room_number = ?, room_name = ?, floor = ?, room_type = ?, category = ?, hours = ?, notes = ?, map_x = ?, map_y = ?, path_node_id = ? WHERE id = ?");
+    $stmt->bind_param('sssssssddii', $roomNumber, $roomName, $floor, $roomType, $category, $hours, $notes, $mapX, $mapY, $pathNodeId, $id);
 
     try {
         $stmt->execute();

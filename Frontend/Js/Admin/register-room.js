@@ -27,18 +27,38 @@ createApp({
       form: {
         building_id: '', room_number: '', room_name: '', floor: '', category: 'office', hours: '',
         hoursStart: '', hoursEnd: '', hasLunchBreak: false, lunchStart: '', lunchEnd: '',
-        hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false
+        hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false,
+        map_x: null, map_y: null
       },
       buildings: [],
       rooms: [],
       submitting: false,
-      editingId: null
+      editingId: null,
+      // The uploaded plan image for whichever building+floor is currently
+      // selected — null whenever that floor has none, which just hides the
+      // marker-placement UI (map_x/map_y stay null, room falls back to
+      // text-only directions on the scan result screen).
+      currentFloorPlan: null,
+      loadingPlan: false
     };
   },
   computed: {
     filteredRooms() {
       if (!this.form.building_id) return this.rooms;
       return this.rooms.filter(r => r.building_id == this.form.building_id);
+    },
+    // Every OTHER room already pinned on this same building+floor — shown as
+    // fixed reference dots on the plan so an admin placing a new marker can
+    // see what's already occupied instead of guessing blind or stacking two
+    // rooms on the same spot.
+    occupiedPins() {
+      if (!this.form.building_id || !this.form.floor) return [];
+      return this.rooms.filter((r) =>
+        r.building_id == this.form.building_id &&
+        r.floor === this.form.floor &&
+        r.id !== this.editingId &&
+        r.map_x !== null && r.map_y !== null
+      );
     },
     floorOptions() {
       const b = this.buildings.find(x => x.id == this.form.building_id);
@@ -128,7 +148,39 @@ createApp({
     }
   },
   mounted() { this.loadBuildings(); this.loadRooms(); },
+  watch: {
+    'form.building_id'() { this.loadFloorPlanForCurrentSelection(); },
+    'form.floor'() { this.loadFloorPlanForCurrentSelection(); }
+  },
   methods: {
+    async loadFloorPlanForCurrentSelection() {
+      // Switching building/floor invalidates whatever marker position was
+      // showing — it belonged to the previous floor's image, not this one.
+      this.currentFloorPlan = null;
+      if (!this.form.building_id || !this.form.floor) return;
+      this.loadingPlan = true;
+      try {
+        const res = await fetch(`../../../Backend/api/floor-plans.php?building_id=${this.form.building_id}&floor=${encodeURIComponent(this.form.floor)}`);
+        const data = await res.json();
+        if (data.success) this.currentFloorPlan = data.plan;
+      } finally {
+        this.loadingPlan = false;
+      }
+    },
+    // Percentage of the image's own rendered size, not raw pixels — stays
+    // correct regardless of what size the image actually renders at on
+    // whatever device later reads it back (scan.php).
+    placeMarker(event) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      this.form.map_x = Math.round(Math.max(0, Math.min(100, x)) * 10) / 10;
+      this.form.map_y = Math.round(Math.max(0, Math.min(100, y)) * 10) / 10;
+    },
+    clearMarker() {
+      this.form.map_x = null;
+      this.form.map_y = null;
+    },
     // Switching category resets room_name — a typed office name like
     // "Treasury" isn't valid once the field becomes a Lecture/Laboratory
     // dropdown (classroom), and vice versa. CR/canteen get a sensible
@@ -188,8 +240,10 @@ createApp({
         floor: r.floor, category: r.category || r.room_type || 'office', hours: hours,
         hoursStart, hoursEnd, hasLunchBreak, lunchStart, lunchEnd,
         hoursDaysPreset, hoursDaysCustom: hoursDaysPreset === 'Custom' ? dayPart : '',
-        notes: r.notes || '', noSignage: !r.room_number
+        notes: r.notes || '', noSignage: !r.room_number,
+        map_x: r.map_x, map_y: r.map_y
       };
+      this.loadFloorPlanForCurrentSelection();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     // Shared shape for "reset the form" — overrides lets callers keep
@@ -200,7 +254,8 @@ createApp({
       return {
         building_id: '', room_number: '', room_name: '', floor: '', category: 'office', hours: '',
         hoursStart: '', hoursEnd: '', hasLunchBreak: false, lunchStart: '', lunchEnd: '',
-        hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false, ...overrides
+        hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false,
+        map_x: null, map_y: null, ...overrides
       };
     },
     cancelEdit() {

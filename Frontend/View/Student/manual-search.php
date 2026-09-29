@@ -1,3 +1,8 @@
+<?php
+$pageCssVer = filemtime(__DIR__ . '/../../Css/Student/manual-search.css');
+$pageJsVer = filemtime(__DIR__ . '/../../Js/Student/manual-search.js');
+$cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -9,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../../Css/Student/manual-search.css">
+<link rel="stylesheet" href="../../Css/Student/manual-search.css?v=<?= $pageCssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body>
@@ -55,7 +60,7 @@
   <div class="room-list">
     <div v-if="loading" class="empty-state">Loading…</div>
     <div v-else-if="filtered.length === 0" class="empty-state">No rooms match.</div>
-    <a v-for="r in filtered" :key="r.id" href="scan.php" class="room-row">
+    <a v-for="r in filtered" :key="r.id" :href="'scan.php?room=' + r.id" class="room-row">
       <div class="room-icon" :class="r.room_type === 'office' ? 'type-office' : 'type-classroom'">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/></svg>
       </div>
@@ -69,11 +74,12 @@
 
   <div class="offline-note">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5M12 8v.01"/></svg>
-    <p>AI chat and signage scanning need a connection — reconnect to use them. Directory browsing works offline once it's loaded here at least once.</p>
+    <p>Signage scanning needs a connection — reconnect to use it. Browsing the directory and getting directions to a room you've visited here before both work offline once loaded at least once.</p>
   </div>
 </div>
 
-<script src="../../Js/Student/manual-search.js"></script>
+<script src="../../Js/Include/offline-cache.js?v=<?= $cacheJsVer ?>"></script>
+<script src="../../Js/Student/manual-search.js?v=<?= $pageJsVer ?>"></script>
 
 </body>
 </html>

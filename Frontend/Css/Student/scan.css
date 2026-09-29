@@ -24,12 +24,23 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 /* ---- Stage 2: result screen (full card-based redesign) ---- */
 .result-shell { max-width: 30rem; margin: 0 auto; min-height: 100dvh; background: #ffffff; color: var(--ink); padding-bottom: 2.5rem; }
 
-.confirm-badge {
-  width: 4rem; height: 4rem; border-radius: 999px;
-  background: var(--green-100);
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 0.6rem;
+/* Compact "you're here" confirmation — deliberately quiet, not a headline.
+   The scan's real job is letting the SYSTEM anchor itself (no indoor GPS);
+   a human standing at the door already knows what room they're in, so this
+   reads as a small formality, not the main event. */
+.here-pill {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin: 0 1.1rem; padding: 0.6rem 0.85rem;
+  background: var(--green-50); border-radius: 0.85rem;
 }
+.here-pill-check {
+  flex-shrink: 0; width: 1.5rem; height: 1.5rem; border-radius: 999px;
+  background: var(--green-600); display: flex; align-items: center; justify-content: center;
+}
+.here-pill-text { flex: 1; min-width: 0; font-size: 0.8125rem; color: var(--muted); }
+.here-pill-text strong { color: var(--ink); font-weight: 700; }
+.here-pill-sub { display: block; font-size: 0.75rem; color: #9aa79f; margin-top: 0.1rem; }
+.here-pill-source { flex-shrink: 0; }
 
 .source-tag {
   display: inline-flex; align-items: center; gap: 0.4rem;

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'register-room';
 $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
+$pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/register-room.js');
 ?>
 <!doctype html>
 <html lang="en">
@@ -99,6 +100,39 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
                   <option v-if="form.floor && !floorOptions.includes(form.floor)" :value="form.floor">{{ form.floor }} (existing)</option>
                 </select>
               </div>
+            </div>
+
+            <!-- Floor plan marker — only shows once a floor is picked, and
+                 only if that floor actually has an uploaded plan (Register
+                 Building). Placing one is optional: the scan result screen
+                 falls back to text directions whenever it's missing. -->
+            <div class="field" v-if="form.floor">
+              <label>Location on floor plan (optional)</label>
+              <p v-if="loadingPlan" style="font-size:0.75rem; color:#9aa79f; margin:0;">Loading plan…</p>
+              <p v-else-if="!currentFloorPlan" style="font-size:0.75rem; color:#9aa79f; margin:0;">
+                No plan uploaded for {{ form.floor }} yet — add one on Register Building to place a marker here.
+              </p>
+              <template v-else>
+                <div class="map-marker-frame" @click="placeMarker" style="position:relative; cursor:crosshair; border-radius:0.6rem; overflow:hidden; border:1px solid var(--border, #e5e7eb); user-select:none;">
+                  <img :src="'../../' + currentFloorPlan.image_path" alt="" style="width:100%; display:block; pointer-events:none;">
+                  <!-- Reference dots for rooms already pinned on this floor — fixed,
+                       non-interactive, so placing a new marker doesn't mean guessing
+                       blind or accidentally stacking two rooms on the same spot. -->
+                  <div v-for="p in occupiedPins" :key="p.id"
+                       :style="{ position: 'absolute', left: p.map_x + '%', top: p.map_y + '%', transform: 'translate(-50%, -100%)', pointerEvents: 'none' }">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9aa79f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+                    <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.5625rem; font-weight:700; background:#5b6b63; color:#fff; padding:0.05rem 0.3rem; border-radius:0.25rem; white-space:nowrap;">{{ p.room_number || p.room_name }}</span>
+                  </div>
+                  <div v-if="form.map_x !== null && form.map_y !== null"
+                       :style="{ position: 'absolute', left: form.map_x + '%', top: form.map_y + '%', transform: 'translate(-50%, -100%)', pointerEvents: 'none' }">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#16a34a" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.4rem;">
+                  <p style="font-size:0.6875rem; color:#9aa79f; margin:0;">Tap the plan to place the marker. <span v-if="occupiedPins.length">Gray pins are already-placed rooms.</span></p>
+                  <button v-if="form.map_x !== null" type="button" @click="clearMarker" class="btn-link" style="font-size:0.75rem; color: var(--muted);">Clear marker</button>
+                </div>
+              </template>
             </div>
 
             <div class="field" v-if="form.category === 'classroom'">
@@ -215,7 +249,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
   </main>
 </div>
 
-<script src="../../Js/Admin/register-room.js"></script>
+<script src="../../Js/Admin/register-room.js?v=<?= $pageJsVer ?>"></script>
 
 </body>
 </html>

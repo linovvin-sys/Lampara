@@ -11,6 +11,12 @@
 --   ALTER TABLE rooms MODIFY room_number VARCHAR(30) NULL;
 --   ALTER TABLE rooms ADD COLUMN category ENUM('office','classroom','cr','canteen') NOT NULL DEFAULT 'office' AFTER room_type;
 --   UPDATE rooms SET category = room_type; -- backfill existing rows before this column existed
+--   ALTER TABLE rooms ADD COLUMN map_x DECIMAL(5,2) NULL, ADD COLUMN map_y DECIMAL(5,2) NULL;
+--   CREATE TABLE floor_plans (id INT AUTO_INCREMENT PRIMARY KEY, building_id INT NOT NULL, floor VARCHAR(50) NOT NULL, image_path VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY building_floor (building_id, floor), FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   CREATE TABLE floor_plan_nodes (id INT AUTO_INCREMENT PRIMARY KEY, floor_plan_id INT NOT NULL, x DECIMAL(5,2) NOT NULL, y DECIMAL(5,2) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (floor_plan_id) REFERENCES floor_plans(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   CREATE TABLE floor_plan_edges (id INT AUTO_INCREMENT PRIMARY KEY, node_a_id INT NOT NULL, node_b_id INT NOT NULL, FOREIGN KEY (node_a_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE, FOREIGN KEY (node_b_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE, UNIQUE KEY edge_pair (node_a_id, node_b_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   ALTER TABLE rooms ADD COLUMN path_node_id INT NULL;
+--   ALTER TABLE rooms ADD CONSTRAINT fk_rooms_path_node FOREIGN KEY (path_node_id) REFERENCES floor_plan_nodes(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS buildings (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -65,10 +71,64 @@ CREATE TABLE IF NOT EXISTS rooms (
     category ENUM('office', 'classroom', 'cr', 'canteen') NOT NULL DEFAULT 'office',
     hours VARCHAR(150) NULL,
     notes TEXT NULL,
+    -- Percentage position (0-100) on that floor's plan image, not raw
+    -- pixels — stays correct regardless of what size the image actually
+    -- renders at on a given phone screen. NULL until an admin has placed
+    -- the marker (or if that floor has no plan uploaded at all yet) — the
+    -- scan result screen falls back to the plain text direction hint
+    -- whenever either room is missing one, never breaks on incomplete data.
+    map_x DECIMAL(5, 2) NULL,
+    map_y DECIMAL(5, 2) NULL,
+    -- Which walkable-path node (see floor_plan_nodes below) this room's
+    -- doorway connects to — the entry point pathfinding routes to/from when
+    -- drawing a turn-by-turn line between two rooms on the same floor. The
+    -- FK is added after floor_plan_nodes exists further down this file.
+    path_node_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One uploaded image per building+floor (evacuation plans, hand sketches —
+-- doesn't need to be to-scale, just roughly right so relative positions
+-- read correctly). Not every floor needs one; rooms on floors with no plan
+-- just keep using the plain text direction hint.
+CREATE TABLE IF NOT EXISTS floor_plans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    building_id INT NOT NULL,
+    floor VARCHAR(50) NOT NULL,
+    image_path VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY building_floor (building_id, floor),
+    FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Walkable-path graph for one floor plan — junction points an admin drops
+-- along the corridors, connected into a network. Pathfinding (Dijkstra) runs
+-- over this at request time to draw an actual route line between two rooms,
+-- same idea as a mall directory kiosk. Small per floor, drawn once.
+CREATE TABLE IF NOT EXISTS floor_plan_nodes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    floor_plan_id INT NOT NULL,
+    x DECIMAL(5, 2) NOT NULL,
+    y DECIMAL(5, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (floor_plan_id) REFERENCES floor_plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- An undirected walkable connection between two nodes.
+CREATE TABLE IF NOT EXISTS floor_plan_edges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    node_a_id INT NOT NULL,
+    node_b_id INT NOT NULL,
+    FOREIGN KEY (node_a_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (node_b_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE,
+    UNIQUE KEY edge_pair (node_a_id, node_b_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE rooms ADD CONSTRAINT fk_rooms_path_node
+    FOREIGN KEY (path_node_id) REFERENCES floor_plan_nodes(id) ON DELETE SET NULL;
 
 -- "This seems outdated — report it" flag from the scan-result screen. A report
 -- doesn't change the room record itself; it just surfaces to whoever maintains

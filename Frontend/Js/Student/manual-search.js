@@ -1,6 +1,4 @@
 const { createApp } = Vue;
-const CACHE_KEY = 'lampara_rooms_cache';
-const CACHE_TIME_KEY = 'lampara_rooms_cache_time';
 
 // Real offline-first pattern: cache the full directory in localStorage the
 // first time it loads successfully. After that, this page works with zero
@@ -32,15 +30,12 @@ createApp({
   },
   methods: {
     loadFromCache() {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
-        if (cached) {
-          this.rooms = JSON.parse(cached);
-          this.cachedAt = cachedTime ? new Date(parseInt(cachedTime)).toLocaleString() : null;
-          this.loading = false;
-        }
-      } catch (e) { /* localStorage unavailable — degrades to network-only */ }
+      const cached = LamparaCache.getRooms();
+      if (cached.length) {
+        this.rooms = cached;
+        this.cachedAt = LamparaCache.getRoomsCachedAt();
+        this.loading = false;
+      }
     },
     async search() {
       if (!navigator.onLine) { this.isOffline = true; this.loading = false; return; }
@@ -54,9 +49,8 @@ createApp({
           this.rooms = data.rooms;
           this.isOffline = false;
           if (!this.q.trim()) {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data.rooms));
-            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-            this.cachedAt = new Date().toLocaleString();
+            LamparaCache.setRooms(data.rooms);
+            this.cachedAt = LamparaCache.getRoomsCachedAt();
           }
         }
       } catch (e) {
