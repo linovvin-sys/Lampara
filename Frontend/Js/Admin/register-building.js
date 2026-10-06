@@ -24,7 +24,8 @@ createApp({
   data() {
     return {
       form: { name: '', lat: '', lng: '', floor_count: 1, building_number: null, directory: '' },
-      buildings: [],
+      baseBuildings: [],   // last data from the server
+      buildings: [],       // server data + changes made offline (shown on the page)
       submitting: false,
       geoStatus: '',
       geoError: false,
@@ -42,7 +43,13 @@ createApp({
       // is currently selected, and the floor+node picker for creating a new
       // one — both invisible on a single floor's own canvas, see loadCrossLinks.
       crossLinks: [],
-      crossFloorOptions: null
+      crossFloorOptions: null,
+      // Lock: while on, the path editor ignores taps that would add, connect or delete points.
+      pathLocked: EditorLock.get('plan-paths'),
+      lockIcon: EditorLock.icon,
+      pathNameDraft: '',
+      pathNameError: '',
+      pathUndo: null          // what the last delete removed: { label, snapshot }, for the Undo button
     };
   },
   computed: {
@@ -52,6 +59,25 @@ createApp({
     floorList() {
       const count = this.form.floor_count || 0;
       return Array.from({ length: count }, (_, i) => `${i + 1}${ordinalFloor(i + 1)} Floor`);
+    },
+    // A building made offline has no server copy yet, so floor plans and paths
+    // (which need one) can't be managed until it has synced.
+    editingIsLocalOnly() {
+      return this.editingId !== null && AdminOffline.isTemp(this.editingId);
+    },
+    // "Point A", "Point B" ... for the points of the floor being edited (older unnamed ones are numbered in creation order).
+    pathNames() { return PointNames.map(this.pathNodes); },
+    // The list beside the plan: one row per point, in name order.
+    pathPointList() {
+      const names = this.pathNames;
+      const label = (id) => names.get(String(id)) || '';
+      return this.pathNodes.map((n) => {
+        const links = this.pathEdges
+          .filter((e) => e.node_a_id === n.id || e.node_b_id === n.id)
+          .map((e) => label(e.node_a_id === n.id ? e.node_b_id : e.node_a_id))
+          .sort(PointNames.compare);
+        return { id: n.id, name: label(n.id), short: PointNames.short(label(n.id)), links };
+      }).sort((a, b) => PointNames.compare(a.name, b.name));
     },
     nearbyWarnings() {
       const lat = parseFloat(this.form.lat), lng = parseFloat(this.form.lng);
@@ -64,7 +90,16 @@ createApp({
         .sort((a, b) => a.distance - b.distance);
     }
   },
+  watch: {
+    // The Name field follows whichever point is selected.
+    selectedNodeId(id) {
+      this.pathNameDraft = id === null ? '' : (this.pathNames.get(String(id)) || '');
+      this.pathNameError = '';
+    }
+  },
   async mounted() {
+    AdminOffline.onSynced(() => this.loadBuildings());
+    AdminOffline.onChange(() => { this.buildings = AdminOffline.overlayBuildings(this.baseBuildings); });
     await this.loadBuildings();
     const editId = new URLSearchParams(window.location.search).get('edit');
     if (editId) {
@@ -93,15 +128,18 @@ createApp({
       );
     },
     async loadBuildings() {
-      const res = await fetch('../../../Backend/api/buildings.php');
-      const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
+      try {
+        const res = await fetch('../../../Backend/api/buildings.php', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) this.baseBuildings = data.buildings;
+      } catch (e) { /* offline with no saved copy — start from whatever is pending */ }
+      this.buildings = AdminOffline.overlayBuildings(this.baseBuildings);
     },
     startEdit(b) {
       this.editingId = b.id;
       this.form = { name: b.name, lat: String(b.lat), lng: String(b.lng), floor_count: b.floor_count || 1, building_number: b.building_number, directory: b.directory || '' };
       this.geoStatus = '';
-      this.loadFloorPlans(b.id);
+      if (!AdminOffline.isTemp(b.id)) this.loadFloorPlans(b.id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     cancelEdit() {
@@ -112,12 +150,55 @@ createApp({
       this.closePathEditor();
     },
     async loadFloorPlans(buildingId) {
-      const res = await fetch('../../../Backend/api/floor-plans.php?building_id=' + buildingId);
+      try {
+        const res = await fetch('../../../Backend/api/floor-plans.php?building_id=' + buildingId, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (!data.success) return;
+        const byFloor = {};
+        data.plans.forEach((p) => { byFloor[p.floor] = p; });
+        this.floorPlans = byFloor;
+      } catch (e) { this.floorPlans = {}; } // offline and never opened: floor plans unavailable
+    },
+    // ---- lock ----
+    toggleLock() {
+      this.pathLocked = !this.pathLocked;
+      EditorLock.set('plan-paths', this.pathLocked);
+    },
+    // Call first in anything that would change the paths. True (after telling the admin) when locked.
+    pathLockedNow(what) {
+      if (!this.pathLocked) return false;
+      AdminOffline.toast(`The path editor is locked. Unlock it to ${what}.`, 'info');
+      return true;
+    },
+    pointLabel(node) { return this.pathNames.get(String(node.id)) || ''; },
+    pointShort(node) { return PointNames.short(this.pointLabel(node)); },
+    // Tapping a row in the list selects that point (it never connects anything).
+    selectFromList(id) {
+      this.selectedNodeId = id;
+      this.loadCrossLinks();
+    },
+    async renamePathNode() {
+      if (this.selectedNodeId === null || this.pathLockedNow('rename points')) return;
+      if (await this.needsInternet('Renaming a point')) return;
+      const id = this.selectedNodeId;
+      const name = PointNames.clean(this.pathNameDraft);
+      if (!name) { this.pathNameError = 'A point needs a name.'; return; }
+      if (name === this.pathNames.get(String(id))) { this.pathNameError = ''; return; }
+      if (!PointNames.isFree(name, this.pathNodes, this.pathNames, id)) { this.pathNameError = `Another point on this floor is already named "${name}".`; return; }
+      this.pathNameError = '';
+      const res = await fetch('../../../Backend/api/floor-plan-graph.php?node_id=' + id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name })
+      });
       const data = await res.json();
-      if (!data.success) return;
-      const byFloor = {};
-      data.plans.forEach((p) => { byFloor[p.floor] = p; });
-      this.floorPlans = byFloor;
+      if (!data.success) { this.pathNameError = data.error || 'Could not rename that point.'; return; }
+      const node = this.pathNodes.find((n) => n.id === id);
+      if (node) node.name = name;
+      this.pathNameDraft = name;
+    },
+
+    // Floor plans, paths and deletes need the live server. One place to say so.
+    async needsInternet(what) {
+      return !(await AdminOffline.guardOnline(what));
     },
     // Reads the picked file as a base64 data URL — same pattern signage
     // scanning already uses to send a photo to the backend, no separate
@@ -126,6 +207,7 @@ createApp({
       const file = event.target.files && event.target.files[0];
       event.target.value = ''; // lets picking the same file again re-trigger change
       if (!file) return;
+      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Uploading a floor plan'); return; }
       this.uploadingFloor = floor;
       const reader = new FileReader();
       reader.onload = async () => {
@@ -150,6 +232,7 @@ createApp({
     async openPathEditor(floor) {
       const plan = this.floorPlans[floor];
       if (!plan || !plan.id) return;
+      if (await this.needsInternet('Editing walkable paths')) return;
       this.pathEditorFloor = floor;
       this.selectedNodeId = null;
       this.crossLinks = [];
@@ -160,6 +243,7 @@ createApp({
       this.pathEdges = data.success ? data.edges : [];
     },
     closePathEditor() {
+      this.pathUndo = null;
       this.pathEditorFloor = null;
       this.pathNodes = [];
       this.pathEdges = [];
@@ -171,6 +255,8 @@ createApp({
     // node instead selects it (see selectNode) — this handler only fires
     // when the click didn't already land on a node, via @click.self.
     async addPathNode(event) {
+      if (this.pathLockedNow('add points')) return;
+      if (await this.needsInternet('Editing walkable paths')) return;
       const plan = this.floorPlans[this.pathEditorFloor];
       const rect = event.currentTarget.getBoundingClientRect();
       const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
@@ -178,15 +264,21 @@ createApp({
       const res = await fetch('../../../Backend/api/floor-plan-graph.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ floor_plan_id: plan.id, x, y })
+        body: JSON.stringify({ floor_plan_id: plan.id, x, y, name: PointNames.next([...this.pathNames.values()]) })
       });
       const data = await res.json();
-      if (data.success) this.pathNodes.push({ id: data.id, x, y });
+      if (data.success) this.pathNodes.push({ id: data.id, x, y, name: data.name });
     },
     // First click on a node selects it; clicking a SECOND, different node
     // while one is already selected connects the two with an edge instead
     // of selecting it — this is how a corridor gets traced, click by click.
     async selectNode(node) {
+      if (this._justDragged) return;
+      if (this.pathLocked) {              // locked: tapping a point only selects it, never connects
+        this.selectedNodeId = this.selectedNodeId === node.id ? null : node.id;
+        if (this.selectedNodeId !== null) this.loadCrossLinks(); else this.crossLinks = [];
+        return;
+      }
       if (this.selectedNodeId === null) {
         this.selectedNodeId = node.id;
         this.loadCrossLinks();
@@ -197,6 +289,7 @@ createApp({
         this.crossLinks = [];
         return;
       }
+      if (await this.needsInternet('Editing walkable paths')) return;
       const nodeA = this.selectedNodeId;
       const nodeB = node.id;
       this.selectedNodeId = null;
@@ -209,16 +302,103 @@ createApp({
       const data = await res.json();
       if (data.success && !this.pathEdges.some((e) => (e.node_a_id === nodeA && e.node_b_id === nodeB) || (e.node_a_id === nodeB && e.node_b_id === nodeA))) {
         this.pathEdges.push({ id: data.id, node_a_id: Math.min(nodeA, nodeB), node_b_id: Math.max(nodeA, nodeB) });
+        // Undo for a new connection removes it again.
+        if (data.id) this.pathUndo = { label: `Connected ${this.pathNames.get(String(nodeA)) || 'a point'} to ${this.pathNames.get(String(nodeB)) || 'a point'}`, edgeId: data.id };
       }
     },
+    // Drag a dot to move it. Pointer events cover mouse, touch and pen; a press that barely moves
+    // is still a plain tap (select / connect), so tracing a corridor works as before.
+    startDrag(node, e) {
+      if (this.pathLocked || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      const el = e.currentTarget;
+      const canvas = el.parentElement.getBoundingClientRect();
+      const from = { x: e.clientX, y: e.clientY }, was = { x: node.x, y: node.y };
+      let moved = false;
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* older browsers: window listeners still work */ }
+      const move = (ev) => {
+        if (!moved && Math.hypot(ev.clientX - from.x, ev.clientY - from.y) < 5) return;
+        moved = true;
+        node.x = Math.max(0, Math.min(100, (ev.clientX - canvas.left) / canvas.width * 100));
+        node.y = Math.max(0, Math.min(100, (ev.clientY - canvas.top) / canvas.height * 100));
+      };
+      const up = async () => {
+        el.removeEventListener('pointermove', move);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+        if (!moved) return;
+        this._justDragged = true;                 // swallow the click that follows a drag
+        setTimeout(() => { this._justDragged = false; }, 0);
+        if (!AdminOffline.reachable()) {
+          node.x = was.x; node.y = was.y;
+          AdminOffline.guardOnline('Moving a point');
+          return;
+        }
+        try {
+          const res = await fetch('../../../Backend/api/floor-plan-graph.php?node_id=' + node.id, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: node.x, y: node.y })
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Could not move that point');
+        } catch (err) {
+          node.x = was.x; node.y = was.y;         // put it back where the server still has it
+          AdminOffline.toast(err.message || 'Could not move that point', 'error');
+        }
+      };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    },
     async deleteSelectedNode() {
-      if (this.selectedNodeId === null) return;
+      if (this.selectedNodeId === null || this.pathLockedNow('delete a point')) return;
+      if (await this.needsInternet('Editing walkable paths')) return;
       const id = this.selectedNodeId;
+      const name = this.pathNames.get(String(id)) || 'point';
       this.selectedNodeId = null;
       this.crossLinks = [];
-      await fetch('../../../Backend/api/floor-plan-graph.php?node_id=' + id, { method: 'DELETE' });
+      const res = await fetch('../../../Backend/api/floor-plan-graph.php?node_id=' + id, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (data.snapshot) this.pathUndo = { label: `Deleted ${name}`, snapshot: data.snapshot };
       this.pathNodes = this.pathNodes.filter((n) => n.id !== id);
       this.pathEdges = this.pathEdges.filter((e) => e.node_a_id !== id && e.node_b_id !== id);
+    },
+    // Wipes every point on this floor (and so its connections, including stairs links) after a confirmation.
+    async removeAllPathNodes() {
+      if (this.pathLockedNow('remove all points') || !this.pathNodes.length) return;
+      if (await this.needsInternet('Removing all points')) return;
+      const plan = this.floorPlans[this.pathEditorFloor];
+      const count = this.pathNodes.length;
+      const r = await Swal.fire({
+        icon: 'warning', title: `Remove all ${count} points on ${this.pathEditorFloor}?`,
+        text: 'Every connection is removed too, including stairs links to other floors, and rooms lose their entry point. You can undo it right afterwards.',
+        showCancelButton: true, confirmButtonText: 'Remove all', confirmButtonColor: '#dc2626'
+      });
+      if (!r.isConfirmed) return;
+      const res = await fetch('../../../Backend/api/floor-plan-graph.php?floor_plan_id=' + plan.id + '&all=1', { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!data.success) { Swal.fire({ icon: 'error', title: 'Could not remove the points', text: data.error || '' }); return; }
+      this.pathUndo = { label: `Removed all ${data.removed} points on ${this.pathEditorFloor}`, snapshot: data.snapshot };
+      this.selectedNodeId = null;
+      this.crossLinks = [];
+      this.pathNodes = [];
+      this.pathEdges = [];
+    },
+    // Puts the last delete back: same points, names, connections and room entry points.
+    async undoPathDelete() {
+      if (!this.pathUndo) return;
+      if (await this.needsInternet('Undo')) return;
+      const res = this.pathUndo.edgeId
+        ? await fetch('../../../Backend/api/floor-plan-graph.php?edge_id=' + this.pathUndo.edgeId, { method: 'DELETE' })   // undo a new connection
+        : await fetch('../../../Backend/api/floor-plan-graph.php?action=restore', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.pathUndo.snapshot)
+          });
+      const data = await res.json().catch(() => ({}));
+      if (!data.success) { Swal.fire({ icon: 'error', title: 'Could not undo', text: data.error || '' }); return; }
+      this.pathUndo = null;
+      const plan = this.floorPlans[this.pathEditorFloor];
+      const g = await (await fetch('../../../Backend/api/floor-plan-graph.php?floor_plan_id=' + plan.id)).json();
+      this.pathNodes = g.success ? g.nodes : [];
+      this.pathEdges = g.success ? g.edges : [];
+      await this.loadCrossLinks();
     },
     async fetchBuildingGraph() {
       const res = await fetch('../../../Backend/api/floor-plan-graph.php?building_id=' + this.editingId);
@@ -240,7 +420,7 @@ createApp({
         .map((e) => {
           const otherId = e.node_a_id === this.selectedNodeId ? e.node_b_id : e.node_a_id;
           const other = byId.get(otherId);
-          return (other && other.floor_plan_id !== currentPlanId) ? { edgeId: e.id, floor: other.floor } : null;
+          return (other && other.floor_plan_id !== currentPlanId) ? { edgeId: e.id, floor: other.floor, otherId } : null;
         })
         .filter(Boolean);
     },
@@ -259,25 +439,40 @@ createApp({
       this.crossFloorOptions = null;
     },
     async linkAcrossFloors(otherNodeId) {
-      await fetch('../../../Backend/api/floor-plan-graph.php?action=edge', {
+      if (this.pathLockedNow('link floors')) return;
+      if (await this.needsInternet('Editing walkable paths')) return;
+      const res = await fetch('../../../Backend/api/floor-plan-graph.php?action=edge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ node_a_id: this.selectedNodeId, node_b_id: otherNodeId })
       });
+      const made = await res.json().catch(() => ({}));
+      if (made.success && made.id) this.pathUndo = { label: 'Linked to another floor', edgeId: made.id };
       this.crossFloorOptions = null;
       await this.loadCrossLinks();
     },
-    async unlinkCrossFloor(edgeId) {
-      await fetch('../../../Backend/api/floor-plan-graph.php?edge_id=' + edgeId, { method: 'DELETE' });
+    async unlinkCrossFloor(link) {
+      if (this.pathLockedNow('remove a floor link')) return;
+      if (await this.needsInternet('Editing walkable paths')) return;
+      await fetch('../../../Backend/api/floor-plan-graph.php?edge_id=' + link.edgeId, { method: 'DELETE' });
+      this.pathUndo = { label: `Removed the link to ${link.floor}`, snapshot: { edges: [{ node_a_id: this.selectedNodeId, node_b_id: link.otherId }] } };
       await this.loadCrossLinks();
     },
     async deleteEdge(edge) {
+      if (this.pathLockedNow('remove a connection')) return;
+      if (await this.needsInternet('Editing walkable paths')) return;
       await fetch('../../../Backend/api/floor-plan-graph.php?edge_id=' + edge.id, { method: 'DELETE' });
+      // Undo for a removed connection draws it again between the same two points.
+      this.pathUndo = {
+        label: `Removed the connection ${this.pathNames.get(String(edge.node_a_id)) || ''} – ${this.pathNames.get(String(edge.node_b_id)) || ''}`,
+        snapshot: { edges: [{ node_a_id: edge.node_a_id, node_b_id: edge.node_b_id }] }
+      };
       this.pathEdges = this.pathEdges.filter((e) => e.id !== edge.id);
     },
     async removeFloorPlan(floor) {
       const plan = this.floorPlans[floor];
       if (!plan || !plan.id) return;
+      if (await this.needsInternet('Removing a floor plan')) return;
       const result = await Swal.fire({
         title: `Remove the ${floor} plan?`,
         text: 'Rooms on this floor will fall back to text-only directions.',
@@ -301,28 +496,37 @@ createApp({
         Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
       }
     },
+    // Saves to the server when it's reachable; otherwise keeps the change on this
+    // device (AdminOffline) to be synced later with the admin's approval.
     async submitBuilding() {
       this.submitting = true;
-      const body = JSON.stringify({
+      const fields = {
         name: this.form.name, lat: parseFloat(this.form.lat), lng: parseFloat(this.form.lng),
         floor_count: this.form.floor_count, building_number: this.form.building_number, directory: this.form.directory
-      });
+      };
+      const editing = this.editingId;
+      const seen = editing ? this.baseBuildings.find((x) => String(x.id) === String(editing)) : null;
+      const op = editing
+        ? { type: 'building.update', payload: { id: editing, ...fields, base_updated_at: seen ? seen.updated_at : null }, label: `Edited building "${fields.name}"` }
+        : { type: 'building.create', payload: { temp_id: AdminOffline.newTempId(), ...fields }, label: `New building "${fields.name}"` };
       try {
-        const url = this.editingId ? '../../../Backend/api/buildings.php?id=' + this.editingId : '../../../Backend/api/buildings.php';
-        const method = this.editingId ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
-        const data = await res.json();
-        if (data.success) {
-          this.cancelEdit();
-          await this.loadBuildings();
-        } else {
-          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
-        }
+        const out = await AdminOffline.run(op, async () => {
+          const path = editing ? 'buildings.php?id=' + editing : 'buildings.php';
+          const data = await AdminOffline.fetchJson(path, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(fields) });
+          if (!data.success) throw new Error(data.error || 'unknown');
+          return data;
+        });
+        this.cancelEdit();
+        await this.loadBuildings();
+        if (out.queued) AdminOffline.toast("Saved on this device. You'll be asked to sync when you're back online.", 'info');
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Error', text: e.message || 'unknown' });
       } finally {
         this.submitting = false;
       }
     },
     async deleteBuilding(b) {
+      if (await this.needsInternet('Deleting a building')) return;
       const result = await Swal.fire({
         title: `Delete "${b.name}"?`,
         text: `This also deletes its ${b.room_count} registered room(s). This can't be undone.`,

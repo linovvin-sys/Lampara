@@ -53,7 +53,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
                 <span class="meta-text">&middot; {{ b.room_count }} room(s)</span>
                 <span v-if="b.open_flags > 0" class="badge badge-amber">{{ b.open_flags }}</span>
                 <a :href="'register-building.php?edit=' + b.id" class="btn-link edit-link">Edit</a>
-                <button @click="deleteBuilding(b)" class="btn-link delete-link">Delete</button>
+                <button v-if="!b._pending" @click="deleteBuilding(b)" class="btn-link delete-link">Delete</button>
               </div>
             </div>
           </div>

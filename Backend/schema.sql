@@ -17,6 +17,14 @@
 --   CREATE TABLE floor_plan_edges (id INT AUTO_INCREMENT PRIMARY KEY, node_a_id INT NOT NULL, node_b_id INT NOT NULL, FOREIGN KEY (node_a_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE, FOREIGN KEY (node_b_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE, UNIQUE KEY edge_pair (node_a_id, node_b_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 --   ALTER TABLE rooms ADD COLUMN path_node_id INT NULL;
 --   ALTER TABLE rooms ADD CONSTRAINT fk_rooms_path_node FOREIGN KEY (path_node_id) REFERENCES floor_plan_nodes(id) ON DELETE SET NULL;
+--   ALTER TABLE floor_plans ADD COLUMN north_offset DECIMAL(6,2) NULL, ADD COLUMN meters_per_unit_x DECIMAL(8,4) NULL, ADD COLUMN meters_per_unit_y DECIMAL(8,4) NULL;
+--   ALTER TABLE campus_nodes ADD COLUMN name VARCHAR(40) NULL; ALTER TABLE floor_plan_nodes ADD COLUMN name VARCHAR(40) NULL;  then run: php Backend/scripts/name-points.php
+--   CREATE TABLE sync_ops (op_id VARCHAR(64) PRIMARY KEY, result_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   CREATE TABLE sync_temp_ids (temp_id VARCHAR(64) PRIMARY KEY, entity VARCHAR(20) NOT NULL, real_id INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   CREATE TABLE campus_nodes (id INT AUTO_INCREMENT PRIMARY KEY, lat DECIMAL(10,7) NOT NULL, lng DECIMAL(10,7) NOT NULL, node_type ENUM('junction','gate','entrance') NOT NULL DEFAULT 'junction', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   CREATE TABLE campus_edges (id INT AUTO_INCREMENT PRIMARY KEY, node_a_id INT NOT NULL, node_b_id INT NOT NULL, FOREIGN KEY (node_a_id) REFERENCES campus_nodes(id) ON DELETE CASCADE, FOREIGN KEY (node_b_id) REFERENCES campus_nodes(id) ON DELETE CASCADE, UNIQUE KEY campus_edge_pair (node_a_id, node_b_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   ALTER TABLE buildings ADD COLUMN entrance_node_id INT NULL;
+--   ALTER TABLE buildings ADD CONSTRAINT fk_buildings_entrance_node FOREIGN KEY (entrance_node_id) REFERENCES campus_nodes(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS buildings (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -98,6 +106,14 @@ CREATE TABLE IF NOT EXISTS floor_plans (
     building_id INT NOT NULL,
     floor VARCHAR(50) NOT NULL,
     image_path VARCHAR(255) NOT NULL,
+    -- Indoor AR calibration (set on the admin Floor Calibration page). Plan
+    -- coordinates are percentages of the image, so to walk them in real meters
+    -- the AR guide needs the real size of one plan unit on each axis, and which
+    -- compass bearing "up" on the image points to. NULL = not calibrated yet,
+    -- and the indoor AR button simply doesn't appear for that floor.
+    north_offset DECIMAL(6, 2) NULL,
+    meters_per_unit_x DECIMAL(8, 4) NULL,
+    meters_per_unit_y DECIMAL(8, 4) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY building_floor (building_id, floor),
@@ -113,6 +129,8 @@ CREATE TABLE IF NOT EXISTS floor_plan_nodes (
     floor_plan_id INT NOT NULL,
     x DECIMAL(5, 2) NOT NULL,
     y DECIMAL(5, 2) NOT NULL,
+    -- "Point A", "Point B", ... unique within one floor plan (see Backend/point_names.php).
+    name VARCHAR(40) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (floor_plan_id) REFERENCES floor_plans(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -150,6 +168,52 @@ CREATE TABLE IF NOT EXISTS admins (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Outdoor walkway graph — points an admin drops on real campus walkways (GPS
+-- coordinates, not floor-plan percentages), connected into a network. The AR
+-- guide routes over this from the user's position to a building's entrance so
+-- the ground arrow follows walkways instead of cutting through buildings.
+CREATE TABLE IF NOT EXISTS campus_nodes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lat DECIMAL(10, 7) NOT NULL,
+    lng DECIMAL(10, 7) NOT NULL,
+    node_type ENUM('junction','gate','entrance') NOT NULL DEFAULT 'junction',
+    -- "Point A", "Point B", ... unique across all campus points (see Backend/point_names.php).
+    name VARCHAR(40) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS campus_edges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    node_a_id INT NOT NULL,
+    node_b_id INT NOT NULL,
+    FOREIGN KEY (node_a_id) REFERENCES campus_nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (node_b_id) REFERENCES campus_nodes(id) ON DELETE CASCADE,
+    UNIQUE KEY campus_edge_pair (node_a_id, node_b_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- The walkway node at a building's door — where the outdoor route ends.
+ALTER TABLE buildings ADD COLUMN entrance_node_id INT NULL;
+ALTER TABLE buildings ADD CONSTRAINT fk_buildings_entrance_node
+    FOREIGN KEY (entrance_node_id) REFERENCES campus_nodes(id) ON DELETE SET NULL;
+
+-- Offline sync bookkeeping for the admin panel (Backend/api/admin-sync.php).
+-- sync_ops remembers every offline change already applied, so retrying a batch
+-- after a dropped connection can never create duplicates. sync_temp_ids maps the
+-- temporary ids the browser invents for things created offline ("t_ab12") to the
+-- real ids they received, so later changes that reference them still resolve.
+CREATE TABLE IF NOT EXISTS sync_ops (
+    op_id VARCHAR(64) PRIMARY KEY,
+    result_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sync_temp_ids (
+    temp_id VARCHAR(64) PRIMARY KEY,
+    entity VARCHAR(20) NOT NULL,
+    real_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../room_number.php';
 
 // Reads stay public (students need the directory); writes require an admin session.
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
@@ -38,18 +39,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $types .= 'i';
     }
     if (!empty($_GET['room_number'])) {
-        // Exact match — this is the lookup signage scanning uses (OCR'd number -> room record)
-        $where[] = 'r.room_number = ?';
-        $params[] = $_GET['room_number'];
+        // Exact match — this is the lookup signage scanning uses (OCR'd number -> room record).
+        // Compared ignoring case, spaces and dashes, so "1101a" finds "1101 - A".
+        $where[] = ROOM_NUMBER_COMPACT_SQL . ' = ?';
+        $params[] = compact_room_number($_GET['room_number']);
         $types .= 's';
     }
     if (!empty($_GET['q'])) {
         // Loose search — this is what Manual Search uses
-        $where[] = '(r.room_name LIKE ? OR r.room_number LIKE ?)';
         $like = '%' . $_GET['q'] . '%';
-        $params[] = $like;
-        $params[] = $like;
-        $types .= 'ss';
+        $compactQ = compact_room_number($_GET['q']);
+        if ($compactQ !== '') {
+            // "1101a" should also find "1101 - A".
+            $where[] = '(r.room_name LIKE ? OR r.room_number LIKE ? OR ' . ROOM_NUMBER_COMPACT_SQL . ' LIKE ?)';
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = '%' . $compactQ . '%';
+            $types .= 'sss';
+        } else {
+            $where[] = '(r.room_name LIKE ? OR r.room_number LIKE ?)';
+            $params[] = $like;
+            $params[] = $like;
+            $types .= 'ss';
+        }
     }
 
     $sql = "SELECT r.id, r.building_id, b.name AS building_name, r.room_number, r.room_name,
@@ -87,8 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // have no number and no signage at all. NULL here, not an empty
     // string, so it's exempt from the UNIQUE constraint (MySQL allows
     // multiple NULLs) instead of colliding as if they were all "".
-    $roomNumberInput = trim($input['room_number'] ?? '');
-    $roomNumber = $roomNumberInput === '' ? null : $roomNumberInput;
+    // One canonical form ("1101 - A") however it was typed.
+    $roomNumber = normalize_room_number($input['room_number'] ?? '');
     $roomName = trim($input['room_name'] ?? '');
     $floor = trim($input['floor'] ?? '');
     // category is the human-facing "what this actually is" — office,
@@ -115,6 +127,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$buildingId || $roomName === '' || $floor === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'building_id, room_name, and floor are required']);
+        exit;
+    }
+
+    if (room_number_taken($conn, $roomNumber)) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered."]);
         exit;
     }
 
@@ -148,8 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $id = (int) ($_GET['id'] ?? 0);
     $input = json_decode(file_get_contents('php://input'), true);
 
-    $roomNumberInput = trim($input['room_number'] ?? '');
-    $roomNumber = $roomNumberInput === '' ? null : $roomNumberInput;
+    // One canonical form ("1101 - A") however it was typed.
+    $roomNumber = normalize_room_number($input['room_number'] ?? '');
     $roomName = trim($input['room_name'] ?? '');
     $floor = trim($input['floor'] ?? '');
     $allowedCategories = ['office', 'classroom', 'cr', 'canteen'];
@@ -164,6 +182,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     if (!$id || $roomName === '' || $floor === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'id, room_name, and floor are required']);
+        exit;
+    }
+
+    if (room_number_taken($conn, $roomNumber, $id)) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered."]);
         exit;
     }
 

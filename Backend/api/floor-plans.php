@@ -5,6 +5,9 @@
 // POST   /api/floor-plans.php                             -> upload/replace a floor's plan (admin)
 //        body (JSON): { building_id, floor, image: "data:image/jpeg;base64,..." }
 // DELETE /api/floor-plans.php?id=1                        -> remove a floor's plan (admin)
+// POST   /api/floor-plans.php?action=calibrate            -> save indoor-AR calibration for a floor (admin)
+//        body (JSON): { id, north_offset, meters_per_unit_x, meters_per_unit_y }
+//        north_offset = compass bearing (0-360, clockwise from north) that "up" on the plan image points to.
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -31,6 +34,16 @@ $conn = $db->connect();
 $uploadDir = __DIR__ . '/../../Frontend/assets/floorplans';
 $publicPathPrefix = 'assets/floorplans/';
 
+// DECIMAL columns come back from mysqli as strings — the AR guide does math on
+// these, so hand them over as real numbers (or null when not calibrated yet).
+function castPlan($row) {
+    if (!$row) return $row;
+    foreach (['north_offset', 'meters_per_unit_x', 'meters_per_unit_y'] as $k) {
+        $row[$k] = $row[$k] !== null ? (float) $row[$k] : null;
+    }
+    return $row;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $buildingId = (int) ($_GET['building_id'] ?? 0);
     if (!$buildingId) {
@@ -40,23 +53,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     if (!empty($_GET['floor'])) {
-        $stmt = $conn->prepare("SELECT id, building_id, floor, image_path, updated_at FROM floor_plans WHERE building_id = ? AND floor = ?");
+        $stmt = $conn->prepare("SELECT id, building_id, floor, image_path, north_offset, meters_per_unit_x, meters_per_unit_y, updated_at FROM floor_plans WHERE building_id = ? AND floor = ?");
         $stmt->bind_param('is', $buildingId, $_GET['floor']);
         $stmt->execute();
         $plan = $stmt->get_result()->fetch_assoc();
         $stmt->close();
-        echo json_encode(['success' => true, 'plan' => $plan ?: null]);
+        echo json_encode(['success' => true, 'plan' => $plan ? castPlan($plan) : null]);
         exit;
     }
 
-    $stmt = $conn->prepare("SELECT id, building_id, floor, image_path, updated_at FROM floor_plans WHERE building_id = ?");
+    $stmt = $conn->prepare("SELECT id, building_id, floor, image_path, north_offset, meters_per_unit_x, meters_per_unit_y, updated_at FROM floor_plans WHERE building_id = ?");
     $stmt->bind_param('i', $buildingId);
     $stmt->execute();
     $result = $stmt->get_result();
     $plans = [];
-    while ($row = $result->fetch_assoc()) $plans[] = $row;
+    while ($row = $result->fetch_assoc()) $plans[] = castPlan($row);
     $stmt->close();
     echo json_encode(['success' => true, 'plans' => $plans]);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['action'] ?? '') === 'calibrate') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+    $id = (int) ($input['id'] ?? 0);
+    $north = isset($input['north_offset']) ? fmod((float) $input['north_offset'] + 360, 360) : null;
+    $mx = isset($input['meters_per_unit_x']) ? (float) $input['meters_per_unit_x'] : null;
+    $my = isset($input['meters_per_unit_y']) ? (float) $input['meters_per_unit_y'] : null;
+    if (!$id || $north === null || !$mx || !$my || $mx <= 0 || $my <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'id, north_offset, and positive meters_per_unit_x/y are required']);
+        exit;
+    }
+    $stmt = $conn->prepare("UPDATE floor_plans SET north_offset = ?, meters_per_unit_x = ?, meters_per_unit_y = ? WHERE id = ?");
+    $stmt->bind_param('dddi', $north, $mx, $my, $id);
+    $stmt->execute();
+    echo json_encode(['success' => true]);
+    $stmt->close();
     exit;
 }
 

@@ -75,7 +75,10 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/register-room.js');
                 <input v-else type="text" value="No number" disabled
                        style="font-family:'JetBrains Mono',monospace; color:#9aa79f; background:#f4f6f4;">
                 <p v-if="!form.noSignage && !forcesNoNumber && (expectedPrefix || roomNumberError)" style="font-size:0.6875rem; margin:0.3rem 0 0;" :style="{ color: roomNumberError ? '#dc2626' : '#9aa79f' }">
-                  {{ roomNumberError || ('Should start with ' + expectedPrefix + ' — building ' + selectedBuilding.building_number + ', floor ' + floorDigit) }}
+                  {{ roomNumberError || ('Should start with ' + expectedPrefix + ' — building ' + selectedBuilding.building_number + ', floor ' + floorDigit + '. A section can follow a dash, like ' + expectedPrefix + '01 - A.') }}
+                </p>
+                <p v-if="roomNumberPreview && !roomNumberError" style="font-size:0.6875rem; margin:0.3rem 0 0; color:var(--green-700, #15803d); font-weight:600;">
+                  Will be saved as {{ roomNumberPreview }}
                 </p>
                 <!-- CRs and canteens are never numbered — a hard rule, not a
                      togglable default, so no checkbox here at all for them. -->
@@ -110,7 +113,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/register-room.js');
               <label>Location on floor plan (optional)</label>
               <p v-if="loadingPlan" style="font-size:0.75rem; color:#9aa79f; margin:0;">Loading plan…</p>
               <p v-else-if="!currentFloorPlan" style="font-size:0.75rem; color:#9aa79f; margin:0;">
-                No plan uploaded for {{ form.floor }} yet — add one on Register Building to place a marker here.
+                <template v-if="planUnavailable">The floor plan isn't available offline. Open this page once while connected to keep a copy. The room can still be saved without a marker.</template>
+                <template v-else-if="planForNewBuilding">This building hasn't synced yet, so it has no floor plan.</template>
+                <template v-else>No plan uploaded for {{ form.floor }} yet — add one on Register Building to place a marker here.</template>
               </p>
               <template v-else>
                 <div class="map-marker-frame" @click="placeMarker" style="position:relative; cursor:crosshair; border-radius:0.6rem; overflow:hidden; border:1px solid var(--border, #e5e7eb); user-select:none;">
@@ -225,10 +230,10 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/register-room.js');
             <div v-if="filteredRooms.length === 0" class="empty-state" style="color: rgba(255,255,255,0.4);">None yet.</div>
             <div v-for="r in filteredRooms" :key="r.id" class="room-row">
               <span class="room-num">{{ r.room_number || 'no #' }}</span>
-              <span class="room-name truncate">{{ r.room_name }}</span>
+              <span class="room-name truncate">{{ r.room_name }}<span v-if="r._pending" title="Saved on this device, not synced yet" style="margin-left:0.35rem; font-size:0.5625rem; font-weight:700; color:#fbbf24;">&bull; Not synced</span></span>
               <span class="room-type" :class="r.room_type === 'office' ? 'type-office' : 'type-classroom'">{{ { office: 'Office', classroom: 'Room', cr: 'CR', canteen: 'Canteen' }[r.category] || 'Room' }}</span>
               <button @click="startEdit(r)" class="btn-link room-action">Edit</button>
-              <button @click="deleteRoom(r)" class="btn-link room-action room-delete">Delete</button>
+              <button v-if="!r._pending" @click="deleteRoom(r)" class="btn-link room-action room-delete">Delete</button>
             </div>
           </div>
         </div>
@@ -249,6 +254,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/register-room.js');
   </main>
 </div>
 
+<script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
 <script src="../../Js/Admin/register-room.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

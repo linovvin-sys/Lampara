@@ -31,16 +31,23 @@
   document.querySelectorAll('a.admin-logout').forEach(function (link) {
     link.addEventListener('click', function (e) {
       e.preventDefault();
+      // Unsynced offline changes stay on this device after logging out, so say so.
+      var waiting = (typeof AdminOffline !== 'undefined') ? AdminOffline.count() : 0;
       Swal.fire({
         title: 'Log out?',
-        text: "You'll need to sign in again to manage the directory.",
-        icon: 'question',
+        text: waiting
+          ? waiting + " offline change" + (waiting === 1 ? ' is' : 's are') + " not synced yet. They stay on this device, and you'll be asked to sync after you sign in again."
+          : "You'll need to sign in again to manage the directory.",
+        icon: waiting ? 'warning' : 'question',
         showCancelButton: true,
         confirmButtonText: 'Log out',
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#6b7280'
       }).then(function (result) {
-        if (result.isConfirmed) window.location.href = link.href;
+        if (!result.isConfirmed) return;
+        // Forget the saved admin pages and data before leaving (shared devices).
+        var done = (typeof AdminOffline !== 'undefined') ? AdminOffline.clearPrivateCaches() : null;
+        Promise.resolve(done).then(function () { window.location.href = link.href; });
       });
     });
   });

@@ -200,6 +200,8 @@
 
 </div>
 
+<script src="../../Js/Include/offline-cache.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/offline-cache.js') ?>"></script>
+<script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/guide.js"></script>
 
 </body>

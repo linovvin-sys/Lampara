@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../rate_limit.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $username = trim($input['username'] ?? '');
@@ -23,6 +24,13 @@ $password = (string) ($input['password'] ?? '');
 if ($username === '' || $password === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Username and password are required']);
+    exit;
+}
+
+// Guessing protection: after 8 wrong attempts from one address, wait 10 minutes.
+if (count(rate_limit_recent('login', 600)) >= 8) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many failed attempts. Try again in a few minutes.']);
     exit;
 }
 
@@ -38,11 +46,13 @@ $stmt->close();
 
 // Same generic error either way — don't reveal whether the username exists.
 if (!$admin || !password_verify($password, $admin['password_hash'])) {
+    rate_limit_record('login', 600);
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Incorrect username or password']);
     exit;
 }
 
+rate_limit_clear('login');
 session_regenerate_id(true);
 $_SESSION['admin_id'] = $admin['id'];
 $_SESSION['admin_username'] = $username;

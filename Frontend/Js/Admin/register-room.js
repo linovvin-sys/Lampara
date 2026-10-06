@@ -30,7 +30,9 @@ createApp({
         hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false,
         map_x: null, map_y: null
       },
-      buildings: [],
+      baseBuildings: [],  // last data from the server
+      baseRooms: [],
+      buildings: [],      // server data + changes made offline (shown on the page)
       rooms: [],
       submitting: false,
       editingId: null,
@@ -39,7 +41,9 @@ createApp({
       // marker-placement UI (map_x/map_y stay null, room falls back to
       // text-only directions on the scan result screen).
       currentFloorPlan: null,
-      loadingPlan: false
+      loadingPlan: false,
+      planUnavailable: false, // couldn't load the plan (offline and never opened online)
+      planForNewBuilding: false // the picked building was made offline and has no plans yet
     };
   },
   computed: {
@@ -134,20 +138,37 @@ createApp({
       // data-integrity bug, not just a display inconvenience: scanning
       // either sign would resolve to whichever row the query happens to
       // return first, silently showing the wrong room.
-      const num = this.form.room_number.trim();
+      // "1101-a", "1101 A" and "1101 - A" are the same room number: compare the way
+      // the server does (ignoring case, spaces and dashes), so a duplicate can't slip in
+      // just by typing it differently.
+      const num = this.roomNumberNormalized;
       if (num) {
-        const dupe = this.rooms.find((r) => r.room_number === num && r.id !== this.editingId);
+        const key = RoomNumber.compact(num);
+        const dupe = this.rooms.find((r) => r.room_number && RoomNumber.compact(r.room_number) === key && r.id !== this.editingId);
         if (dupe) return `Room ${num} is already registered (${dupe.room_name}, ${dupe.building_name}).`;
       }
-      if (!this.expectedPrefix || !this.form.room_number) return '';
-      if (!/^\d+$/.test(num)) return 'Room number should be digits only.';
-      if (!num.startsWith(this.expectedPrefix)) {
+      if (!this.expectedPrefix || !num) return '';
+      if (!RoomNumber.isValidFormat(num)) return 'Room number should be digits, optionally followed by a section, like 1101 or 1101 - A.';
+      if (!RoomNumber.base(num).startsWith(this.expectedPrefix)) {
         return `Doesn't match this building/floor — expected it to start with ${this.expectedPrefix}.`;
       }
       return '';
+    },
+    // What actually gets saved: "1101-a" -> "1101 - A".
+    roomNumberNormalized() {
+      return RoomNumber.normalize(this.form.room_number);
+    },
+    // Shown under the field only when saving would change what was typed.
+    roomNumberPreview() {
+      const n = this.roomNumberNormalized;
+      return n && n !== this.form.room_number.trim() ? n : '';
     }
   },
-  mounted() { this.loadBuildings(); this.loadRooms(); },
+  async mounted() {
+    AdminOffline.onSynced(() => this.loadAll());
+    AdminOffline.onChange(() => this.applyPending());
+    await this.loadAll();
+  },
   watch: {
     'form.building_id'() { this.loadFloorPlanForCurrentSelection(); },
     'form.floor'() { this.loadFloorPlanForCurrentSelection(); }
@@ -157,12 +178,20 @@ createApp({
       // Switching building/floor invalidates whatever marker position was
       // showing — it belonged to the previous floor's image, not this one.
       this.currentFloorPlan = null;
+      this.planUnavailable = false;
+      this.planForNewBuilding = false;
       if (!this.form.building_id || !this.form.floor) return;
+      // A building made offline has no plans yet.
+      if (AdminOffline.isTemp(this.form.building_id)) { this.planForNewBuilding = true; return; }
       this.loadingPlan = true;
       try {
-        const res = await fetch(`../../../Backend/api/floor-plans.php?building_id=${this.form.building_id}&floor=${encodeURIComponent(this.form.floor)}`);
+        // All of the building's plans in one request (the same one the offline
+        // copy is saved under), then pick this floor's.
+        const res = await fetch(`../../../Backend/api/floor-plans.php?building_id=${this.form.building_id}`, { credentials: 'same-origin' });
         const data = await res.json();
-        if (data.success) this.currentFloorPlan = data.plan;
+        if (data.success) this.currentFloorPlan = data.plans.find((p) => p.floor === this.form.floor) || null;
+      } catch (e) {
+        this.planUnavailable = true;
       } finally {
         this.loadingPlan = false;
       }
@@ -195,15 +224,30 @@ createApp({
       }
       this.form.category = cat;
     },
+    async loadAll() {
+      await this.loadBuildings();
+      await this.loadRooms();
+    },
+    // Shows the last server data with any pending offline changes laid on top.
+    applyPending() {
+      this.buildings = AdminOffline.overlayBuildings(this.baseBuildings);
+      this.rooms = AdminOffline.overlayRooms(this.baseRooms, this.buildings);
+    },
     async loadBuildings() {
-      const res = await fetch('../../../Backend/api/buildings.php');
-      const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
+      try {
+        const res = await fetch('../../../Backend/api/buildings.php', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) this.baseBuildings = data.buildings;
+      } catch (e) { /* offline with no saved copy — pending changes still show */ }
+      this.applyPending();
     },
     async loadRooms() {
-      const res = await fetch('../../../Backend/api/rooms.php');
-      const data = await res.json();
-      if (data.success) this.rooms = data.rooms;
+      try {
+        const res = await fetch('../../../Backend/api/rooms.php', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) this.baseRooms = data.rooms;
+      } catch (e) { /* offline with no saved copy */ }
+      this.applyPending();
     },
     startEdit(r) {
       this.editingId = r.id;
@@ -262,47 +306,61 @@ createApp({
       this.editingId = null;
       this.form = this.blankForm({ building_id: this.form.building_id });
     },
+    // Saves to the server when it's reachable; otherwise keeps the change on this
+    // device (AdminOffline) to be synced later with the admin's approval.
     async submitRoom() {
       this.submitting = true;
-      const wasAdding = !this.editingId; // captured before cancelEdit() clears it
+      const editing = this.editingId;
+      const wasAdding = !editing; // captured before cancelEdit() clears it
+      const fields = {
+        room_number: (this.form.noSignage || this.forcesNoNumber) ? '' : this.roomNumberNormalized,
+        room_name: this.form.room_name, floor: this.form.floor, category: this.form.category,
+        hours: this.composedHours, notes: this.form.notes, map_x: this.form.map_x, map_y: this.form.map_y
+      };
+      const seen = editing ? this.baseRooms.find((x) => String(x.id) === String(editing)) : null;
+      const label = `${wasAdding ? 'New' : 'Edited'} room ${fields.room_number ? fields.room_number + ' ' : ''}"${fields.room_name}"`;
+      const op = editing
+        ? { type: 'room.update', payload: { id: editing, ...fields, base_updated_at: seen ? seen.updated_at : null }, label }
+        : { type: 'room.create', payload: { temp_id: AdminOffline.newTempId(), building_id: this.form.building_id, ...fields }, label };
       try {
-        const url = this.editingId ? '../../../Backend/api/rooms.php?id=' + this.editingId : '../../../Backend/api/rooms.php';
-        const method = this.editingId ? 'PUT' : 'POST';
-        const payload = { ...this.form, hours: this.composedHours, room_number: (this.form.noSignage || this.forcesNoNumber) ? '' : this.form.room_number };
-        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const data = await res.json();
-        if (data.success) {
-          const justAdded = { building_id: this.form.building_id, category: this.form.category, floor: this.form.floor };
-          this.cancelEdit();
-          await this.loadRooms();
-          // Only after adding a NEW room (not editing one) — "add another?"
-          // doesn't make sense mid-edit. Keeping building/type/floor on yes
-          // is what actually fixes "it resets to Office every time": you're
-          // usually adding several similar rooms back to back (e.g. a run
-          // of classrooms on the same floor), not starting from scratch
-          // each time.
-          if (wasAdding) {
-            const result = await Swal.fire({
-              icon: 'success',
-              title: 'Room added',
-              text: 'Add another room?',
-              showCancelButton: true,
-              confirmButtonText: 'Yes, add another',
-              cancelButtonText: 'Done',
-              confirmButtonColor: '#16a34a'
-            });
-            if (result.isConfirmed) {
-              this.form = this.blankForm(justAdded);
-            }
-          }
-        } else {
-          Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
+        const out = await AdminOffline.run(op, async () => {
+          const path = editing ? 'rooms.php?id=' + editing : 'rooms.php';
+          const body = editing ? fields : { building_id: this.form.building_id, ...fields };
+          const data = await AdminOffline.fetchJson(path, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(body) });
+          if (!data.success) throw new Error(data.error || 'unknown');
+          return data;
+        });
+        const justAdded = { building_id: this.form.building_id, category: this.form.category, floor: this.form.floor };
+        this.cancelEdit();
+        if (out.queued) this.applyPending(); else await this.loadRooms();
+        // Only after adding a NEW room (not editing one) — "add another?"
+        // doesn't make sense mid-edit. Keeping building/type/floor on yes
+        // is what actually fixes "it resets to Office every time": you're
+        // usually adding several similar rooms back to back (e.g. a run
+        // of classrooms on the same floor), not starting from scratch
+        // each time.
+        if (wasAdding) {
+          const result = await Swal.fire({
+            icon: out.queued ? 'info' : 'success',
+            title: out.queued ? 'Saved on this device' : 'Room added',
+            text: out.queued ? "It will be offered for sync when you're back online. Add another room?" : 'Add another room?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, add another',
+            cancelButtonText: 'Done',
+            confirmButtonColor: '#16a34a'
+          });
+          if (result.isConfirmed) this.form = this.blankForm(justAdded);
+        } else if (out.queued) {
+          AdminOffline.toast("Saved on this device. You'll be asked to sync when you're back online.", 'info');
         }
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Error', text: e.message || 'unknown' });
       } finally {
         this.submitting = false;
       }
     },
     async deleteRoom(r) {
+      if (!(await AdminOffline.guardOnline('Deleting a room'))) return;
       const result = await Swal.fire({
         title: `Delete Room ${r.room_number} — ${r.room_name}?`,
         text: "This can't be undone.",

@@ -2,7 +2,7 @@ const { createApp } = Vue;
 const COLORS = ['#22c55e', '#16a34a', '#15803d', '#86efac', '#65a30d', '#14532d'];
 
 createApp({
-  data() { return { buildings: [], q: '', map: null, markers: [] }; },
+  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [] }; },
   computed: {
     filtered() {
       if (!this.q.trim()) return this.buildings;
@@ -13,9 +13,13 @@ createApp({
   mounted() {
     this.initMap();
     this.loadBuildings();
+    // Buildings saved offline show up here too (marked as not synced) until they sync.
+    AdminOffline.onSynced(() => this.loadBuildings());
+    AdminOffline.onChange(() => { this.buildings = AdminOffline.overlayBuildings(this.baseBuildings); this.renderMarkers(); });
   },
   methods: {
-    colorFor(id) { return COLORS[id % COLORS.length]; },
+    // Buildings saved offline have string ids ("t_…"), not numbers.
+    colorFor(id) { return COLORS[(Number(id) || 0) % COLORS.length]; },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
       this.map = L.map(this.$refs.mapArea).setView([14.3283, 120.9372], 17);
@@ -42,14 +46,16 @@ createApp({
       }
     },
     async loadBuildings() {
-      const res = await fetch('../../../Backend/api/buildings.php');
-      const data = await res.json();
-      if (data.success) {
-        this.buildings = data.buildings;
-        this.renderMarkers();
-      }
+      try {
+        const res = await fetch('../../../Backend/api/buildings.php', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.success) this.baseBuildings = data.buildings;
+      } catch (e) { /* offline with no saved copy — pending buildings still show */ }
+      this.buildings = AdminOffline.overlayBuildings(this.baseBuildings);
+      this.renderMarkers();
     },
     async deleteBuilding(b) {
+      if (!(await AdminOffline.guardOnline('Deleting a building'))) return;
       const result = await Swal.fire({
         title: `Delete "${b.name}"?`,
         text: `This also deletes its ${b.room_count} registered room(s). This can't be undone.`,
@@ -66,10 +72,12 @@ createApp({
       else Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'unknown' });
     },
     isStale(updatedAt) {
+      if (!updatedAt) return false; // saved offline, not on the server yet
       const days = (Date.now() - new Date(updatedAt).getTime()) / 86400000;
       return days > 90;
     },
     timeAgo(updatedAt) {
+      if (!updatedAt) return 'not synced yet';
       const days = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 86400000);
       if (days < 1) return 'today';
       if (days === 1) return '1 day ago';

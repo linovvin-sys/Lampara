@@ -26,6 +26,16 @@ $navItems = [
         'href'  => 'register-building.php',
         'icon'  => '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/>',
     ],
+    'floor-calibration' => [
+        'label' => 'Floor Calibration',
+        'href'  => 'floor-calibration.php',
+        'icon'  => '<path d="M4 20 20 4M4 20h6M4 20v-6M9 9l2 2M13 5l2 2M5 13l2 2"/>',
+    ],
+    'campus-paths' => [
+        'label' => 'Campus Paths',
+        'href'  => 'campus-paths.php',
+        'icon'  => '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 17c4-1 2-6 5-8s3-2 3-2"/>',
+    ],
     'register-room' => [
         'label' => 'Register Room',
         'href'  => 'register-room.php',
@@ -93,4 +103,7 @@ $initial = strtoupper(substr($adminUsername, 0, 1));
   </div>
 </aside>
 
+<?php $adminOfflineVer = filemtime(__DIR__ . '/../../Js/Include/admin-offline.js'); ?>
+<!-- Offline support for the whole admin panel: pending changes, sync prompt, service worker. -->
+<script src="../../Js/Include/admin-offline.js?v=<?= $adminOfflineVer ?>"></script>
 <script src="../../Js/Include/admin-nav.js"></script>

@@ -154,3 +154,21 @@ body {
 }
 .offline-note svg { flex-shrink: 0; margin-top: 0.1rem; color: var(--moss-500); }
 .offline-note p { margin: 0; font-size: 0.75rem; color: #4d6b1f; line-height: 1.5; }
+
+/* "You are on" and the up / down / same-floor tags */
+.here-card { margin: 0 1.1rem 0.9rem; padding: 0.7rem 0.85rem; background: #fff; border: 1px solid var(--line); border-radius: 1rem; }
+.here-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.here-label { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.here-pick { display: inline-flex; align-items: center; gap: 0.45rem; border: 1px solid var(--line); background: var(--green-50); color: var(--ink); font: inherit; font-size: 0.8125rem; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 999px; cursor: pointer; max-width: 100%; }
+.here-list { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.6rem; max-height: 14rem; overflow-y: auto; }
+.here-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; text-align: left; border: 1px solid transparent; background: transparent; font: inherit; font-size: 0.8125rem; font-weight: 600; padding: 0.5rem 0.6rem; border-radius: 0.6rem; cursor: pointer; color: var(--ink); }
+.here-opt small { color: var(--muted); font-weight: 500; }
+.here-opt:hover { background: var(--green-50); }
+.here-opt.on { background: var(--green-100); border-color: var(--green-200); }
+.here-opt.clear { color: var(--muted); }
+.here-hint { margin: 0.5rem 0 0; font-size: 0.75rem; line-height: 1.5; color: var(--muted); }
+.floor-hint { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.6875rem; font-weight: 800; padding: 0.3rem 0.55rem; border-radius: 999px; white-space: nowrap; }
+.floor-hint.is-up { background: #e0f2fe; color: #0369a1; }
+.floor-hint.is-down { background: #fef3c7; color: #92400e; }
+.floor-hint.is-same { background: var(--green-100); color: #166534; }
+.floor-hint.is-other { background: #f1f5f9; color: #475569; }

@@ -1,0 +1,58 @@
+/* Shared by the three point editors (Campus Paths, floor-plan paths, Floor Calibration):
+   the lock bar and the list of named points beside the map. */
+
+/* ---- lock bar ---- */
+.lock-bar { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin: 0 0 0.6rem; padding: 0.5rem 0.65rem; border-radius: 0.7rem; background: var(--green-50, #f0fdf4); border: 1px solid var(--line, #e3ede6); }
+.lock-bar.is-locked { background: #fff7ed; border-color: #fed7aa; }
+.lock-btn { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--line, #e3ede6); background: #fff; color: var(--ink, #14251c); font: inherit; font-size: 0.8125rem; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 999px; cursor: pointer; }
+.lock-btn:hover { border-color: var(--green-600, #16a34a); }
+.lock-btn.on { background: #c2410c; border-color: #c2410c; color: #fff; }
+.lock-btn:focus-visible { outline: 2px solid var(--green-500, #22c55e); outline-offset: 2px; }
+.lock-msg { font-size: 0.75rem; color: var(--muted, #5b6b63); line-height: 1.5; flex: 1; min-width: 12rem; }
+.lock-bar.is-locked .lock-msg { color: #9a3412; font-weight: 600; }
+/* a locked map/plan is no longer a crosshair target */
+.is-locked-surface { cursor: not-allowed !important; }
+.is-locked-surface .leaflet-interactive, .is-locked-surface .leaflet-marker-icon { cursor: pointer !important; }
+
+/* ---- list of named points ---- */
+.points-list { display: flex; flex-direction: column; gap: 0.3rem; max-height: 19rem; overflow-y: auto; margin: 0 -0.25rem; padding: 0 0.25rem; }
+.pt-row { display: flex; align-items: center; gap: 0.6rem; width: 100%; text-align: left; border: 1px solid transparent; background: transparent; padding: 0.45rem 0.5rem; border-radius: 0.6rem; font: inherit; color: inherit; cursor: pointer; }
+.pt-row:hover { background: var(--green-50, #f0fdf4); }
+.pt-row.sel { background: #ecfdf3; border-color: var(--green-500, #22c55e); }
+.pt-row.static { cursor: default; }
+.pt-row.static:hover { background: transparent; }
+.pt-row:focus-visible { outline: 2px solid var(--green-500, #22c55e); outline-offset: 1px; }
+.pt-badge { flex: none; width: 1.7rem; height: 1.7rem; border-radius: 999px; display: grid; place-items: center; background: #16a34a; color: #fff; font-weight: 800; font-size: 0.72rem; }
+.pt-badge.gate { background: #0369a1; }
+.pt-badge.entrance { background: #f59e0b; color: #422006; }
+.pt-badge.wide { width: auto; min-width: 1.7rem; padding: 0 0.4rem; border-radius: 999px; }
+.pt-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.pt-name { font-weight: 700; font-size: 0.8125rem; line-height: 1.3; }
+.pt-sub { font-size: 0.6875rem; color: var(--muted, #5b6b63); line-height: 1.4; overflow-wrap: anywhere; }
+.pt-coords { font-size: 0.625rem; color: #9aa79f; }
+.pt-pend { margin-left: 0.4rem; font-size: 0.5625rem; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 999px; padding: 0 0.4rem; vertical-align: 1px; }
+.pt-remove { flex: none; border: 0; background: none; color: var(--red-600, #dc2626); font: inherit; font-size: 0.75rem; cursor: pointer; padding: 0.2rem 0.3rem; }
+.pt-remove:disabled { color: #c9d2cc; cursor: not-allowed; }
+.name-row { display: flex; gap: 0.4rem; }
+.name-row input { flex: 1; min-width: 0; }
+.name-error { color: #b91c1c; font-size: 0.75rem; margin: 0.3rem 0 0; }
+
+/* the letter next to a point on the map */
+.cp-pt-label { background: #14251c; color: #fff; border: 0; box-shadow: none; font-weight: 800; font-size: 10px; padding: 0 5px; line-height: 15px; border-radius: 999px; }
+.cp-pt-label::before { display: none; }
+
+/* floor-plan path editor: the plan on the left, the points list on the right (stacked on narrow screens) */
+.path-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 0.9rem; align-items: start; }
+.path-side { border: 1px solid var(--line, #e3ede6); border-radius: 0.7rem; padding: 0.75rem; background: #fff; }
+@media (max-width: 820px) { .path-editor-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* header of a points list: title on the left, "Remove all" on the right; undo bar under it */
+.pts-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.5rem; }
+.pts-head .side-title { margin: 0; }
+.btn-remove-all { border: 1px solid #fecaca; background: #fff; color: #b91c1c; font: inherit; font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 999px; cursor: pointer; }
+.btn-remove-all:hover:not(:disabled) { background: #fef2f2; }
+.btn-remove-all:disabled { color: #c9d2cc; border-color: #e5e7eb; cursor: not-allowed; }
+.undo-bar { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.6rem; padding: 0.45rem 0.65rem; border-radius: 0.7rem; background: #1f2937; color: #fff; font-size: 0.75rem; }
+.undo-bar span { flex: 1; min-width: 0; }
+.undo-bar button { border: 0; background: #fff; color: #14251c; font: inherit; font-weight: 800; font-size: 0.75rem; padding: 0.3rem 0.8rem; border-radius: 999px; cursor: pointer; }
+.undo-bar .undo-x { background: transparent; color: #9ca3af; padding: 0.2rem 0.4rem; }

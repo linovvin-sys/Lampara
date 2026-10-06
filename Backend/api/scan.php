@@ -27,8 +27,11 @@ if (!file_exists($secretsPath)) {
     exit;
 }
 require_once $secretsPath;
+require_once __DIR__ . '/../room_number.php';
+require_once __DIR__ . '/../rate_limit.php';
+rate_limit_or_die('scan', 90, 60);   // per visitor per minute; keeps the Gemini bill bounded
 
-if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === 'PASTE_YOUR_KEY_HERE') {
+if (!defined('GEMINI_API_KEY') || in_array(GEMINI_API_KEY, ['PASTE_YOUR_KEY_HERE', 'paste-your-real-key-here', ''], true)) {
     echo json_encode(['success' => false, 'error' => "(setup needed) Add your real Gemini key to lampara/Backend/secrets.php."]);
     exit;
 }
@@ -47,9 +50,11 @@ $base64Data = $matches[2];
 $prompt = <<<PROMPT
 This is a photo of a door or wall sign in a school building, meant to show a
 room number. Read ONLY the room number/code shown on the sign (e.g. "204",
-"1201", "A-105"). Respond with ONLY that room number, nothing else — no
-punctuation, no extra words. If there is no clearly readable room number
-visible in the photo, respond with exactly: NONE
+"1201", "1101 - A", "A-105"). If the number is followed by a section letter or
+code (such as "1101 - A" or "1101A"), include it. Respond with ONLY that room
+number, nothing else — no extra words, and no punctuation other than a dash
+inside the code. If there is no clearly readable room number visible in the
+photo, respond with exactly: NONE
 PROMPT;
 
 $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=' . GEMINI_API_KEY;
@@ -95,4 +100,5 @@ if ($roomNumber === '' || strtoupper($roomNumber) === 'NONE') {
     exit;
 }
 
-echo json_encode(['success' => true, 'room_number' => $roomNumber]);
+// Same canonical form the rooms are stored in ("1101A" -> "1101 - A").
+echo json_encode(['success' => true, 'room_number' => normalize_room_number($roomNumber)]);

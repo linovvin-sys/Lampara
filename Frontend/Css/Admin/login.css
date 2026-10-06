@@ -163,6 +163,28 @@ main {
   box-shadow: 0 0 0 3px var(--green-100);
 }
 
+/* Show/hide password: eye button sits inside the field's right edge. */
+.password-wrap { position: relative; }
+.password-wrap input { padding-right: 2.9rem; }
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  width: 2.2rem;
+  height: 2.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.password-toggle:hover { color: var(--ink); background: var(--green-50); }
+.password-toggle:focus-visible { outline: 2px solid var(--green-500); outline-offset: 1px; }
+
 .form-error {
   color: #b91c1c;
   background: #fef2f2;

@@ -204,6 +204,8 @@
   Lampara &mdash; find your way around campus.
 </footer>
 
+<script src="../../Js/Include/offline-cache.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/offline-cache.js') ?>"></script>
+<script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/index.js"></script>
 
 </body>

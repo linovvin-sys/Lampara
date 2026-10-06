@@ -135,9 +135,8 @@ createApp({
       this.locationOn = true;
       this.startLocationWatch();
 
-      const res = await fetch('../../../Backend/api/buildings.php');
-      const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
+      // Network first, last-known snapshot when offline (see offline-cache.js).
+      this.buildings = await LamparaCache.loadBuildings('../../../Backend/api/buildings.php');
 
       this.started = true;
       this.checking = false;

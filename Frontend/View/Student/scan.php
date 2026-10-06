@@ -3,6 +3,7 @@ $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/scan.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/scan.js');
 $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
+$routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 ?>
 <!doctype html>
 <html lang="en">
@@ -54,7 +55,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
     <div class="absolute inset-0 flex flex-col items-center justify-center z-10 px-8 pointer-events-none">
       <p class="text-white/50 text-sm text-center mb-6">Not sure of the exact number? Type it manually below.</p>
-      <input v-model="manualNumber" type="text" placeholder="e.g. 204" maxlength="10"
+      <input v-model="manualNumber" type="text" placeholder="e.g. 204 or 204 - A" maxlength="16" style="width:13rem;"
              class="w-40 text-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-lg font-mono tracking-widest text-white placeholder-white/30 focus:outline-none scan-input mb-4 pointer-events-auto">
     </div>
 
@@ -256,6 +257,11 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
           </div>
         </div>
 
+        <!-- Only offered once every floor on the route has been calibrated by an
+             admin (Floor Calibration) — otherwise there's no way to turn plan
+             coordinates into real walking distance and direction. -->
+        <a v-if="arGuideUrl" :href="arGuideUrl" class="btn-dark" style="margin-top:1rem; text-decoration:none;">Start AR guide</a>
+
         <!-- Secondary: details about the CURRENT room — still useful, just
              no longer competing with "where do you want to go" for top billing. -->
         <div class="info-card">
@@ -297,6 +303,9 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 </div>
 
 <script src="../../Js/Include/offline-cache.js?v=<?= $cacheJsVer ?>"></script>
+<script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
+<script src="../../Js/Include/floor-route.js?v=<?= $routeJsVer ?>"></script>
+<script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
 <script src="../../Js/Student/scan.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

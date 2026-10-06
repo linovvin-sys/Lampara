@@ -1,0 +1,53 @@
+:root {
+  --ia-green: #10b981;
+  --ia-green-dark: #059669;
+  --ia-ink: #18181b;
+}
+* { box-sizing: border-box; }
+/* The page background is black on <html> only. AR.js puts the camera <video> in <body> at a negative
+   z-index, and a background on <body> itself is painted over it, hiding the camera. */
+html { background: #000; }
+html, body { margin: 0; height: 100%; font-family: 'Outfit', system-ui, sans-serif; color: #fff; -webkit-tap-highlight-color: transparent; }
+.ia-root { position: fixed; inset: 0; overflow: hidden; user-select: none; }
+
+/* AR.js sizes its own video/canvas; make sure they fill the screen behind the HUD. */
+.ia-root a-scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.ia-root video { object-fit: cover; }
+
+.ia-screen { position: absolute; inset: 0; z-index: 30; background: #09090b; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+.ia-center { text-align: center; max-width: 24rem; width: 100%; }
+.ia-card-dark h1 { font-size: 1.4rem; font-weight: 700; margin: 0.9rem 0 0.4rem; }
+.ia-logo { width: 3.5rem; height: 3.5rem; border-radius: 1rem; background: var(--ia-green); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(16,185,129,0.45); }
+.ia-muted { color: rgba(255,255,255,0.6); font-size: 0.875rem; line-height: 1.5; margin: 0.25rem 0 1rem; }
+.ia-note { color: rgba(255,255,255,0.45); font-size: 0.75rem; line-height: 1.6; margin: 0 0 1.25rem; }
+.ia-detail { text-align: left; color: rgba(255,255,255,0.7); font-size: 0.8125rem; line-height: 1.6; margin: 0 0 1.25rem; padding-left: 1.1rem; }
+
+.ia-btn { display: block; width: 100%; border: 0; border-radius: 1rem; padding: 0.9rem 1.2rem; font: inherit; font-weight: 600; font-size: 0.9375rem; cursor: pointer; }
+.ia-btn-green { background: var(--ia-green); color: #052e21; box-shadow: 0 6px 24px rgba(16,185,129,0.35); }
+.ia-btn-light { background: #fff; color: var(--ia-ink); }
+.ia-link { display: block; margin: 0.9rem auto 0; background: none; border: 0; color: rgba(255,255,255,0.5); font: inherit; font-size: 0.8125rem; cursor: pointer; }
+
+/* HUD */
+.ia-top { position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0.9rem 1rem; pointer-events: none; }
+.ia-top > * { pointer-events: auto; }
+.ia-chip { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 999px; padding: 0.4rem 0.8rem; font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; backdrop-filter: blur(6px); }
+.ia-chip-static { display: inline-flex; align-items: center; gap: 0.4rem; cursor: default; }
+.ia-dot { width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.4); }
+.ia-dot.on { background: #34d399; }
+
+.ia-banner-wrap { position: absolute; top: 4.2rem; left: 0; right: 0; z-index: 20; display: flex; justify-content: center; padding: 0 1rem; pointer-events: none; }
+.ia-banner { background: #fff; color: var(--ia-ink); border-radius: 1.1rem; padding: 0.7rem 1.1rem; display: flex; align-items: center; gap: 0.8rem; box-shadow: 0 10px 30px rgba(0,0,0,0.35); max-width: 100%; }
+.ia-banner-title { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
+.ia-banner-sub { color: #71717a; font-size: 0.75rem; margin-top: 0.15rem; }
+
+.ia-minimap { position: absolute; left: 1rem; bottom: 6.5rem; width: 120px; height: 120px; border-radius: 999px; z-index: 20; border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 6px 20px rgba(0,0,0,0.4); background: #0b1220; }
+
+.ia-bottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; padding: 0 1rem calc(1rem + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 0.6rem; align-items: center; }
+.ia-bottom .ia-btn { max-width: 22rem; }
+.ia-adjust { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
+.ia-adjust-label { color: rgba(255,255,255,0.6); font-size: 0.6875rem; }
+
+/* which way to turn when the path is outside the camera view, and the Align confirmation */
+.ia-look { position: absolute; left: 50%; top: 9.2rem; transform: translateX(-50%); z-index: 20; display: inline-flex; align-items: center; gap: 0.5rem; background: #f59e0b; color: #422006; font-weight: 800; font-size: 0.8125rem; padding: 0.55rem 1rem; border-radius: 999px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); pointer-events: none; white-space: nowrap; }
+.ia-note-pill { position: absolute; left: 50%; bottom: 10.5rem; transform: translateX(-50%); z-index: 20; max-width: calc(100% - 2rem); background: rgba(24,24,27,0.85); color: #fff; font-size: 0.75rem; padding: 0.5rem 0.9rem; border-radius: 0.8rem; text-align: center; pointer-events: none; }
+.ia-chip-accent { background: var(--ia-green); border-color: var(--ia-green); color: #052e21; font-weight: 700; }

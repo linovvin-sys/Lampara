@@ -28,7 +28,7 @@ $conn = $db->connect();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $result = $conn->query(
-        "SELECT b.id, b.name, b.lat, b.lng, b.floor_count, b.building_number, b.directory, b.updated_at,
+        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, b.building_number, b.directory, b.updated_at,
                 (SELECT COUNT(*) FROM rooms r WHERE r.building_id = b.id) AS room_count,
                 (SELECT COUNT(*) FROM outdated_flags f
                     JOIN rooms r2 ON r2.id = f.room_id
@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     while ($row = $result->fetch_assoc()) {
         $row['lat'] = (float) $row['lat'];
         $row['lng'] = (float) $row['lng'];
+        $row['entrance_node_id'] = $row['entrance_node_id'] !== null ? (int) $row['entrance_node_id'] : null;
         $row['floor_count'] = (int) $row['floor_count'];
         $row['building_number'] = $row['building_number'] !== null ? (int) $row['building_number'] : null;
         $row['room_count'] = (int) $row['room_count'];

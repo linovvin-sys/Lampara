@@ -84,7 +84,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
               <div class="avatar" :style="{ background: colorFor(b.id) }">{{ b.name.charAt(0) }}</div>
               <div style="flex:1; min-width:0;">
                 <div style="font-weight:600; font-size:0.875rem;" class="truncate">{{ b.name }}</div>
-                <div style="color: var(--muted); font-size:0.75rem;">{{ b.room_count }} room(s) &middot; updated {{ timeAgo(b.updated_at) }}</div>
+                <div style="color: var(--muted); font-size:0.75rem;">{{ b.room_count }} room(s) &middot; {{ b.updated_at ? 'updated ' + timeAgo(b.updated_at) : 'not synced yet' }}</div>
               </div>
               <span v-if="b.open_flags > 0" class="badge badge-amber">{{ b.open_flags }} flag(s)</span>
               <a :href="'register-building.php?edit=' + b.id" class="btn-link" style="font-size:0.75rem; color: var(--muted); margin-left:0.5rem;">Edit</a>

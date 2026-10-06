@@ -1,7 +1,15 @@
 const { createApp } = Vue;
+
+// Showing the login screen means nobody is signed in: drop any saved admin pages
+// and data the offline service worker kept from a previous session.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistration('../../sw.js').then((reg) => {
+    if (reg && reg.active) reg.active.postMessage({ type: 'clear-private' });
+  }).catch(() => {});
+}
 createApp({
   data() {
-    return { username: '', password: '', error: '', loading: false };
+    return { username: '', password: '', showPassword: false, error: '', loading: false };
   },
   methods: {
     async login() {

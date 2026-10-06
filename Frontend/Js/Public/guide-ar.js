@@ -51,6 +51,15 @@ function setLabelColor(entry, frontColor, opacity) {
   });
 }
 
+// Ground ribbon rendering lives in Include/ar-ribbon.js (shared with the indoor
+// guide); these are just the outdoor page's own route thresholds.
+const RIBBON_VISIBLE_METERS = 300;   // the whole route in practice; only a very long walk is cut (and then fades out)
+const ARRIVED_METERS = 8;
+const FAR_BOOST_FROM = 100;        // from here the destination marker is enlarged...
+const FAR_BOOST_TO = 300;          // ...reaching its largest at this distance
+const FAR_BOOST_MAX = 1.9;         // ...which is this many times the normal size
+const OFF_PATH_METERS = 60;        // farther from any walkway than this -> no ribbon
+
 function haversineMeters(a, b) {
   const R = 6371000;
   const dLat = (b.lat - a.lat) * Math.PI / 180;
@@ -97,6 +106,11 @@ createApp({
       locationOn: true,
       gpsWatchId: null,
       buildings: [],
+      // Outdoor walkway graph (Campus Paths admin page) — the ground ribbon
+      // routes over this. Empty graph = no ribbon, the arrow marker still works.
+      campusGraph: { nodes: [], edges: [] },
+      // Banner state for the route: null | { status: 'ok'|'arrived'|'off-path', dir, turnDistance, remaining }
+      routeInfo: null,
       myPos: null,
       searchQuery: '',
       showAllBuildings: false, // toggled by the dropdown-browse button, independent of searchQuery
@@ -171,9 +185,11 @@ createApp({
         return;
       }
 
-      const res = await fetch('../../../Backend/api/buildings.php');
-      const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
+      // Network first, last-known snapshot when offline (see offline-cache.js) —
+      // the arrow marker and the ground ribbon both keep working with no signal
+      // once this device has loaded them once.
+      this.buildings = await LamparaCache.loadBuildings('../../../Backend/api/buildings.php');
+      this.campusGraph = await LamparaCache.loadCampusGraph('../../../Backend/api/campus-graph.php');
 
       // AR.js requests the camera itself once <a-scene> mounts, right after
       // this same tap — not before the user knows why.
@@ -362,6 +378,8 @@ createApp({
             const comp = entry.wrapper.components['gps-new-entity-place'];
             if (comp) comp.update();
           });
+          // Camera just moved in the scene — the ribbon starts at its feet.
+          this.updateRoute(true);
         });
       }
 
@@ -400,10 +418,11 @@ createApp({
         if (prev.arrow) { prev.wrapper.removeChild(prev.arrow); prev.arrow = null; }
       }
       this.target = building ? { ...building } : null;
-      if (!this.target) return;
+      if (!this.target) { this.clearRoute(); return; }
 
       const entry = this.arEntities[this.target.id];
       this.updateTargetDistance();
+      this.updateRoute(true);
       if (!entry) return;
 
       setLabelColor(entry, '#10b981', 1);
@@ -469,10 +488,15 @@ createApp({
       const entry = this.arEntities[this.target.id];
       if (!entry) return;
       const d = this.target.distance || 10;
-      const labelScale = Math.max(5, Math.round(d * 0.05 * 10) / 10);
+      // Size grows in step with distance so the marker looks the same size at any range, and
+      // between FAR_BOOST_FROM and FAR_BOOST_TO meters it is boosted up to FAR_BOOST_MAX times
+      // more, so at 300 m it is still clearly readable instead of a speck. Past 300 m the
+      // boost stays at its maximum.
+      const boost = 1 + (FAR_BOOST_MAX - 1) * Math.max(0, Math.min(1, (d - FAR_BOOST_FROM) / (FAR_BOOST_TO - FAR_BOOST_FROM)));
+      const labelScale = Math.max(5, Math.round(d * 0.05 * boost * 10) / 10);
       entry.label.setAttribute('scale', `${labelScale} ${labelScale} ${labelScale}`);
       if (entry.arrow) {
-        const arrowScale = Math.max(1.2, Math.round(d * 0.1 * 10) / 10);
+        const arrowScale = Math.max(1.2, Math.round(d * 0.1 * boost * 10) / 10);
         entry.arrow.setAttribute('scale', `${arrowScale} ${arrowScale} ${arrowScale}`);
       }
     },
@@ -480,6 +504,92 @@ createApp({
       if (!this.target || !this.myPos) return;
       this.target = { ...this.target, distance: Math.round(haversineMeters(this.myPos, this.target)) };
       this.applyTargetScale();
+      this.updateRoute();
+    },
+    // Routes from where you're standing to the target building's entrance along
+    // the drawn walkways, then draws the ground ribbon + fills the turn banner.
+    // Throttled (GPS fixes can arrive faster than the geometry is worth rebuilding).
+    updateRoute(force) {
+      const now = Date.now();
+      if (!force && now - (this._lastRouteAt || 0) < 800) return;
+      this._lastRouteAt = now;
+
+      if (!this.target || !this.myPos || !this.target.entrance_node_id || !this.campusGraph.edges.length) {
+        this.clearRoute();
+        return;
+      }
+      const route = CampusRoute.findRoute(this.campusGraph, this.myPos, this.target.entrance_node_id);
+      if (!route) { this.clearRoute(); return; }
+
+      if (route.snapDist > OFF_PATH_METERS) {
+        this.removeRibbon();
+        this.routeInfo = { status: 'off-path', remaining: Math.round(route.snapDist) };
+        return;
+      }
+      if (route.length <= ARRIVED_METERS) {
+        this.removeRibbon();
+        this.routeInfo = { status: 'arrived' };
+        return;
+      }
+
+      const turn = CampusRoute.nextTurn(route.points);
+      this.routeInfo = {
+        status: 'ok',
+        dir: turn.dir,
+        turnDistance: Math.round(turn.distance),
+        remaining: Math.round(route.length + route.snapDist)
+      };
+      this.renderRibbon(route);
+    },
+    clearRoute() {
+      this.removeRibbon();
+      this.routeInfo = null;
+    },
+    removeRibbon() {
+      if (this._ribbon) this._ribbon.remove();
+    },
+    renderRibbon(route) {
+      const scene = this.$refs.arScene;
+      const camEl = scene && scene.querySelector('[gps-new-camera]');
+      const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
+      if (!camComp || !camEl.object3D) return;
+
+      // GPS -> scene coordinates (x east, z south). Throws until AR.js has
+      // established its origin from the first accurate fix — just retry next fix.
+      let world;
+      try {
+        world = route.points.map((p) => {
+          const [x, z] = camComp.latLonToWorld(p.lat, p.lng);
+          return { x, y: z };
+        });
+      } catch (e) { return; }
+
+      // The route ends at the building's entrance point, but the arrow and name you see in AR
+      // hang at the building's own location. Carry the ribbon on to that marker so the path
+      // visibly connects to it instead of stopping short.
+      const t = this.target;
+      if (t && typeof t.lat === 'number' && typeof t.lng === 'number') {
+        try {
+          const [ax, az] = camComp.latLonToWorld(t.lat, t.lng);
+          const last = world[world.length - 1];
+          if (!last || Math.hypot(ax - last.x, az - last.y) > 1.5) world.push({ x: ax, y: az });
+        } catch (e) { /* no origin yet: the ribbon still draws to the entrance */ }
+      }
+
+      // Starts at the camera's own scene position (your feet), so the ribbon is
+      // attached to you even when GPS says the walkway is a few meters away.
+      const cam = camEl.object3D.position;
+      let pts = [{ x: cam.x, y: cam.z }, ...world];
+      pts = CampusRoute.smooth(pts);
+      let length = 0;
+      for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      const reachesMarker = length <= RIBBON_VISIBLE_METERS;
+      pts = CampusRoute.truncate(pts, RIBBON_VISIBLE_METERS);
+      if (pts.length < 2) return;
+
+      if (!this._ribbon) this._ribbon = ArRibbon.create(scene);
+      // Solid right up to the marker; only a route too long to show in full fades out at its far end.
+      this._ribbon.update(pts, { fadeEnd: !reachesMarker });
     },
     selectBuilding(building) { this.setTarget(building); },
     // Shared by start() and by toggleLocation() re-enabling.

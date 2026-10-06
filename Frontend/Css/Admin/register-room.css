@@ -1,6 +1,7 @@
 .warn-card { border-color: #fde68a; background: #fffbeb; }
 .form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
 @media (min-width: 800px) { .form-grid { grid-template-columns: 1.3fr 1fr; align-items: start; } }
+.form-grid > * { min-width: 0; }   /* let long option text shrink instead of widening the page on a phone */
 .side-col { display: flex; flex-direction: column; gap: 1.25rem; }
 .no-hours-note {
   display: flex; align-items: center; gap: 0.5rem;

@@ -9,6 +9,10 @@ const LamparaCache = (function () {
   const ROOMS_TIME_KEY = 'lampara_rooms_cache_time';
   const PLANS_KEY = 'lampara_floorplans_cache';
   const GRAPHS_KEY = 'lampara_graphs_cache';
+  const BUILDINGS_KEY = 'lampara_buildings_cache';
+  const CAMPUS_GRAPH_KEY = 'lampara_campus_graph_cache';
+  const SYNCED_AT_KEY = 'lampara_student_synced_at';
+  const MY_FLOOR_KEY = 'lampara_my_floor';
 
   function getJSON(key, fallback) {
     try {
@@ -18,12 +22,15 @@ const LamparaCache = (function () {
       return fallback; // storage unavailable (private mode, quota) — caller just gets nothing cached
     }
   }
+  // Returns whether it was actually stored.
   function setJSON(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
+      return true;
     } catch (e) {
       // Storage full or unavailable — caching silently no-ops. Live/online
       // features are unaffected; only the offline fallback stays thinner.
+      return false;
     }
   }
 
@@ -50,6 +57,19 @@ const LamparaCache = (function () {
       this.setRooms([...byId.values()]);
     },
 
+    // The floor the student last said they are on (a scanned sign, or "where I am"): lets Manual
+    // Search show which rooms are up, down or on the same floor.
+    getMyFloor() {
+      return getJSON(MY_FLOOR_KEY, null);
+    },
+    setMyFloor(room) {
+      if (!room || !room.building_id || !room.floor) return;
+      setJSON(MY_FLOOR_KEY, { building_id: room.building_id, building_name: room.building_name || '', floor: room.floor });
+    },
+    clearMyFloor() {
+      try { localStorage.removeItem(MY_FLOOR_KEY); } catch (e) { /* storage blocked */ }
+    },
+
     floorPlanKey(buildingId, floor) {
       return buildingId + '|' + floor;
     },
@@ -60,7 +80,24 @@ const LamparaCache = (function () {
     setFloorPlan(buildingId, floor, plan) {
       const all = getJSON(PLANS_KEY, {});
       all[this.floorPlanKey(buildingId, floor)] = plan;
+      if (setJSON(PLANS_KEY, all)) return;
+      // localStorage is only ~5 MB and a few floor plan images as text can fill it.
+      // Drop the stored image copies and keep the plan details — the images are
+      // still available offline through the service worker's file cache.
+      Object.keys(all).forEach((k) => { if (all[k]) all[k].imageDataUrl = null; });
       setJSON(PLANS_KEY, all);
+    },
+    // True when the service worker is controlling this page: it saves floor plan
+    // images itself (in its file cache, which has no 5 MB limit), so pages don't
+    // need to keep their own base64 copy in localStorage.
+    workerHandlesImages() {
+      return 'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
+    },
+    getSyncedAt() {
+      return getJSON(SYNCED_AT_KEY, null);
+    },
+    setSyncedAt(ms) {
+      setJSON(SYNCED_AT_KEY, ms);
     },
 
     getGraph(floorPlanId) {
@@ -80,6 +117,53 @@ const LamparaCache = (function () {
     },
     setBuildingGraph(buildingId, graph) {
       this.setGraph('building:' + buildingId, graph);
+    },
+
+    // Registered buildings (name + GPS) — needed by the outdoor AR guide and
+    // the on-campus check on the scan page, both of which used to fail outright
+    // with no signal.
+    getBuildings() {
+      return getJSON(BUILDINGS_KEY, []);
+    },
+    setBuildings(buildings) {
+      setJSON(BUILDINGS_KEY, buildings);
+    },
+
+    // Outdoor walkway graph (Campus Paths) the ground ribbon routes over.
+    getCampusGraph() {
+      return getJSON(CAMPUS_GRAPH_KEY, null);
+    },
+    setCampusGraph(graph) {
+      setJSON(CAMPUS_GRAPH_KEY, graph);
+    },
+
+    // Network-first loaders that keep the cache warm — every online visit
+    // refreshes what the next offline visit will fall back to. Same
+    // discipline as the rest of this file. Resolve to the data either way
+    // (empty when there's neither signal nor a previous snapshot).
+    async loadBuildings(url) {
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.success) { this.setBuildings(data.buildings); return data.buildings; }
+        } catch (e) { /* fall through to cache */ }
+      }
+      return this.getBuildings();
+    },
+    async loadCampusGraph(url) {
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.success) {
+            const graph = { nodes: data.nodes, edges: data.edges };
+            this.setCampusGraph(graph);
+            return graph;
+          }
+        } catch (e) { /* fall through to cache */ }
+      }
+      return this.getCampusGraph() || { nodes: [], edges: [] };
     },
 
     // Downloads an image and returns it as a base64 data URL — the only way

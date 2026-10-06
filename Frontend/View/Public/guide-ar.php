@@ -2,6 +2,9 @@
 $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Public/guide-ar.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Public/guide-ar.js');
+$routeJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
+$ribbonJsVer = filemtime(__DIR__ . '/../../Js/Include/ar-ribbon.js');
+$cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 ?>
 <!doctype html>
 <html lang="en">
@@ -149,7 +152,26 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Public/guide-ar.js');
        the 3D label in the AR scene itself is the "real AR" anchor; this
        card is the trustworthy fallback readout, same discipline as v10's
        distance-in-label design in ar-test.php. -->
-  <div v-if="started && target" class="absolute inset-x-0 z-10 flex justify-center px-8" style="bottom: 11.5rem;">
+  <div v-if="started && target" class="absolute inset-x-0 z-10 flex flex-col items-center gap-2 px-8" style="bottom: 11.5rem;">
+
+    <!-- Turn-by-turn banner for the ground ribbon — only when a walkway route
+         exists to this building's entrance (Campus Paths admin page). -->
+    <div v-if="routeInfo" class="bg-white text-zinc-900 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3">
+      <svg v-if="routeInfo.status === 'ok'" width="26" height="26" viewBox="0 0 24 24" fill="none"
+           :style="{ transform: 'rotate(' + (routeInfo.dir === 'left' ? -90 : routeInfo.dir === 'right' ? 90 : 0) + 'deg)' }">
+        <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#059669"/>
+      </svg>
+      <svg v-else-if="routeInfo.status === 'arrived'" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="text-left" style="line-height:1.25;">
+        <div v-if="routeInfo.status === 'arrived'" class="font-semibold text-sm">You've reached the entrance</div>
+        <div v-else-if="routeInfo.status === 'off-path'" class="font-semibold text-sm">Head to the nearest walkway</div>
+        <div v-else-if="routeInfo.dir" class="font-semibold text-sm">Turn {{ routeInfo.dir }} in {{ routeInfo.turnDistance }} m</div>
+        <div v-else class="font-semibold text-sm">Continue straight</div>
+        <div v-if="routeInfo.status === 'ok'" class="text-xs text-zinc-500 mt-0.5">{{ routeInfo.remaining }} m to the entrance</div>
+        <div v-else-if="routeInfo.status === 'off-path'" class="text-xs text-zinc-500 mt-0.5">{{ routeInfo.remaining }} m away</div>
+      </div>
+    </div>
+
     <div class="bg-white text-zinc-900 rounded-2xl px-4 py-3 inline-block shadow-2xl text-center">
       <div class="font-semibold text-base">{{ target.name }}</div>
       <div class="text-xs mt-0.5">
@@ -225,6 +247,10 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Public/guide-ar.js');
 
 </div>
 
+<script src="../../Js/Include/offline-cache.js?v=<?= $cacheJsVer ?>"></script>
+<script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
+<script src="../../Js/Include/ar-ribbon.js?v=<?= $ribbonJsVer ?>"></script>
+<script src="../../Js/Public/campus-route.js?v=<?= $routeJsVer ?>"></script>
 <script src="../../Js/Public/guide-ar.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

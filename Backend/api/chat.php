@@ -25,6 +25,8 @@ if (!file_exists($secretsPath)) {
     exit;
 }
 require_once $secretsPath;
+require_once __DIR__ . '/../rate_limit.php';
+rate_limit_or_die('chat', 90, 60);   // per visitor per minute; keeps the Gemini bill bounded
 
 $input = json_decode(file_get_contents('php://input'), true);
 $buildingId = $input['building_id'] ?? null;
@@ -76,7 +78,7 @@ $groundingFacts = trim(
     "Rooms in this building:\n" . implode("\n", $roomLines)
 );
 
-if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === 'PASTE_YOUR_KEY_HERE') {
+if (!defined('GEMINI_API_KEY') || in_array(GEMINI_API_KEY, ['PASTE_YOUR_KEY_HERE', 'paste-your-real-key-here', ''], true)) {
     echo json_encode(['success' => true, 'reply' => "(setup needed) Add your real Gemini key to lampara/Backend/secrets.php — see the README."]);
     exit;
 }

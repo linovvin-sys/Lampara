@@ -46,6 +46,24 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <p>Browse all registered rooms and offices — works with zero signal once loaded here at least once.</p>
   </div>
 
+  <div class="here-card">
+    <div class="here-row">
+      <span class="here-label">You are on</span>
+      <button type="button" class="here-pick" @click="picking = !picking" :aria-expanded="picking ? 'true' : 'false'">
+        <template v-if="me">{{ me.floor }} &middot; {{ me.building_name }}</template>
+        <template v-else>Choose your floor</template>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+    </div>
+    <div v-if="picking" class="here-list" role="listbox">
+      <button v-for="c in floorChoices" :key="c.key" type="button" role="option" class="here-opt" :class="{ on: c.key === meKey }" @click="chooseFloor(c)">
+        <span>{{ c.floor }}</span><small>{{ c.building_name }}</small>
+      </button>
+      <button v-if="me" type="button" class="here-opt clear" @click="clearFloor">I'm not sure</button>
+    </div>
+    <p v-if="!me && !picking" class="here-hint">Tell us which floor you are on and each room will show whether to go up, down or stay on this floor. Scanning a sign sets it for you.</p>
+  </div>
+
   <div class="search-box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
     <input v-model="q" @input="search" type="text" placeholder="Search rooms or offices…">
@@ -66,8 +84,14 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       </div>
       <div class="room-info">
         <div class="room-name">{{ r.room_name }}</div>
-        <div class="room-meta">{{ r.room_number ? 'Room ' + r.room_number : 'No number' }} &middot; {{ r.floor }}</div>
+        <div class="room-meta">{{ r.room_number ? 'Room ' + r.room_number : 'No number' }} &middot; {{ r.floor }}<template v-if="floorHint(r) && floorHint(r).kind === 'other'"> &middot; {{ r.building_name }}</template></div>
       </div>
+      <span v-if="floorHint(r)" class="floor-hint" :class="'is-' + floorHint(r).kind">
+        <svg v-if="floorHint(r).kind === 'up'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        <svg v-else-if="floorHint(r).kind === 'down'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        <svg v-else-if="floorHint(r).kind === 'same'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+        <span>{{ floorHint(r).text }}</span>
+      </span>
       <svg class="room-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
   </div>
@@ -79,6 +103,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 </div>
 
 <script src="../../Js/Include/offline-cache.js?v=<?= $cacheJsVer ?>"></script>
+<script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
+<script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
 <script src="../../Js/Student/manual-search.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

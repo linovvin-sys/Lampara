@@ -27,5 +27,6 @@
 .map-card { padding: 0; overflow: hidden; }
 .map-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.9rem 1rem; }
 .map-n { margin-left: auto; font-size: 0.6875rem; font-weight: 700; color: #9aa79f; }
-.map-area { position: relative; height: 60vh; min-height: 380px; }
+/* isolation: keeps Leaflet's high z-index layers from painting over the mobile sidebar drawer. */
+.map-area { position: relative; z-index: 0; isolation: isolate; height: 60vh; min-height: 380px; }
 .map-empty { position: absolute; inset: 0; top: 2.75rem; display: flex; align-items: center; justify-content: center; color: #9aa79f; font-size: 0.8125rem; pointer-events: none; }
