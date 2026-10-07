@@ -2,7 +2,19 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v10 (mini-map)';
+const AR_BUILD = 'AR build: v11 (ground fix)';
+
+// How far below the phone the ground is, in meters (phone held up in front of you while
+// walking ~1.4). The path is laid exactly this far below the camera. If it looks like it
+// floats or sinks, tune it without editing code: add ?h=1.3 (or 1.5 ...) to the page URL.
+const EYE_HEIGHT_M = (() => {
+  try { const v = parseFloat(new URLSearchParams(location.search).get('h')); if (v > 0.5 && v < 2.5) return v; } catch (e) { /* default */ }
+  return 1.4;
+})();
+// Entity Y for a ribbon so its surface sits EYE_HEIGHT_M below the camera. The ribbon's own
+// geometry is already raised by ArRibbon.GROUND_Y, so that is subtracted here (it used to be
+// counted twice, leaving the path ~0.2 m above the real ground).
+function ribbonEntityY(camY) { return camY - EYE_HEIGHT_M - ArRibbon.GROUND_Y; }
 
 // Top-down mini-map (north up) — lets you check, anywhere, that the drawn paths and your
 // position/heading are what the AR scene is using. Tap it to zoom out/in.
@@ -404,7 +416,7 @@ createApp({
           const camEl = scene2.querySelector('[gps-new-camera]');
           const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
           const vid = document.querySelector('#arjs-video');
-          let report = AR_BUILD + '\ncamera fov=' + (scene2.camera ? scene2.camera.fov.toFixed(1) : '?') + ' (long-side ' + CAMERA_LONG_FOV_DEG + ', video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none') + ')' + '\ngps-new-camera found: ' + !!camComp;
+          let report = AR_BUILD + '\nground ' + EYE_HEIGHT_M + ' m below phone (?h=)' + '\ncamera fov=' + (scene2.camera ? scene2.camera.fov.toFixed(1) : '?') + ' (long-side ' + CAMERA_LONG_FOV_DEG + ', video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none') + ')' + '\ngps-new-camera found: ' + !!camComp;
           if (camComp) {
             // originCoords/currentCoords belong to AR.js's OLDER gps-camera
             // component — gps-new-camera (what we actually use) never has
@@ -432,7 +444,7 @@ createApp({
           }
           // What the camera's own Y actually is (gps-new-camera never sets
           // altitude — if this isn't ~1.6, the ribbon's ground-tracking
-          // (setGroundY = camY - 1.4) should be compensating for it).
+          // (setGroundY = ribbonEntityY(camY)) should be compensating for it).
           if (camEl && camEl.object3D) {
             const cp = camEl.object3D.position;
             report += '\n\nCamera scene position: x=' + cp.x.toFixed(2) + ' y=' + cp.y.toFixed(2) + ' z=' + cp.z.toFixed(2);
@@ -1098,7 +1110,7 @@ createApp({
         // Already built — just keep tracking the camera's real height,
         // since gps-new-camera's Y can still settle/shift after the
         // first fix.
-        const y = camPos.y - 1.4;
+        const y = ribbonEntityY(camPos.y);
         this._allPathRibbons.forEach((r) => r.setGroundY(y));
         return;
       }
@@ -1121,7 +1133,7 @@ createApp({
           // leading somewhere specific yet.
           ribbon.update([{ x: ax, y: az }, { x: bx, y: bz }], { fadeEnd: false });
           // See renderRibbon's comment: gps-new-camera never sets altitude.
-          ribbon.setGroundY(camPos.y - 1.4);
+          ribbon.setGroundY(ribbonEntityY(camPos.y));
           this._allPathRibbons.push(ribbon);
         } catch (e) { /* no origin yet — retried on the next GPS fix */ }
       });
@@ -1179,7 +1191,7 @@ createApp({
       this._ribbon.update(pts, { fadeEnd: !reachesMarker });
       // gps-new-camera never sets altitude — cam.y isn't the assumed 1.6 the
       // ribbon's baked-in height expects, so track wherever it actually is.
-      this._ribbon.setGroundY(cam.y - 1.4);
+      this._ribbon.setGroundY(ribbonEntityY(cam.y));
     },
     selectBuilding(building) { this.setTarget(building); },
     // Shared by start() and by toggleLocation() re-enabling.
