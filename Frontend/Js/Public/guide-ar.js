@@ -76,6 +76,15 @@ const DEFAULT_CAMPUS_LAT = 14.3283;
 // The building's own pin is usually mid-building, tens of meters past the door. The ribbon
 // stops at the entrance; it is only carried on to the marker when that is this close.
 const MARKER_EXTEND_MAX_M = 12;
+// Automatic heading alignment (see autoAlignHeading): how far you must walk along a drawn
+// path before that movement is trusted as a compass reference, and how loosely the samples
+// must agree before one is applied.
+const ALIGN_MIN_WALK_M = 6;
+const ALIGN_MAX_WINDOW_MS = 25000;
+const ALIGN_SAMPLES_NEEDED = 3;
+const ALIGN_MAX_SPREAD_DEG = 25;
+const ALIGN_STEP = 0.5;          // fraction of the remaining error corrected per accepted sample
+const ALIGN_DEADBAND_DEG = 2;
 function makeLocalProjection(lat0) {
   const kx = PROJ_M_PER_DEG * Math.cos(lat0 * Math.PI / 180);
   return {
@@ -154,6 +163,7 @@ createApp({
       scanningAnchor: false,
       anchorScanned: false,
       anchorScanError: '',
+      headingLocked: false, // true once walking along a drawn path has auto-corrected the compass heading
       anchorPos: null, // lat/lng of the scanned anchor — what the GPS-error correction is measured against
       // Right after a successful scan (not a skip), the WHOLE walkway graph
       // shows in AR at the registered anchor — not just a single destination
@@ -369,6 +379,7 @@ createApp({
           } else {
             report += '\nAll-paths ribbons built: 0 (either no edges loaded, or latLonToWorld is still failing — see campusGraph line below)';
           }
+          report += '\nheading auto-aligned=' + this.headingLocked + ' offset=' + (this._alignOffsetDeg || 0).toFixed(1) + ' deg';
           report += '\nprojection swapped to true-metric=' + !!this._projInstalled + ' anchor shift=' + (this._shift ? this._shift.x.toFixed(1) + ', ' + this._shift.z.toFixed(1) + ' m' : 'none');
           report += '\ncampusGraph loaded: ' + this.campusGraph.nodes.length + ' node(s), ' + this.campusGraph.edges.length + ' edge(s)';
           report += '\nshowAllPaths=' + this.showAllPaths + ' anchorScanned=' + this.anchorScanned;
@@ -436,11 +447,9 @@ createApp({
           tryInit();
         }
 
-        // Everything GPS-placed (buildings, ribbons) hangs off this one
-        // rotating group instead of the scene directly, so a manual twist
-        // (rotateWorld) fixes compass-drift "slant" by eye in seconds —
-        // simpler and more reliable than computing/trusting a heading
-        // correction from sensors that are already the thing drifting.
+        // Everything GPS-placed (buildings, ribbons) hangs off this one group instead of the
+        // scene directly, so the anchor shift and the automatic compass correction
+        // (applyWorldTransform) move and turn all of it together.
         if (!this._worldGroup) {
           const group = document.createElement('a-entity');
           scene.appendChild(group);
@@ -516,15 +525,89 @@ createApp({
         const [ax, az] = camComp.latLonToWorld(this.anchorPos.lat, this.anchorPos.lng);
         const c = camEl.object3D.position;
         const sx = c.x - ax, sz = c.z - az;
-        this._worldGroup.object3D.position.set(sx, 0, sz);
         this._shift = { x: sx, z: sz };
         const kx = PROJ_M_PER_DEG * Math.cos(this.anchorPos.lat * Math.PI / 180);
         this._gpsCorr = { lat: -sz / PROJ_M_PER_DEG, lng: sx / kx };
         this._shiftDone = true;
+        this.applyWorldTransform();
         this._forceRebuildPaths = true;
         if (this.showAllPaths) this.renderAllPaths();
         if (this.target) this.updateRoute(true);
       } catch (e) { /* no origin yet — retried on the next fix */ }
+    },
+    // Places the GPS-world group so that every point p (in group-local meters) lands at
+    //   scene = c + R(p + shift - c)
+    // i.e. shifted by the anchor correction, then turned by the heading correction around the
+    // camera c (so a turn pivots on you, not on a faraway origin). The camera only moves on
+    // GPS fixes, so this is re-applied from the position-update handler.
+    applyWorldTransform() {
+      const g = this._worldGroup;
+      const scene = this.$refs.arScene;
+      const camEl = scene && scene.querySelector('[gps-new-camera]');
+      if (!g || !camEl || !camEl.object3D) return;
+      const c = camEl.object3D.position;
+      const s = this._shift || { x: 0, z: 0 };
+      const th = -(this._alignOffsetDeg || 0) * Math.PI / 180;
+      const vx = s.x - c.x, vz = s.z - c.z;
+      const cos = Math.cos(th), sin = Math.sin(th);
+      g.object3D.rotation.y = th;
+      g.object3D.position.set(c.x + vx * cos + vz * sin, 0, c.z - vx * sin + vz * cos);
+    },
+    // Where the AR camera believes it is facing (compass degrees), or null when the phone is
+    // pointed too far up/down for the heading to mean anything.
+    cameraHeadingDeg() {
+      const scene = this.$refs.arScene;
+      if (!scene || !scene.camera) return null;
+      const THREE = window.AFRAME.THREE;
+      const dir = new THREE.Vector3();
+      scene.camera.getWorldDirection(dir);
+      if (dir.x * dir.x + dir.z * dir.z < 0.25) return null;
+      return (Math.atan2(dir.x, -dir.z) * 180 / Math.PI + 360) % 360;
+    },
+    // Automatic compass correction — no user input. The compass the AR scene is built on is
+    // off by an amount that differs by phone, place and moment. A drawn walkway has a known
+    // true bearing, though. When you walk a few meters along one with the phone held up, your
+    // direction of travel IS that path's bearing, so (camera heading - path bearing) is the
+    // compass error. Samples are medianed so glancing sideways doesn't skew it, and applied in
+    // small steps so the world never snaps.
+    autoAlignHeading() {
+      const track = this._track;
+      if (!track || track.length < 2 || !this.campusGraph.edges.length) return;
+      const cur = track[track.length - 1];
+      let ref = null;
+      for (let i = track.length - 2; i >= 0; i--) {
+        if (cur.t - track[i].t > ALIGN_MAX_WINDOW_MS) break;
+        if (haversineMeters(track[i], cur) >= ALIGN_MIN_WALK_M) { ref = track[i]; break; }
+      }
+      if (!ref) return;
+      this._track = [cur]; // each sample comes from fresh movement
+      const course = bearingDeg(ref, cur);
+      const mid = { lat: (ref.lat + cur.lat) / 2, lng: (ref.lng + cur.lng) / 2 };
+      const snap = CampusRoute.snapToGraph(mid, this.campusGraph.nodes, this.campusGraph.edges);
+      if (!snap || snap.dist > 25) return; // not on a drawn walkway: no trustworthy reference
+      const fwd = bearingDeg(snap.nodeA, snap.nodeB), back = (fwd + 180) % 360;
+      let pathBearing;
+      if (Math.abs(relativeAngle(course, fwd)) <= 40) pathBearing = fwd;
+      else if (Math.abs(relativeAngle(course, back)) <= 40) pathBearing = back;
+      else return; // cut a corner / wandered: movement doesn't match the path
+      const cam = this.cameraHeadingDeg();
+      if (cam === null) return; // phone not held up
+      const samples = this._headingSamples = (this._headingSamples || []).concat(relativeAngle(pathBearing, cam)).slice(-7);
+      if (samples.length < ALIGN_SAMPLES_NEEDED) return;
+      // Circular median: express everything relative to the first sample, take the median, add back.
+      const base = samples[0];
+      const rel = samples.map((v) => relativeAngle(base, v)).sort((a, b) => a - b);
+      const med = rel[Math.floor(rel.length / 2)];
+      const spread = rel.map((v) => Math.abs(v - med)).sort((a, b) => a - b)[Math.floor(rel.length / 2)];
+      if (spread > ALIGN_MAX_SPREAD_DEG) return; // user looking around: samples disagree
+      const target = base + med;
+      const current = this._alignOffsetDeg || 0;
+      const err = relativeAngle(current, target);
+      if (this.headingLocked && Math.abs(err) < ALIGN_DEADBAND_DEG) return;
+      const next = this.headingLocked ? current + err * ALIGN_STEP : target;
+      this._alignOffsetDeg = ((next + 540) % 360) - 180;
+      this.headingLocked = true;
+      this.applyWorldTransform();
     },
     // Camera position in the world group's own frame (what route/ribbon points are expressed in).
     camLocal() {
@@ -621,6 +704,7 @@ createApp({
         camEl.__lamparaRepositionBound = true;
         camEl.addEventListener('gps-camera-update-position', () => {
           this.ensureAnchorShift();
+          this.applyWorldTransform();
           Object.values(this.arEntities).forEach((entry) => {
             const comp = entry.wrapper.components['gps-new-entity-place'];
             if (comp) comp.update();
@@ -806,16 +890,11 @@ createApp({
     // building is picked (see setTarget), replaced by the normal single
     // route. Built once (edges don't move); retried on each GPS fix only
     // until AR.js's origin is established, same pattern as renderRibbon.
-    // Rotates a point around the camera's CURRENT position (not a fixed
-    // distant origin) — pivoting anywhere else makes a manual rotate look
-    // like sideways sliding instead of an actual turn.
-    rotateAroundCamera(x, z, camX, camZ) {
-      const deg = this._alignOffsetDeg || 0;
-      if (!deg) return { x, z };
-      const rad = deg * Math.PI / 180;
-      const dx = x - camX, dz = z - camZ;
-      const cos = Math.cos(rad), sin = Math.sin(rad);
-      return { x: camX + dx * cos - dz * sin, z: camZ + dx * sin + dz * cos };
+    // Heading correction is applied by rotating the whole world group around the camera
+    // (applyWorldTransform), so points are handed through unrotated here — buildings, the
+    // all-paths network and the route ribbon all turn together.
+    rotateAroundCamera(x, z) {
+      return { x, z };
     },
     renderAllPaths() {
       if (!this._allPathRibbons) this._allPathRibbons = [];
@@ -939,6 +1018,10 @@ createApp({
             };
           }
           this.statusOk = true;
+          const track = this._track = this._track || [];
+          track.push({ lat: this.myPos.lat, lng: this.myPos.lng, t: Date.now() });
+          if (track.length > 60) track.shift();
+          this.autoAlignHeading();
           this.updateTargetDistance();
         },
         (err) => { this.statusText = 'GPS error: ' + err.message; },
@@ -985,9 +1068,7 @@ createApp({
     // from the same sensor that's drifting in the first place.
     rotateWorld(deg) {
       this._alignOffsetDeg = (this._alignOffsetDeg || 0) + deg;
-      this._forceRebuildPaths = true;
-      if (this.showAllPaths) this.renderAllPaths();
-      if (this.target) this.updateRoute(true);
+      this.applyWorldTransform();
     },
     // Pauses only OUR OWN distance-tracking GPS watch (used for the 2D
     // card). AR.js's own internal gps-new-camera tracking for the 3D

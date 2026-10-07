@@ -117,15 +117,6 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <span class="text-xs font-medium text-white">{{ !locationOn ? 'Distance off' : (!statusOk ? 'GPS + Compass' : (headingInit ? 'GPS + Compass' : 'GPS ready · Compass…')) }}</span>
       </button>
       <button @click="runArDebug" class="press bg-emerald-500 text-zinc-900 text-xs font-bold rounded-full px-3 py-1.5">AR debug</button>
-      <!-- Compass drift makes the whole GPS-placed world (path, buildings)
-           visually rotated relative to the real street — this lets you
-           twist it back by eye instead of trusting the same sensor that's
-           drifting. -->
-      <div class="pointer-events-auto flex items-center gap-1 bg-white/10 border border-white/15 rounded-full px-1 py-1">
-        <button @click="rotateWorld(-5)" class="press text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center">&#8634;</button>
-        <span class="text-xs text-white/60 px-0.5">Align path</span>
-        <button @click="rotateWorld(5)" class="press text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center">&#8635;</button>
-      </div>
     </div>
     <a href="../Student/manual-search.php" class="self-start pointer-events-auto flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 8.7a9.9 9.9 0 0 1 10.9 2M5 12a9.9 9.9 0 0 1 3-2.2M12 19.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM8.8 15.2a5.5 5.5 0 0 1 6.6.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -182,6 +173,9 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
     <!-- Turn-by-turn banner for the ground ribbon — only when a walkway route
          exists to this building's entrance (Campus Paths admin page). -->
+    <!-- Compass heading corrects itself from walking along a drawn path (autoAlignHeading) —
+         no manual aligning; this just tells a new user what makes it happen. -->
+    <div v-if="routeInfo && routeInfo.status === 'ok' && !headingLocked" class="bg-black/60 text-white text-xs rounded-full px-3 py-1.5">Walk a few steps along the path to line it up</div>
     <div v-if="routeInfo" class="bg-white text-zinc-900 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3">
       <svg v-if="routeInfo.status === 'ok'" width="26" height="26" viewBox="0 0 24 24" fill="none"
            :style="{ transform: 'rotate(' + (routeInfo.dir === 'left' ? -90 : routeInfo.dir === 'right' ? 90 : 0) + 'deg)' }">
