@@ -64,6 +64,7 @@ createApp({
       campusAnchor: null,
       qrBusy: false,
       headingDraft: '',
+      pickingDirection: false, // next map tap = where the sign is (sets the anchor's direction)
       showingCampusQr: false
     };
   },
@@ -172,10 +173,20 @@ createApp({
       AdminOffline.toast('Anchor direction saved', 'success');
     },
     headingFromSelected() {
-      const from = this.nodes.find((n) => String(n.id) === String(this.campusAnchor && this.campusAnchor.campus_node_id));
       const to = this.selected;
-      if (!from || !to || String(from.id) === String(to.id)) return;
-      const p1 = from.lat * Math.PI / 180, p2 = to.lat * Math.PI / 180, dl = (to.lng - from.lng) * Math.PI / 180;
+      if (to) this.headingToward(to.lat, to.lng);
+    },
+    // One-tap setup: press "Set direction", then tap where the sign is on the map. The
+    // bearing from the anchor point to that spot is saved; no point is added.
+    startPickDirection() {
+      this.select(null);
+      this.pickingDirection = true;
+    },
+    headingToward(lat, lng) {
+      const from = this.nodes.find((n) => String(n.id) === String(this.campusAnchor && this.campusAnchor.campus_node_id));
+      if (!from) { AdminOffline.toast('The anchor point is missing from the map', 'error'); return; }
+      if (Math.abs(lat - from.lat) < 1e-6 && Math.abs(lng - from.lng) < 1e-6) { AdminOffline.toast('Tap the sign, not the anchor point itself', 'error'); return; }
+      const p1 = from.lat * Math.PI / 180, p2 = lat * Math.PI / 180, dl = (lng - from.lng) * Math.PI / 180;
       const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
       this.saveHeading(Math.round(((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360));
     },
@@ -513,6 +524,7 @@ createApp({
 
     // ---- taps ----
     async onNodeTap(node) {
+      if (this.pickingDirection) { this.pickingDirection = false; this.headingToward(node.lat, node.lng); return; }
       // Tap a second node while one is selected -> connect them, then keep the
       // new one selected so you can chain along a walkway without re-tapping.
       if (this.locked) {                  // locked: tapping a point only selects it
@@ -527,6 +539,7 @@ createApp({
       this.select(String(this.selectedId) === String(node.id) ? null : node.id);
     },
     async onMapTap(lat, lng) {
+      if (this.pickingDirection) { this.pickingDirection = false; this.headingToward(lat, lng); return; }
       // Tapping empty map while a point is selected just deselects (so a stray
       // tap doesn't drop an unwanted point) — tap again to actually add one.
       if (this.selectedId !== null) { this.select(null); return; }

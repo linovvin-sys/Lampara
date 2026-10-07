@@ -153,15 +153,18 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                   <span v-if="campusAnchor.scan_heading != null">{{ campusAnchor.scan_heading }}°</span>
                   <span v-else style="color:var(--red-600);">not set</span>
                 </p>
-                <p style="font-size:0.7rem; color:var(--muted); margin:0 0 0.4rem;">
-                  The anchor point must be where a person stands to scan the sign. Add a point where the sign is (or straight ahead of it), select it, then tap below.
-                </p>
-                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;"
-                        :disabled="selectedId === null || String(selectedId) === String(campusAnchor.campus_node_id)" @click="headingFromSelected">
-                  Face toward the selected point
-                </button>
+                <template v-if="!pickingDirection">
+                  <button type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.45rem 0.8rem;" @click="startPickDirection">
+                    {{ campusAnchor.scan_heading != null ? 'Change direction' : 'Set direction' }}
+                  </button>
+                  <p style="font-size:0.7rem; color:var(--muted); margin:0.35rem 0 0;">Then tap the map where the sign is. That's it.</p>
+                </template>
+                <template v-else>
+                  <p style="font-size:0.8rem; font-weight:700; color:var(--ink); margin:0 0 0.35rem;">Now tap the map where the sign is.</p>
+                  <button type="button" class="btn-link" style="font-size:0.75rem;" @click="pickingDirection = false">Cancel</button>
+                </template>
                 <div style="display:flex; gap:0.4rem; align-items:center; margin-top:0.4rem;">
-                  <input type="number" min="0" max="359.99" step="1" v-model="headingDraft" placeholder="or type degrees (N=0, E=90)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
+                  <input type="number" min="0" max="359.99" step="1" v-model="headingDraft" placeholder="or type degrees (optional)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
                   <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.6rem;" @click="saveHeadingDraft">Save</button>
                 </div>
               </div>
