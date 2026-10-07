@@ -1,16 +1,3 @@
-:root {
-  --green-50:  var(--blue-50);
-  --green-100: var(--blue-100);
-  --green-200: var(--blue-100);
-  --green-300: var(--blue-500);
-  --green-500: var(--blue-500);
-  --green-600: var(--blue-600);
-  --green-700: var(--blue-700);
-  --green-800: var(--blue-900);
-  --moss-100:  var(--yellow-100);
-  --moss-500:  var(--yellow-700);
-}
-
 * { box-sizing: border-box; }
 
 html, body { margin: 0; min-height: 100%; }
@@ -18,39 +5,17 @@ html { scroll-behavior: smooth; }
 body {
   font-family: 'Outfit', sans-serif;
   color: var(--ink);
-  background: #ffffff;
+  background: var(--off-white);
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
 }
 
-/* Layered green wash backdrop — a few different green tints so it doesn't
-   read as flat white. Mobile-first: fewer, closer blobs; desktop spreads
-   them out more (see media query below). */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(560px 380px at 12% -6%, var(--green-100), transparent 60%),
-    radial-gradient(480px 420px at 100% 8%, var(--green-200), transparent 58%),
-    radial-gradient(520px 460px at 100% 100%, var(--green-50), transparent 55%),
-    radial-gradient(460px 380px at -4% 82%, var(--moss-100), transparent 58%),
-    #ffffff;
-}
+.backdrop { display: none; }
 
-@media (min-width: 1024px) {
-  .backdrop {
-    background:
-      radial-gradient(760px 520px at 8% -10%, var(--green-100), transparent 60%),
-      radial-gradient(680px 560px at 104% 4%, var(--green-200), transparent 55%),
-      radial-gradient(700px 600px at 96% 104%, var(--green-50), transparent 55%),
-      radial-gradient(620px 520px at -6% 88%, var(--moss-100), transparent 55%),
-      #ffffff;
-  }
-}
-
-/* ---- Nav bar (SPA: Home / About switch views, no page reload) ---- */
+/* ---- Nav bar (SPA: Home / About switch views, no page reload). Sits over
+   the dusk hero photo and every section below it, so it keeps its own dark
+   tint rather than going transparent-on-scroll. ---- */
 .navbar {
   position: sticky;
   top: 0;
@@ -60,9 +25,9 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.875rem 1.25rem;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line);
+  background: rgba(11, 37, 89, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .brand {
@@ -70,21 +35,23 @@ body {
   align-items: center;
   gap: 0.5rem;
   text-decoration: none;
-  color: var(--ink);
+  color: #ffffff;
   font-weight: 700;
   font-size: 1.0625rem;
+  letter-spacing: -0.01em;
 }
 
 .brand .brand-mark {
   width: 1.75rem;
   height: 1.75rem;
-  border-radius: 0.55rem;
-  background: linear-gradient(155deg, var(--green-500), var(--green-700));
+  border-radius: 0.5rem;
+  background: var(--yellow-500);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
+.brand .brand-mark svg path { stroke: var(--blue-900); }
 
 .nav-links {
   display: flex;
@@ -101,11 +68,11 @@ body {
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.72);
   transition: background-color 160ms ease-out, color 160ms ease-out;
 }
-.nav-link:hover { background: var(--green-50); color: var(--ink); }
-.nav-link.is-active { background: var(--green-600); color: #ffffff; }
+.nav-link:hover { background: rgba(255, 255, 255, 0.1); color: #ffffff; }
+.nav-link.is-active { background: var(--yellow-500); color: var(--blue-900); }
 
 main { flex: 1; display: flex; }
 
@@ -113,82 +80,79 @@ main { flex: 1; display: flex; }
 .view.is-active { display: block; }
 
 /* ---- Home view ---- */
-#view-home .home-inner { padding: 0 0 3rem; }
+#view-home .home-inner { padding: 0; }
 
+/* Full-bleed dusk shot of the actual campus — the hero stage, not a tucked
+   side-image. Content sits like a lit signage plaque low-left on the scene. */
 .hero-wrap {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100dvh - 4rem);
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 82dvh;
+  overflow: hidden;
   padding: 2.5rem 1.5rem 2rem;
 }
 
-.shell {
-  width: 100%;
-  max-width: 26rem;
-  margin: 0 auto;
-  text-align: center;
+.hero-photo {
+  position: absolute;
+  inset: 0;
+  background: url('../../assets/ncst-new-bg.webp') center 55% / cover no-repeat;
 }
 
-.logo {
-  width: 4rem;
-  height: 4rem;
-  margin: 0 auto 1.25rem;
-  border-radius: 1.25rem;
-  background: linear-gradient(155deg, var(--green-500), var(--green-700));
-  display: flex;
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, var(--blue-900) 0%, rgba(11,37,89,0.75) 28%, rgba(11,37,89,0.25) 58%, rgba(11,37,89,0.35) 100%),
+    linear-gradient(100deg, rgba(11,37,89,0.55) 0%, rgba(11,37,89,0.1) 45%);
+}
+
+.hero {
+  position: relative;
+  width: 100%;
+  max-width: 30rem;
+  color: #ffffff;
+}
+
+.locus {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 12px 28px -10px rgba(22, 163, 74, 0.5);
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--yellow-400);
+  margin-bottom: 1.125rem;
+  padding: 0.4rem 0.75rem 0.4rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(11, 37, 89, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.locus::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--yellow-400);
+  box-shadow: 0 0 0 4px rgba(245, 180, 0, 0.25);
 }
 
 h1 {
-  font-size: 1.875rem;
-  line-height: 1.2;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
+  font-size: 2.75rem;
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.75rem;
 }
 
 .tagline {
-  color: var(--muted);
-  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1rem;
   line-height: 1.6;
-  margin: 0 0 2rem;
-}
-
-.features {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-  margin-bottom: 2.25rem;
-}
-
-.feature-card {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  padding: 1rem 0.75rem;
-  box-shadow: 0 1px 2px rgba(20, 37, 28, 0.04);
-}
-
-.feature-card .icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  margin: 0 auto 0.4rem;
-  border-radius: 0.7rem;
-  background: var(--green-50);
-  color: var(--green-700);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.feature-card:nth-child(2) .icon { background: var(--green-200); }
-.feature-card:nth-child(3) .icon { background: var(--green-300); }
-
-.feature-card .label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ink);
+  margin: 0 0 1.75rem;
+  max-width: 28rem;
 }
 
 .actions {
@@ -214,27 +178,57 @@ h1 {
 .btn:active { transform: scale(0.97); }
 
 .btn-primary {
-  background: var(--green-600);
-  color: #ffffff;
-  box-shadow: 0 10px 24px -8px rgba(22, 163, 74, 0.45);
+  background: var(--yellow-500);
+  color: var(--blue-900);
+  box-shadow: 0 10px 24px -8px rgba(245, 180, 0, 0.5);
 }
-.btn-primary:hover { filter: brightness(1.06); }
+.btn-primary:hover { filter: brightness(1.05); }
 
 .btn-secondary {
-  background: #ffffff;
-  color: var(--ink);
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
-.btn-secondary:hover { background: var(--green-50); }
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.16); }
 
-.panel { display: none; }
+/* Feature trio as a frosted-glass directory strip floating over the photo —
+   wayfinding signage, not icon cards. */
+.signage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 2rem 0 0;
+  border-radius: 1.25rem;
+  background: rgba(11, 37, 89, 0.45);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.signage-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.signage-item:first-child { border-top: none; }
+.signage-item svg { flex-shrink: 0; color: var(--yellow-400); }
 
 /* ---- Home: extra content below the fold ---- */
 .home-extra {
   width: 100%;
   max-width: 26rem;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 2.5rem 1.5rem 0;
 }
 
 .section-heading {
@@ -266,14 +260,14 @@ h1 {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 0.75rem;
-  background: var(--green-50);
-  color: var(--green-700);
+  background: var(--blue-50);
+  color: var(--blue-700);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.mini-step:nth-child(2) .mini-icon { background: var(--green-200); }
-.mini-step:nth-child(3) .mini-icon { background: var(--moss-100); }
+.mini-step:nth-child(2) .mini-icon { background: var(--blue-100); color: var(--blue-700); }
+.mini-step:nth-child(3) .mini-icon { background: var(--yellow-100); color: var(--yellow-700); }
 
 .mini-step .mini-title {
   font-weight: 600;
@@ -289,7 +283,7 @@ h1 {
 
 .cta-banner {
   text-align: center;
-  background: linear-gradient(150deg, var(--green-500) 0%, var(--green-600) 45%, var(--green-800) 100%);
+  background: linear-gradient(150deg, var(--blue-700) 0%, var(--blue-900) 100%);
   color: #ffffff;
   border-radius: 1.5rem;
   padding: 2rem 1.5rem;
@@ -308,8 +302,8 @@ h1 {
 }
 
 .cta-banner .btn-primary {
-  background: #ffffff;
-  color: var(--green-700);
+  background: var(--yellow-500);
+  color: var(--blue-900);
   box-shadow: none;
 }
 .cta-banner .btn-primary:hover { filter: brightness(0.97); }
@@ -362,9 +356,9 @@ footer {
 
 .about-shell .eyebrow {
   display: inline-block;
-  color: var(--green-700);
-  background: var(--green-50);
-  border: 1px solid var(--green-100);
+  color: var(--blue-700);
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -408,7 +402,7 @@ footer {
   width: 2rem;
   height: 2rem;
   border-radius: 999px;
-  background: var(--green-600);
+  background: var(--blue-700);
   color: #fff;
   font-weight: 700;
   font-size: 0.875rem;
@@ -416,8 +410,8 @@ footer {
   align-items: center;
   justify-content: center;
 }
-.step:nth-child(2) .num { background: var(--green-500); }
-.step:nth-child(4) .num { background: var(--moss-500); }
+.step:nth-child(2) .num { background: var(--blue-600); }
+.step:nth-child(4) .num { background: var(--yellow-600); }
 
 .step .step-title {
   font-weight: 600;
@@ -439,22 +433,22 @@ footer {
 }
 
 .why-card {
-  background: linear-gradient(160deg, var(--green-50), #ffffff);
+  background: linear-gradient(160deg, var(--blue-50), #ffffff);
   border: 1px solid var(--line);
   border-radius: 1rem;
   padding: 1.125rem;
 }
-.why-card:nth-child(2) { background: linear-gradient(160deg, var(--green-200), #ffffff); }
-.why-card:nth-child(3) { background: linear-gradient(160deg, var(--moss-100), #ffffff); }
+.why-card:nth-child(2) { background: linear-gradient(160deg, var(--blue-100), #ffffff); }
+.why-card:nth-child(3) { background: linear-gradient(160deg, var(--yellow-100), #ffffff); }
 
 .why-card .why-title {
   font-weight: 700;
   font-size: 0.9375rem;
   margin-bottom: 0.35rem;
-  color: var(--green-700);
+  color: var(--blue-700);
 }
-.why-card:nth-child(2) .why-title { color: var(--green-700); }
-.why-card:nth-child(3) .why-title { color: var(--moss-500); }
+.why-card:nth-child(2) .why-title { color: var(--blue-700); }
+.why-card:nth-child(3) .why-title { color: var(--yellow-700); }
 
 .why-card .why-body {
   color: var(--muted);
@@ -476,70 +470,48 @@ footer {
 
 .about-cta .btn { display: inline-block; width: auto; padding-left: 1.75rem; padding-right: 1.75rem; }
 
-/* Tablet and up: feature cards / steps move into rows. */
-@media (min-width: 480px) {
-  .features { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
+/* Tablet and up: steps move into rows. */
 @media (min-width: 640px) {
+  .signage { flex-direction: row; }
+  .signage-item { flex: 1; border-top: none; border-left: 1px solid rgba(255, 255, 255, 0.14); }
+  .signage-item:first-child { border-left: none; }
+
   .why-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mini-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* Desktop: wider shell, two-column hero so the page doesn't look like a
-   stretched phone screen on a big monitor. */
+/* Desktop: the hero becomes a tall cinematic stage — wider margins, much
+   bigger display type, signage strip runs as a row instead of stacked. */
 @media (min-width: 1024px) {
   .navbar { padding: 1rem 3rem; }
 
-  .hero-wrap { padding: 4rem 3rem; }
+  .hero-wrap { min-height: 92dvh; padding: 3rem 3rem; }
+  .hero-photo { background-position: center 32%; }
 
-  .home-extra { max-width: 64rem; padding: 0 3rem; }
-  .mini-step { padding: 1.5rem; }
-  .cta-banner { padding: 3rem 4rem; }
-  .cta-banner h3 { font-size: 1.75rem; }
-  .cta-banner p { font-size: 0.9375rem; max-width: 32rem; margin-left: auto; margin-right: auto; }
-
-  .shell {
-    max-width: 64rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
-    align-items: center;
-    text-align: left;
-  }
-
-  .hero { text-align: left; }
-  .logo { margin: 0 0 1.5rem; }
-  h1 { font-size: 2.75rem; }
-  .tagline { font-size: 1.0625rem; margin-bottom: 2.5rem; max-width: 30rem; }
+  .hero { max-width: 36rem; padding-bottom: 1rem; }
+  h1 { font-size: 4.5rem; }
+  .tagline { font-size: 1.125rem; margin-bottom: 2rem; }
 
   .actions { flex-direction: row; }
   .btn { width: auto; padding-left: 1.75rem; padding-right: 1.75rem; }
 
-  .hero-features { display: none; }
+  .signage {
+    flex-direction: row;
+    margin: 2.5rem 0 0;
+  }
+  .signage-item {
+    flex: 1;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 1.5rem 2rem;
+  }
+  .signage-item:first-child { border-left: none; }
 
-  .panel {
-    display: block;
-    background: linear-gradient(160deg, var(--green-50), #ffffff);
-    border: 1px solid var(--line);
-    border-radius: 1.75rem;
-    padding: 2.5rem;
-  }
-  .panel .features { grid-template-columns: 1fr; gap: 1rem; margin-bottom: 0; }
-  .panel .feature-card {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    text-align: left;
-    padding: 1.25rem;
-  }
-  .panel .feature-card .icon {
-    margin: 0;
-    flex-shrink: 0;
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-  .panel .feature-card .icon svg { width: 22px; height: 22px; }
+  .home-extra { max-width: 64rem; padding: 4rem 3rem 0; }
+  .mini-step { padding: 1.5rem; }
+  .cta-banner { padding: 3rem 4rem; }
+  .cta-banner h3 { font-size: 1.75rem; }
+  .cta-banner p { font-size: 0.9375rem; max-width: 32rem; margin-left: auto; margin-right: auto; }
 
   #view-about .about-inner { padding: 4rem 3rem; }
   .about-shell { max-width: 56rem; }

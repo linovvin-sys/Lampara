@@ -58,14 +58,15 @@ createApp({
       lockIcon: EditorLock.icon,
       nameDraft: '',
       nameError: '',
-      // The ONE AR anchor for the whole outdoor campus graph (not per
-      // building, not per node) — scanned once to fix the outdoor AR
-      // guide's real starting position instead of trusting GPS alone.
-      campusAnchor: null,
+      // Outdoor AR anchors — one QR per gate/junction/entrance a sign gets
+      // posted at, so a student who skips the main gate can still scan
+      // whichever outdoor node they actually pass to fix their starting
+      // position instead of trusting GPS alone.
+      campusAnchors: [],
       qrBusy: false,
-      headingDraft: '',
-      pickingDirection: false, // next map tap = where the sign is (sets the anchor's direction)
-      showingCampusQr: false
+      headingDrafts: {}, // anchor id -> typed-degrees draft string, kept per anchor
+      pickingDirectionFor: null, // anchor id whose direction the next map tap sets
+      showingQrFor: null         // anchor id currently shown in the print modal
     };
   },
   watch: {
@@ -76,17 +77,25 @@ createApp({
       this.nameError = '';
     },
     // Draws the actual QR image once the print dialog's canvas exists.
-    async showingCampusQr(open) {
-      if (!open || !this.campusAnchor) return;
+    async showingQrFor(anchorId) {
+      const anchor = this.campusAnchors.find((a) => a.id === anchorId);
+      if (!anchor) return;
       await this.$nextTick();
       const el = this.$refs.qrCanvas;
       if (!el || typeof QRCode === 'undefined') return;
       el.innerHTML = '';
-      new QRCode(el, { text: this.qrUrlFor(this.campusAnchor.code), width: 180, height: 180 });
+      new QRCode(el, { text: this.qrUrlFor(anchor.code), width: 180, height: 180 });
     }
   },
   computed: {
     selected() { return this.nodes.find((n) => String(n.id) === String(this.selectedId)) || null; },
+    showingCampusQr: {
+      get() { return this.showingQrFor !== null; },
+      set(v) { if (!v) this.showingQrFor = null; }
+    },
+    qrModalAnchor() { return this.campusAnchors.find((a) => a.id === this.showingQrFor) || null; },
+    // The anchor (if any) already set on whichever point is selected.
+    selectedAnchor() { return this.selectedId === null ? null : this.campusAnchors.find((a) => String(a.campus_node_id) === String(this.selectedId)) || null; },
     entranceBuildingId() {
       const b = this.buildings.find((x) => this.selectedId !== null && String(x.entrance_node_id) === String(this.selectedId));
       return b ? b.id : '';
@@ -115,7 +124,7 @@ createApp({
     this.initMap();
     await this.loadAll();
     this.fitToData();
-    this.loadCampusAnchor();
+    this.loadCampusAnchors();
     AdminOffline.onSynced(async () => { await this.loadAll(); });
     window.addEventListener('pagehide', () => { if (this.recording) this.releaseWalk(); });
     AdminOffline.onChange(() => { this.rebuild(); });
@@ -124,91 +133,91 @@ createApp({
     });
   },
   methods: {
-    async loadCampusAnchor() {
+    async loadCampusAnchors() {
       try {
         const res = await fetch('../../../Backend/api/qr-anchors.php?campus=1');
         const data = await res.json();
-        this.campusAnchor = (data.success && data.anchors.length) ? data.anchors[0] : null;
-        this.headingDraft = this.campusAnchor && this.campusAnchor.scan_heading != null ? String(this.campusAnchor.scan_heading) : '';
+        this.campusAnchors = (data.success && data.anchors) ? data.anchors : [];
       } catch (e) { /* editor still works without QR state */ }
     },
     qrUrlFor(code) {
       return new URL('../Public/guide-ar.php?qr=' + code, window.location.href).href;
     },
+    // Adds (or replaces) the AR anchor on whichever point is selected. Every
+    // outdoor node can have its own anchor, so this never touches anchors on
+    // other nodes.
     async setCampusQr() {
       if (this.selectedId === null) return;
       if (!(await AdminOffline.guardOnline('Generating the campus AR anchor QR'))) return;
       const label = this.labelOf(this.selected);
+      const nodeId = this.selectedId;
       this.qrBusy = true;
       try {
         const res = await fetch('../../../Backend/api/qr-anchors.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campus_node_id: this.selectedId, label })
+          body: JSON.stringify({ campus_node_id: nodeId, label })
         });
         const data = await res.json();
         if (!data.success) { AdminOffline.toast(data.error || 'Could not create the QR code', 'error'); return; }
-        this.campusAnchor = { id: data.id, campus_node_id: this.selectedId, code: data.code, label: data.label, scan_heading: null };
-        this.headingDraft = '';
-        this.showingCampusQr = true;
+        this.campusAnchors = this.campusAnchors.filter((a) => String(a.campus_node_id) !== String(nodeId));
+        const anchor = { id: data.id, campus_node_id: nodeId, code: data.code, label: data.label, scan_heading: null };
+        this.campusAnchors.push(anchor);
+        this.showingQrFor = anchor.id;
       } finally {
         this.qrBusy = false;
       }
     },
-    // The direction a person faces while scanning the sign, standing at the anchor point.
+    // The direction a person faces while scanning a given sign, standing at its anchor point.
     // Easiest to set from the map: select the point the sign is at / straight ahead of it and the
     // bearing is worked out from the two positions (no compass involved).
-    async saveHeading(value) {
-      if (!this.campusAnchor) return;
+    async saveHeading(anchor, value) {
+      if (!anchor) return;
       if (!(await AdminOffline.guardOnline('Saving the anchor direction'))) return;
       const res = await fetch('../../../Backend/api/qr-anchors.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ anchor_id: this.campusAnchor.id, scan_heading: value })
+        body: JSON.stringify({ anchor_id: anchor.id, scan_heading: value })
       });
       const data = await res.json();
       if (!data.success) { AdminOffline.toast(data.error || 'Could not save the direction', 'error'); return; }
-      this.campusAnchor = { ...this.campusAnchor, scan_heading: data.scan_heading };
-      this.headingDraft = data.scan_heading != null ? String(data.scan_heading) : '';
+      const i = this.campusAnchors.findIndex((a) => a.id === anchor.id);
+      if (i !== -1) this.campusAnchors[i] = { ...this.campusAnchors[i], scan_heading: data.scan_heading };
+      delete this.headingDrafts[anchor.id];
       AdminOffline.toast('Anchor direction saved', 'success');
     },
-    headingFromSelected() {
-      const to = this.selected;
-      if (to) this.headingToward(to.lat, to.lng);
-    },
-    // One-tap setup: press "Set direction", then tap where the sign is on the map. The
-    // bearing from the anchor point to that spot is saved; no point is added.
-    startPickDirection() {
+    // One-tap setup: press "Set direction" on an anchor's row, then tap where its sign is on
+    // the map. The bearing from that anchor's point to the tapped spot is saved.
+    startPickDirection(anchor) {
       this.select(null);
-      this.pickingDirection = true;
+      this.pickingDirectionFor = anchor.id;
     },
     headingToward(lat, lng) {
-      const from = this.nodes.find((n) => String(n.id) === String(this.campusAnchor && this.campusAnchor.campus_node_id));
+      const anchor = this.campusAnchors.find((a) => a.id === this.pickingDirectionFor);
+      const from = anchor && this.nodes.find((n) => String(n.id) === String(anchor.campus_node_id));
       if (!from) { AdminOffline.toast('The anchor point is missing from the map', 'error'); return; }
       if (Math.abs(lat - from.lat) < 1e-6 && Math.abs(lng - from.lng) < 1e-6) { AdminOffline.toast('Tap the sign, not the anchor point itself', 'error'); return; }
       const p1 = from.lat * Math.PI / 180, p2 = lat * Math.PI / 180, dl = (lng - from.lng) * Math.PI / 180;
       const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
-      this.saveHeading(Math.round(((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360));
+      this.saveHeading(anchor, Math.round(((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360));
     },
-    saveHeadingDraft() {
-      const v = parseFloat(this.headingDraft);
-      if (isNaN(v)) { this.saveHeading(null); return; }
-      this.saveHeading(v);
+    saveHeadingDraft(anchor) {
+      const v = parseFloat(this.headingDrafts[anchor.id]);
+      this.saveHeading(anchor, isNaN(v) ? null : v);
     },
-    showCampusQr() {
-      if (this.campusAnchor) this.showingCampusQr = true;
+    showCampusQr(anchor) {
+      this.showingQrFor = anchor.id;
     },
-    async removeCampusQr() {
-      if (!this.campusAnchor) return;
+    async removeCampusQr(anchor) {
       const result = await Swal.fire({
-        title: 'Remove the campus AR anchor?',
-        text: 'The printed sign will stop working, and the outdoor AR guide will fall back to GPS-only starting position.',
+        title: 'Remove this AR anchor?',
+        text: 'The printed sign at ' + (anchor.label || 'this point') + ' will stop working.',
         icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#dc2626'
       });
       if (!result.isConfirmed) return;
-      await fetch('../../../Backend/api/qr-anchors.php?id=' + this.campusAnchor.id, { method: 'DELETE' });
-      this.campusAnchor = null;
-      this.showingCampusQr = false;
+      await fetch('../../../Backend/api/qr-anchors.php?id=' + anchor.id, { method: 'DELETE' });
+      this.campusAnchors = this.campusAnchors.filter((a) => a.id !== anchor.id);
+      if (this.showingQrFor === anchor.id) this.showingQrFor = null;
     },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
@@ -524,7 +533,7 @@ createApp({
 
     // ---- taps ----
     async onNodeTap(node) {
-      if (this.pickingDirection) { this.pickingDirection = false; this.headingToward(node.lat, node.lng); return; }
+      if (this.pickingDirectionFor !== null) { this.headingToward(node.lat, node.lng); this.pickingDirectionFor = null; return; }
       // Tap a second node while one is selected -> connect them, then keep the
       // new one selected so you can chain along a walkway without re-tapping.
       if (this.locked) {                  // locked: tapping a point only selects it
@@ -539,7 +548,7 @@ createApp({
       this.select(String(this.selectedId) === String(node.id) ? null : node.id);
     },
     async onMapTap(lat, lng) {
-      if (this.pickingDirection) { this.pickingDirection = false; this.headingToward(lat, lng); return; }
+      if (this.pickingDirectionFor !== null) { this.headingToward(lat, lng); this.pickingDirectionFor = null; return; }
       // Tapping empty map while a point is selected just deselects (so a stray
       // tap doesn't drop an unwanted point) — tap again to actually add one.
       if (this.selectedId !== null) { this.select(null); return; }

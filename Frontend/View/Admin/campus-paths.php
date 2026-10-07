@@ -132,51 +132,54 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             </div>
           </div>
 
-          <!-- One AR anchor for the whole outdoor campus graph (not per
-               building, not per point) — scanned once when the outdoor AR
-               guide starts, to fix the exact starting position instead of
-               trusting GPS alone near buildings. -->
+          <!-- Outdoor AR anchors — one QR per gate/junction/entrance, so a
+               student who skips the main gate can still scan whichever
+               outdoor node they actually pass to fix their starting
+               position instead of trusting GPS alone near buildings. -->
           <div class="tinted-card" style="padding:0.9rem 1rem;">
-            <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.3rem;">Outdoor AR anchor</p>
-            <template v-if="campusAnchor">
-              <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">Set at <strong>{{ campusAnchor.label || 'this point' }}</strong>.</p>
+            <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.3rem;">Outdoor AR anchors ({{ campusAnchors.length }})</p>
+
+            <p v-if="!campusAnchors.length" style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">
+              None yet. Select a point on the map — a gate, junction, or entrance — and set it as an AR anchor. Add one at every spot students actually enter from, not just the main gate.
+            </p>
+
+            <div v-for="(a, i) in campusAnchors" :key="a.id" style="padding:0.6rem 0;" :style="{ borderTop: i > 0 ? '1px solid var(--line, #e5e7eb)' : 'none' }">
+              <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.4rem;">
+                <button type="button" class="btn-link" style="font-size:0.75rem; padding:0;" @click="focusNode(a.campus_node_id)"><strong>{{ a.label || 'this point' }}</strong></button>
+              </p>
               <div style="display:flex; gap:0.5rem;">
-                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" @click="showCampusQr">View / print</button>
-                <button type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" @click="removeCampusQr">Remove</button>
+                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" @click="showCampusQr(a)">View / print</button>
+                <button type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" @click="removeCampusQr(a)">Remove</button>
               </div>
               <!-- Which way a person faces while scanning the sign. With this the AR guide
                    lines the paths up the instant the QR is scanned; without it, only the
                    position is fixed. -->
-              <div style="margin-top:0.75rem; border-top:1px solid var(--line, #e5e7eb); padding-top:0.6rem;">
+              <div style="margin-top:0.6rem;">
                 <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.25rem;">
                   Direction faced when scanning:
-                  <span v-if="campusAnchor.scan_heading != null">{{ campusAnchor.scan_heading }}°</span>
+                  <span v-if="a.scan_heading != null">{{ a.scan_heading }}°</span>
                   <span v-else style="color:var(--red-600);">not set</span>
                 </p>
-                <template v-if="!pickingDirection">
-                  <button type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.45rem 0.8rem;" @click="startPickDirection">
-                    {{ campusAnchor.scan_heading != null ? 'Change direction' : 'Set direction' }}
+                <template v-if="pickingDirectionFor !== a.id">
+                  <button type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.45rem 0.8rem;" @click="startPickDirection(a)">
+                    {{ a.scan_heading != null ? 'Change direction' : 'Set direction' }}
                   </button>
                   <p style="font-size:0.7rem; color:var(--muted); margin:0.35rem 0 0;">Then tap the map where the sign is. That's it.</p>
                 </template>
                 <template v-else>
                   <p style="font-size:0.8rem; font-weight:700; color:var(--ink); margin:0 0 0.35rem;">Now tap the map where the sign is.</p>
-                  <button type="button" class="btn-link" style="font-size:0.75rem;" @click="pickingDirection = false">Cancel</button>
+                  <button type="button" class="btn-link" style="font-size:0.75rem;" @click="pickingDirectionFor = null">Cancel</button>
                 </template>
                 <div style="display:flex; gap:0.4rem; align-items:center; margin-top:0.4rem;">
-                  <input type="number" min="0" max="359.99" step="1" v-model="headingDraft" placeholder="or type degrees (optional)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
-                  <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.6rem;" @click="saveHeadingDraft">Save</button>
+                  <input type="number" min="0" max="359.99" step="1" v-model="headingDrafts[a.id]" placeholder="or type degrees (optional)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
+                  <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.6rem;" @click="saveHeadingDraft(a)">Save</button>
                 </div>
               </div>
-            </template>
-            <template v-else>
-              <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">
-                None yet. Select a point on the map (ideally the main gate or a prominent entrance), then set it as the campus's one AR anchor.
-              </p>
-              <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" :disabled="selectedId === null || qrBusy" @click="setCampusQr">
-                {{ qrBusy ? 'Generating…' : (selectedId === null ? 'Select a point first' : 'Set selected point as AR anchor') }}
-              </button>
-            </template>
+            </div>
+
+            <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem; margin-top:0.75rem;" :disabled="selectedId === null || qrBusy || !!selectedAnchor" @click="setCampusQr">
+              {{ qrBusy ? 'Generating…' : (selectedAnchor ? 'Selected point already has an anchor' : (selectedId === null ? 'Select a point first' : 'Set selected point as AR anchor')) }}
+            </button>
           </div>
 
           <div class="card">
@@ -228,7 +231,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:0.9rem;">
               <div class="qr-print-canvas" ref="qrCanvas"></div>
               <p style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0;">
-                Print this and post it at <strong>{{ campusAnchor ? (campusAnchor.label || 'this spot') : '' }}</strong>. Scanning it when starting the outdoor AR guide sets the exact starting anchor instead of relying on GPS alone.
+                Print this and post it at <strong>{{ qrModalAnchor ? (qrModalAnchor.label || 'this spot') : '' }}</strong>. Scanning it when starting the outdoor AR guide sets the exact starting anchor instead of relying on GPS alone.
               </p>
             </div>
             <div class="modal-foot">

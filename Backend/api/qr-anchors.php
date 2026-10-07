@@ -1,22 +1,25 @@
 <?php
 
-// The AR guide's starting anchor — scanned once, right before the student
-// starts walking, to fix the real starting position instead of trusting
-// wherever the camera happens to be facing (indoor: no GPS at all; outdoor:
-// GPS exists but drifts a few meters near buildings). At most ONE anchor
-// per floor plan, and at most ONE for the whole outdoor campus graph — not
-// one per node, and not a per-room/signage location resolver (that's
-// scan.php's Gemini OCR job, untouched by this).
+// The AR guide's starting anchor — scanned right before (or during) a walk,
+// to fix the real starting position instead of trusting wherever the camera
+// happens to be facing (indoor: no GPS at all; outdoor: GPS exists but
+// drifts a few meters near buildings, and a student may not pass the main
+// gate at all). At most ONE anchor per floor plan, but outdoor supports
+// MANY anchors across the campus graph — one per gate/junction/entrance a
+// sign gets posted at — so a student who skips the main gate can still
+// scan whichever outdoor node they actually pass. Not a per-room/signage
+// location resolver (that's scan.php's Gemini OCR job, untouched by this).
 //
 // GET    /api/qr-anchors.php?code=abc123 -> public, resolves a scanned QR
 //        indoor  -> { success, kind:'indoor', floor_plan_node_id, floor_plan_id, floor, building_id, building_name, x, y, label }
 //        outdoor -> { success, kind:'outdoor', campus_node_id, lat, lng, node_type, label, scan_heading|null }
 // GET    /api/qr-anchors.php?floor_plan_id=1 -> admin/indoor AR guide, that floor's anchor if set
 //        -> { success, anchors: [{ id, floor_plan_node_id, code, label }] }  (0 or 1 entries)
-// GET    /api/qr-anchors.php?campus=1        -> admin/outdoor AR guide, the one campus-wide anchor if set
-//        -> { success, anchors: [{ id, campus_node_id, code, label, scan_heading|null }] }  (0 or 1 entries)
-// POST   /api/qr-anchors.php                 -> admin, sets an anchor to one node (replaces any existing
-//        one in the same scope — same floor, or the campus-wide one)
+// GET    /api/qr-anchors.php?campus=1        -> admin/outdoor AR guide, every outdoor anchor
+//        -> { success, anchors: [{ id, campus_node_id, code, label, scan_heading|null }] }  (0 or many entries)
+// POST   /api/qr-anchors.php                 -> admin, sets an anchor on one node (indoor: replaces
+//        whatever anchor that floor had; outdoor: replaces only that SAME node's anchor if it
+//        already had one — other outdoor nodes keep theirs)
 //        body (JSON): { floor_plan_node_id, label? } OR { campus_node_id, label?, scan_heading? } -> { success, id, code, label }
 //        OR { anchor_id, scan_heading } -> updates only the facing direction of an existing outdoor anchor (null clears it)
 // DELETE /api/qr-anchors.php?id=1            -> admin, removes the anchor (the node itself is untouched)
@@ -198,8 +201,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'error' => 'That point no longer exists.']);
         exit;
     }
-    // Only one campus-wide anchor, period — replaces whatever was there.
-    $conn->query("DELETE FROM qr_anchors WHERE campus_node_id IS NOT NULL");
+    // Outdoor nodes can each have their own anchor now — only replace this
+    // same node's existing anchor (if any), leave every other node's intact.
+    $stmt = $conn->prepare("DELETE FROM qr_anchors WHERE campus_node_id = ?");
+    $stmt->bind_param('i', $campusNodeId);
+    $stmt->execute();
+    $stmt->close();
 
     $code = bin2hex(random_bytes(10));
     $labelOrNull = $label !== '' ? $label : null;

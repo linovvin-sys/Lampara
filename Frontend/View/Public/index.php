@@ -38,58 +38,37 @@
     <div class="home-inner">
 
       <div class="hero-wrap">
-        <div class="shell">
+        <div class="hero-photo" role="img" aria-label="NCST campus building at dusk"></div>
+        <div class="hero-scrim"></div>
 
-          <div class="hero">
-            <div class="fade-up fade-up-1 logo">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-            </div>
+        <div class="hero">
+          <span class="fade-up fade-up-1 locus">NCST Campus &middot; Live AR</span>
+          <h1 class="fade-up fade-up-1">Lampara</h1>
+          <p class="fade-up fade-up-2 tagline">
+            Point your phone toward a building for a live compass arrow, scan room
+            signage to find exactly where you're headed, or just ask the built-in
+            AI assistant.
+          </p>
 
-            <h1 class="fade-up fade-up-1">Lampara</h1>
-            <p class="fade-up fade-up-2 tagline">
-              Your AR-powered campus guide. Point your phone toward a building for a live
-              compass arrow, scan room signage to find exactly where you're headed, or just
-              ask the built-in AI assistant.
-            </p>
-
-            <div class="features hero-features fade-up fade-up-3">
-              <div class="feature-card">
-                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg></div>
-                <div class="label">AR Outdoor Guide</div>
-              </div>
-              <div class="feature-card">
-                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
-                <div class="label">Room Scan &amp; Search</div>
-              </div>
-              <div class="feature-card">
-                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg></div>
-                <div class="label">Ask Lampara AI</div>
-              </div>
-            </div>
-
-            <div class="actions fade-up fade-up-4">
-              <a href="guide-ar.php" class="btn btn-primary">Start Navigating</a>
-              <a href="../Admin/login.php" class="btn btn-secondary">Admin Login</a>
-            </div>
+          <div class="actions fade-up fade-up-3">
+            <a href="guide-ar.php" class="btn btn-primary">Start Navigating</a>
+            <a href="../Admin/login.php" class="btn btn-secondary">Admin Login</a>
           </div>
+        </div>
 
-          <div class="panel fade-up fade-up-3" aria-hidden="true">
-            <div class="features">
-              <div class="feature-card">
-                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg></div>
-                <div class="label">AR Outdoor Guide</div>
-              </div>
-              <div class="feature-card">
-                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
-                <div class="label">Room Scan &amp; Search</div>
-              </div>
-              <div class="feature-card">
-                <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg></div>
-                <div class="label">Ask Lampara AI</div>
-              </div>
-            </div>
+        <div class="signage fade-up fade-up-4">
+          <div class="signage-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg>
+            <span>AR Outdoor Guide</span>
           </div>
-
+          <div class="signage-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span>Room Scan &amp; Search</span>
+          </div>
+          <div class="signage-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg>
+            <span>Ask Lampara AI</span>
+          </div>
         </div>
       </div>
 
