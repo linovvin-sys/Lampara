@@ -2,7 +2,7 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v12 (steps)';
+const AR_BUILD = 'AR build: v13 (lower path)';
 
 // Movement comes from your STEPS, not raw GPS: GPS jumps 5-20 m on its own (worst near walls
 // and indoors), which moved you even while standing still. Each detected step moves you this
@@ -14,11 +14,11 @@ const GPS_TRUST_MIN_M = 10;
 const GPS_PULL = 0.2;             // ...otherwise you are pulled this fraction of the way toward it per fix
 
 // How far below the phone the ground is, in meters (phone held up in front of you while
-// walking ~1.4). The path is laid exactly this far below the camera. If it looks like it
+// walking ~1.4; default set a little lower, 1.6, so it never looks like it floats). The path is laid exactly this far below the camera. If it looks like it
 // floats or sinks, tune it without editing code: add ?h=1.3 (or 1.5 ...) to the page URL.
 const EYE_HEIGHT_M = (() => {
   try { const v = parseFloat(new URLSearchParams(location.search).get('h')); if (v > 0.5 && v < 2.5) return v; } catch (e) { /* default */ }
-  return 1.4;
+  return 1.6;
 })();
 // Entity Y for a ribbon so its surface sits EYE_HEIGHT_M below the camera. The ribbon's own
 // geometry is already raised by ArRibbon.GROUND_Y, so that is subtracted here (it used to be
