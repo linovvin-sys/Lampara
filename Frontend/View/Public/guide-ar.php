@@ -72,6 +72,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <button @click="skipAnchorScan" class="pointer-events-auto press text-white/70 text-xs underline">Skip — start without scanning</button>
   </div>
 
+  <!-- Mini-map (north up): drawn paths, route, anchor O, buildings, you + facing direction. Tap to zoom. -->
+  <canvas v-show="started && !scanningAnchor" ref="miniMap" @click="toggleMiniMapZoom"
+          style="position:fixed; right:12px; top:190px; width:130px; height:130px; z-index:15; border-radius:9999px; box-shadow:0 4px 16px rgba(0,0,0,.4);"></canvas>
+
   <div v-if="started && anchorNote" class="absolute inset-x-0 z-20 flex justify-center px-6 pointer-events-none" style="top: 45%;">
     <div class="bg-emerald-600 text-white text-xs font-semibold rounded-full px-4 py-2 shadow-xl text-center">{{ anchorNote }}</div>
   </div>
