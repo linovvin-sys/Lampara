@@ -60,9 +60,9 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <button @click="toggleCamera" class="press bg-emerald-500 text-zinc-900 text-xs font-semibold rounded-full px-5 py-2.5">Show camera</button>
   </div>
 
-  <!-- Anchor scan, on top of the live AR view: the posted campus QR fixes where you stand and
+  <!-- Anchor scan, on top of the live AR view (the rest of the AR screen is hidden while it shows): the posted campus QR fixes where you stand and
        which way you face, so the paths line up the moment it is read. -->
-  <div v-if="started && scanningAnchor" class="absolute inset-0 z-20 flex flex-col items-center justify-between py-10 px-6 pointer-events-none" style="background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.65));">
+  <div v-if="started && scanningAnchor" class="absolute inset-0 z-30 flex flex-col items-center justify-between py-10 px-6 pointer-events-none" style="background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.65));">
     <div class="text-center">
       <h1 class="text-white text-lg font-bold mb-1">Scan the campus QR</h1>
       <p class="text-white/80 text-sm">{{ anchorScanHint }}</p>
@@ -112,7 +112,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
        was intercepting arrow taps — this row's real content is short, but
        the container itself still spans a wide invisible hit-box). Each
        actual control below re-enables pointer-events-auto individually. -->
-  <div v-if="started" class="main-fade-in relative z-20 p-4 flex flex-col gap-2 pointer-events-none">
+  <div v-if="started && !scanningAnchor" class="main-fade-in relative z-20 p-4 flex flex-col gap-2 pointer-events-none">
     <div class="flex items-center gap-2 flex-wrap pointer-events-auto">
       <button @click="toggleCamera" class="press flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full pl-2.5 pr-3 py-1.5">
         <span class="w-1.5 h-1.5 rounded-full" :class="cameraOn ? 'bg-emerald-400' : 'bg-white/40'"></span>
@@ -164,7 +164,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
        positioning for the 3D-anchored entities keeps running regardless —
        there's no safe way to pause that without touching AR.js internals,
        so this is disclosed as a partial toggle, not pretended to be total. -->
-  <div v-if="started && !locationOn" class="absolute top-[30%] inset-x-0 z-10 flex justify-center px-8">
+  <div v-if="started && !locationOn && !scanningAnchor" class="absolute top-[30%] inset-x-0 z-10 flex justify-center px-8">
     <button @click="toggleLocation" class="press flex items-center gap-2 bg-black/60 text-white text-xs font-medium rounded-full px-4 py-2.5">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2" stroke="#fff" stroke-width="1.6"/></svg>
       Distance display off — tap to turn back on
@@ -175,7 +175,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
        the 3D label in the AR scene itself is the "real AR" anchor; this
        card is the trustworthy fallback readout, same discipline as v10's
        distance-in-label design in ar-test.php. -->
-  <div v-if="started && target" class="absolute inset-x-0 z-10 flex flex-col items-center gap-2 px-8" style="bottom: 11.5rem;">
+  <div v-if="started && target && !scanningAnchor" class="absolute inset-x-0 z-10 flex flex-col items-center gap-2 px-8" style="bottom: 11.5rem;">
 
     <!-- Turn-by-turn banner for the ground ribbon — only when a walkway route
          exists to this building's entrance (Campus Paths admin page). -->
@@ -219,7 +219,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
   </div>
 
   <!-- bottom action row -->
-  <div v-if="started && target" class="absolute bottom-10 inset-x-0 z-20 flex flex-col items-center gap-3">
+  <div v-if="started && target && !scanningAnchor" class="absolute bottom-10 inset-x-0 z-20 flex flex-col items-center gap-3">
     <a href="../Student/scan.php" class="press flex items-center gap-2 bg-white/95 text-zinc-900 rounded-full px-4 py-2.5 text-xs font-medium shadow-lg">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2" stroke="#111" stroke-width="1.6"/></svg>
       Scan signage (indoor)
