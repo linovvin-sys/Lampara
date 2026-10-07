@@ -85,6 +85,24 @@ What you should see when things are missing:
 - "Head to the nearest walkway" → you're more than 60 m from any drawn path.
 - "You've reached the entrance" → within 8 m of it.
 
+
+## 5d. Make the QR line up the paths instantly (outdoor anchor direction)
+
+Scanning the campus QR fixes **where you stand**. To also fix **which way you face** (so the
+paths are correct the moment the scan succeeds, with no walking and no manual aligning), the
+anchor needs its facing direction. One-time setup:
+
+1. Run once in phpMyAdmin: `ALTER TABLE qr_anchors ADD COLUMN scan_heading DECIMAL(6,2) NULL;`
+2. Admin → Campus Paths. The anchor point must be **where a person stands to scan the sign**.
+3. Add a point where the sign is mounted (or any point straight ahead of it), select it, and tap
+   **Face toward the selected point**. The bearing comes from the two map positions, no compass.
+   (You can also type degrees: N=0, E=90, S=180, W=270.)
+4. Print the QR (View / print) and mount it at that spot, readable from standing height.
+
+Student flow: open the AR guide, face the sign, keep the code centered. After ~1 second the paths
+appear aligned. If the direction isn't set, only the position is fixed and the heading corrects
+itself after walking about 6 m along a drawn path.
+
 ## 6. Set up the INDOOR arrow
 
 Every floor a route touches must be calibrated once. Do this per floor plan.

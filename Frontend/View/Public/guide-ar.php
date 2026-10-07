@@ -60,25 +60,23 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <button @click="toggleCamera" class="press bg-emerald-500 text-zinc-900 text-xs font-semibold rounded-full px-5 py-2.5">Show camera</button>
   </div>
 
+  <!-- Anchor scan, on top of the live AR view: the posted campus QR fixes where you stand and
+       which way you face, so the paths line up the moment it is read. -->
+  <div v-if="started && scanningAnchor" class="absolute inset-0 z-20 flex flex-col items-center justify-between py-10 px-6 pointer-events-none" style="background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0) 30%, rgba(0,0,0,0) 65%, rgba(0,0,0,0.65));">
+    <div class="text-center">
+      <h1 class="text-white text-lg font-bold mb-1">Scan the campus QR</h1>
+      <p class="text-white/80 text-sm">{{ anchorScanHint }}</p>
+      <p v-if="anchorScanError" class="text-red-300 text-xs mt-2">{{ anchorScanError }}</p>
+    </div>
+    <div class="w-56 h-56 rounded-3xl border-4 border-emerald-400/90"></div>
+    <button @click="skipAnchorScan" class="pointer-events-auto press text-white/70 text-xs underline">Skip — start without scanning</button>
+  </div>
+
   <!-- Pre-app overlay: silent permission check, then (if needed) the gate screen. -->
   <transition name="gate-transition">
     <div v-if="checking || quickStart || !started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
       <div v-if="checking" class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow lamp-breathe">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </div>
-      <!-- Scanning the campus's one posted anchor QR, if it has one — fixes
-           the exact starting position before AR.js ever mounts, instead of
-           trusting GPS's first fix alone (which can be a few meters off
-           near buildings). -->
-      <div v-else-if="scanningAnchor" class="text-center max-w-sm px-6">
-        <h1 class="gate-heading text-white text-xl font-bold mb-2">Scan the campus QR</h1>
-        <p class="gate-desc text-white/60 text-sm mb-4">Point the camera at the posted anchor code — this sets your exact starting spot.</p>
-        <div class="relative w-full rounded-2xl overflow-hidden mb-4">
-          <video ref="anchorVideo" autoplay playsinline muted class="w-full block"></video>
-        </div>
-        <p v-if="anchorScanError" class="text-red-400 text-xs mb-3">{{ anchorScanError }}</p>
-        <button @click="stopAnchorScan" class="press text-white/60 text-xs underline block mx-auto mb-2">Cancel</button>
-        <button @click="skipAnchorScan" class="press text-white/60 text-xs underline block mx-auto">Skip — start without scanning</button>
       </div>
       <div v-else-if="quickStart" class="text-center">
         <button @click="start" class="gate-icon press w-16 h-16 mx-auto rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow">

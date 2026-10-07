@@ -85,6 +85,12 @@ const ALIGN_SAMPLES_NEEDED = 3;
 const ALIGN_MAX_SPREAD_DEG = 25;
 const ALIGN_STEP = 0.5;          // fraction of the remaining error corrected per accepted sample
 const ALIGN_DEADBAND_DEG = 2;
+// Scanning the anchor QR (inside the AR view, so the AR camera's own heading is known at that
+// exact moment): the code must be roughly centered and big enough, held for several frames.
+const ANCHOR_HFOV_DEG = 55;       // typical portrait back-camera horizontal field of view
+const ANCHOR_CENTER_FRAC = 0.22;  // QR center must be within this fraction of the frame width from center
+const ANCHOR_MIN_WIDTH_FRAC = 0.12;
+const ANCHOR_HITS_NEEDED = 3;
 function makeLocalProjection(lat0) {
   const kx = PROJ_M_PER_DEG * Math.cos(lat0 * Math.PI / 180);
   return {
@@ -163,6 +169,7 @@ createApp({
       scanningAnchor: false,
       anchorScanned: false,
       anchorScanError: '',
+      anchorScanHint: '',
       headingLocked: false, // true once walking along a drawn path has auto-corrected the compass heading
       anchorPos: null, // lat/lng of the scanned anchor — what the GPS-error correction is measured against
       // Right after a successful scan (not a skip), the WHOLE walkway graph
@@ -247,80 +254,114 @@ createApp({
       } catch (e) { this.campusAnchor = null; }
 
       this.checking = false;
-      if (this.campusAnchor && !this.anchorScanned) { this.startAnchorScan(); return; }
       this.proceedToAr();
     },
-    // Scanning the campus's one registered AR anchor fixes a known-precise
-    // starting lat/lng, used to seed `myPos` for the route/ribbon math
-    // instead of waiting on (and fully trusting) GPS's first fix, which can
-    // be several meters off near buildings. AR.js's own internal GPS
-    // tracking for the 3D scene is untouched either way — this only affects
-    // our own route calculations.
-    async startAnchorScan() {
+    // Scanning the campus's one registered AR anchor fixes where you stand AND which way you
+    // face. It happens inside the AR view (frames are read from AR.js's own camera video) so the
+    // AR camera's heading is known at the instant the code is seen:
+    //   position  -> ensureAnchorShift(): the anchor's real spot vs where GPS put the camera
+    //   direction -> the anchor's stored scan_heading (the bearing you face toward the sign, set
+    //                from the map in Campus Paths) minus how far off-center the code is in view,
+    //                compared with where the AR camera thinks it points. The difference is the
+    //                compass error, applied at once — no walking, no manual aligning.
+    startAnchorScan() {
+      if (this.scanningAnchor) return;
       this.scanningAnchor = true;
       this.anchorScanError = '';
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        this._anchorStream = stream;
-        await this.$nextTick();
-        const video = this.$refs.anchorVideo;
-        if (!video) throw new Error('no video element');
-        video.srcObject = stream;
-        await video.play();
-        this._anchorScanLoop(video);
-      } catch (e) {
-        this.anchorScanError = "Couldn't open the camera.";
-        this.scanningAnchor = false;
-      }
+      this.anchorScanHint = 'Stand at the sign, face it and keep the code in the middle.';
+      this._anchorHits = [];
+      this._anchorInfo = null;
+      this._scanStartedAt = Date.now();
+      this._anchorScanLoop();
     },
     stopAnchorScan() {
       this.scanningAnchor = false;
-      if (this._anchorStream) { this._anchorStream.getTracks().forEach((t) => t.stop()); this._anchorStream = null; }
     },
-    async _anchorScanLoop(video) {
+    async _anchorScanLoop() {
       if (!this._anchorCanvas) this._anchorCanvas = document.createElement('canvas');
       const canvas = this._anchorCanvas;
       while (this.scanningAnchor) {
-        if (video.videoWidth) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
+        // AR.js owns the camera; its <video> is what we read (a second getUserMedia would fight it).
+        const video = document.querySelector('#arjs-video') || document.querySelector('video');
+        if (video && video.readyState >= 2 && video.videoWidth && typeof jsQR !== 'undefined') {
+          const scale = Math.min(1, 640 / video.videoWidth);
+          canvas.width = Math.round(video.videoWidth * scale);
+          canvas.height = Math.round(video.videoHeight * scale);
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const result = typeof jsQR !== 'undefined' ? jsQR(frame.data, frame.width, frame.height) : null;
+          const result = jsQR(frame.data, frame.width, frame.height);
           if (result && result.data) {
-            this.stopAnchorScan();
-            await this.handleAnchorCode(result.data);
-            return;
+            const done = await this.onAnchorHit(result, canvas.width);
+            if (done) return;
+          } else {
+            this._anchorHits = []; // must be seen in consecutive frames
           }
         }
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await new Promise((resolve) => setTimeout(resolve, 250));
       }
     },
-    async handleAnchorCode(raw) {
-      let code = raw;
-      try { const u = new URL(raw); code = u.searchParams.get('qr') || raw; } catch (e) { /* plain code, not a URL */ }
-      try {
-        const res = await fetch('../../../Backend/api/qr-anchors.php?code=' + encodeURIComponent(code));
-        const data = await res.json();
-        if (!data.success || data.kind !== 'outdoor') {
-          this.anchorScanError = "That's not the campus anchor QR.";
-          return;
-        }
-        this.myPos = { lat: data.lat, lng: data.lng };
-        this.anchorPos = { lat: data.lat, lng: data.lng };
-        this.statusOk = true;
-        this.anchorScanned = true;
-        this.showAllPaths = true;
-        this.proceedToAr();
-      } catch (e) {
-        this.anchorScanError = 'Could not look up that QR code.';
+    async onAnchorHit(result, frameW) {
+      const loc = result.location;
+      const cx = (loc.topLeftCorner.x + loc.topRightCorner.x + loc.bottomLeftCorner.x + loc.bottomRightCorner.x) / 4;
+      const qrW = Math.hypot(loc.topRightCorner.x - loc.topLeftCorner.x, loc.topRightCorner.y - loc.topLeftCorner.y);
+
+      if (!this._anchorInfo || this._anchorInfo.raw !== result.data) {
+        let code = result.data;
+        try { const u = new URL(result.data); code = u.searchParams.get('qr') || result.data; } catch (e) { /* plain code, not a URL */ }
+        let data = null;
+        try {
+          const res = await fetch('../../../Backend/api/qr-anchors.php?code=' + encodeURIComponent(code));
+          data = await res.json();
+        } catch (e) { this.anchorScanError = 'Could not look up that QR code.'; }
+        if (data && (!data.success || data.kind !== 'outdoor')) { this.anchorScanError = "That's not the campus anchor QR."; data = null; }
+        this._anchorInfo = { raw: result.data, data };
       }
+      const info = this._anchorInfo.data;
+      if (!info) return false;
+      this.anchorScanError = '';
+
+      if (Math.abs(cx - frameW / 2) > frameW * ANCHOR_CENTER_FRAC || qrW < frameW * ANCHOR_MIN_WIDTH_FRAC) {
+        this.anchorScanHint = qrW < frameW * ANCHOR_MIN_WIDTH_FRAC ? 'Move a little closer to the code.' : 'Center the code in the view.';
+        this._anchorHits = [];
+        return false;
+      }
+      // The compass-driven camera takes a moment to settle after AR starts.
+      if (!this.headingInit && Date.now() - this._scanStartedAt < 6000) { this._anchorHits = []; return false; }
+      const cam = this.cameraHeadingDeg();
+      if (cam === null) { this.anchorScanHint = 'Hold the phone upright, facing the sign.'; this._anchorHits = []; return false; }
+
+      // Angle between the camera's forward direction and the code (+ = code is right of center).
+      const f = (frameW / 2) / Math.tan(ANCHOR_HFOV_DEG * Math.PI / 360);
+      const alpha = Math.atan((cx - frameW / 2) / f) * 180 / Math.PI;
+      if (info.scan_heading != null) {
+        const trueHeading = (info.scan_heading - alpha + 360) % 360;
+        this._anchorHits.push(relativeAngle(trueHeading, cam)); // camera heading minus true heading
+      } else {
+        this._anchorHits.push(0);
+      }
+      this.anchorScanHint = 'Hold still…';
+      if (this._anchorHits.length < ANCHOR_HITS_NEEDED) return false;
+
+      this.stopAnchorScan();
+      this.anchorPos = { lat: info.lat, lng: info.lng };
+      this.myPos = { lat: info.lat, lng: info.lng };
+      this.statusOk = true;
+      this.anchorScanned = true;
+      this.showAllPaths = true;
+      if (info.scan_heading != null) {
+        const hits = this._anchorHits.slice().sort((a, b) => a - b);
+        this._alignOffsetDeg = hits[Math.floor(hits.length / 2)];
+        this.headingLocked = true;
+      }
+      this.ensureAnchorShift();
+      this.applyWorldTransform();
+      if (this.showAllPaths) { this._forceRebuildPaths = true; this.renderAllPaths(); }
+      return true;
     },
     skipAnchorScan() {
       this.stopAnchorScan();
       this.anchorScanned = true;
-      this.proceedToAr();
     },
     proceedToAr() {
       // AR.js requests the camera itself once <a-scene> mounts, right after
@@ -460,6 +501,7 @@ createApp({
           this.forceArSize();
           this.buildAllEntities();
           this.setupTapSelection(scene);
+          if (this.campusAnchor && !this.anchorScanned) this.startAnchorScan();
         };
         if (scene.hasLoaded) {
           onSceneReady();
