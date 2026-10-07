@@ -4,6 +4,7 @@ $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Public/guide-ar.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Public/guide-ar.js');
 $routeJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
+$navJsVer = filemtime(__DIR__ . '/../../Js/Include/indoor-nav.js');
 $ribbonJsVer = filemtime(__DIR__ . '/../../Js/Include/ar-ribbon.js');
 $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 ?>
@@ -281,6 +282,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Include/ar-ribbon.js?v=<?= $ribbonJsVer ?>"></script>
 <script src="../../Js/Public/campus-route.js?v=<?= $routeJsVer ?>"></script>
+<script src="../../Js/Include/indoor-nav.js?v=<?= $navJsVer ?>"></script>
 <script src="../../Js/Public/guide-ar.js?v=<?= $pageJsVer ?>"></script>
 
 </body>
