@@ -25,7 +25,8 @@
 // Js/Include/admin-offline.js) so the admin can approve the sync. Keeping the saved
 // student data fresh is done by Js/Include/student-offline.js.
 
-const VERSION = 'lampara-sw-v2';
+// Bump this whenever phones must drop their saved copies (old versions' caches are deleted on activate).
+const VERSION = 'lampara-sw-v3';
 const CACHE_PAGES = VERSION + '-pages';           // admin pages (private)
 const CACHE_API = VERSION + '-api';               // admin-only API reads (private)
 const CACHE_STUDENT_PAGES = VERSION + '-student-pages'; // public
@@ -35,7 +36,7 @@ const CACHE_LIBS = VERSION + '-libs';
 const CACHE_TILES = VERSION + '-tiles';
 const ALL_CACHES = [CACHE_PAGES, CACHE_API, CACHE_STUDENT_PAGES, CACHE_PUBLIC_API, CACHE_STATIC, CACHE_LIBS, CACHE_TILES];
 
-const NETWORK_TIMEOUT_MS = 4000; // slow connection: give up on the network and use the saved copy
+const NETWORK_TIMEOUT_MS = 10000; // slow connection: give up on the network and use the saved copy (ngrok can take several seconds)
 const MAX_TILES = 700;
 
 const LIB_HOSTS = [

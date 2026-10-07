@@ -1,5 +1,9 @@
 const { createApp } = Vue;
 
+// Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
+// running this version or an old cached copy. Change it with each AR fix.
+const AR_BUILD = 'AR build: QR pin v3';
+
 // Genuine extruded 3D text needs a loaded font mesh (three.js TextGeometry +
 // a font file) — heavier than this needs. This is the standard lightweight
 // fake: stack several copies of the same text slightly behind each other in
@@ -133,6 +137,7 @@ function relativeAngle(fromDeg, toDeg) {
 createApp({
   data() {
     return {
+      arBuild: AR_BUILD,
       started: false,
       checking: true,
       quickStart: false,
@@ -390,7 +395,7 @@ createApp({
           if (!scene2) { alert('No <a-scene> found in the DOM at all.'); return; }
           const camEl = scene2.querySelector('[gps-new-camera]');
           const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
-          let report = 'gps-new-camera found: ' + !!camComp;
+          let report = AR_BUILD + '\ngps-new-camera found: ' + !!camComp;
           if (camComp) {
             // originCoords/currentCoords belong to AR.js's OLDER gps-camera
             // component — gps-new-camera (what we actually use) never has
