@@ -2,7 +2,7 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v8';
+const AR_BUILD = 'AR build: v9';
 
 // The 3D camera must see the same slice of the world as the phone camera, or the paths slide
 // against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
@@ -99,11 +99,10 @@ const ALIGN_MAX_SPREAD_DEG = 25;
 const ALIGN_STEP = 0.35;         // fraction of the remaining error corrected per accepted sample
 const ALIGN_DEADBAND_DEG = 2;
 // Scanning the anchor QR (inside the AR view, so the AR camera's own heading is known at that
-// exact moment): the code must be roughly centered and big enough, held for several frames.
+// exact moment): any successful read counts; heading samples are taken for up to ANCHOR_MAX_WAIT_MS.
 const ANCHOR_HFOV_DEG = 55;       // typical portrait back-camera horizontal field of view
-const ANCHOR_CENTER_FRAC = 0.22;  // QR center must be within this fraction of the frame width from center
-const ANCHOR_MIN_WIDTH_FRAC = 0.12;
-const ANCHOR_HITS_NEEDED = 3;
+const ANCHOR_HITS_NEEDED = 2;
+const ANCHOR_MAX_WAIT_MS = 1200;  // after the first read, finish within this even with fewer heading samples
 // Students walk on the walkways, so your position is pinned onto the nearest drawn path when
 // it is this close (removes GPS's sideways error, the "path runs beside the road" effect).
 const SNAP_TO_PATH_M = 15;
@@ -287,10 +286,11 @@ createApp({
       if (this.scanningAnchor) return;
       this.scanningAnchor = true;
       this.anchorScanError = '';
-      this.anchorScanHint = 'Stand at the sign, face it and keep the code in the middle.';
+      this.anchorScanHint = 'Point the camera at the QR code.';
       this._anchorHits = [];
       this._anchorInfo = null;
       this._scanStartedAt = Date.now();
+      this._firstReadAt = 0;
       this._anchorScanLoop();
     },
     stopAnchorScan() {
@@ -313,8 +313,6 @@ createApp({
           if (result && result.data) {
             const done = await this.onAnchorHit(result, canvas.width);
             if (done) return;
-          } else {
-            this._anchorHits = []; // must be seen in consecutive frames
           }
         }
         await new Promise((resolve) => setTimeout(resolve, 250));
@@ -340,27 +338,21 @@ createApp({
       if (!info) return false;
       this.anchorScanError = '';
 
-      if (Math.abs(cx - frameW / 2) > frameW * ANCHOR_CENTER_FRAC || qrW < frameW * ANCHOR_MIN_WIDTH_FRAC) {
-        this.anchorScanHint = qrW < frameW * ANCHOR_MIN_WIDTH_FRAC ? 'Move a little closer to the code.' : 'Center the code in the view.';
-        this._anchorHits = [];
-        return false;
-      }
-      // The compass-driven camera takes a moment to settle after AR starts.
-      if (!this.headingInit && Date.now() - this._scanStartedAt < 6000) { this._anchorHits = []; return false; }
-      const cam = this.cameraHeadingDeg();
-      if (cam === null) { this.anchorScanHint = 'Hold the phone upright, facing the sign.'; this._anchorHits = []; return false; }
-
-      // Angle between the camera's forward direction and the code (+ = code is right of center).
-      const f = (frameW / 2) / Math.tan(ANCHOR_HFOV_DEG * Math.PI / 360);
-      const alpha = Math.atan((cx - frameW / 2) / f) * 180 / Math.PI;
-      if (info.scan_heading != null) {
+      // Any successful read counts — no centering, distance or "hold upright" requirements.
+      // Heading samples are collected for a moment if the camera direction is usable (works
+      // even with the phone tilted down at a screen); then the scan finishes regardless.
+      if (!this._firstReadAt) this._firstReadAt = Date.now();
+      this.anchorScanHint = 'Got it — hold still…';
+      const cam = this.cameraHeadingDeg(0.05);
+      if (cam !== null && info.scan_heading != null) {
+        // Angle between the camera's forward direction and the code (+ = code is right of center).
+        const f = (frameW / 2) / Math.tan(ANCHOR_HFOV_DEG * Math.PI / 360);
+        const alpha = Math.max(-25, Math.min(25, Math.atan((cx - frameW / 2) / f) * 180 / Math.PI));
         const trueHeading = (info.scan_heading - alpha + 360) % 360;
         this._anchorHits.push(relativeAngle(trueHeading, cam)); // camera heading minus true heading
-      } else {
-        this._anchorHits.push(0);
       }
-      this.anchorScanHint = 'Hold still…';
-      if (this._anchorHits.length < ANCHOR_HITS_NEEDED) return false;
+      const waited = Date.now() - this._firstReadAt;
+      if (this._anchorHits.length < ANCHOR_HITS_NEEDED && waited < ANCHOR_MAX_WAIT_MS) return false;
 
       this.stopAnchorScan();
       this.anchorPos = { lat: info.lat, lng: info.lng };
@@ -368,12 +360,14 @@ createApp({
       this.statusOk = true;
       this.anchorScanned = true;
       this.showAllPaths = true;
-      if (info.scan_heading != null) {
+      if (info.scan_heading != null && this._anchorHits.length) {
         const hits = this._anchorHits.slice().sort((a, b) => a - b);
         this._alignOffsetDeg = hits[Math.floor(hits.length / 2)];
         this.headingLocked = true;
         this._headingSamples = [];
         this.anchorNote = 'Position and direction set from the QR';
+      } else if (info.scan_heading != null) {
+        this.anchorNote = 'Position set. Direction will line up after a few steps along the path.';
       } else {
         this.anchorNote = 'Position set. This QR has no direction yet (Admin → Campus Paths).';
       }
@@ -657,13 +651,13 @@ createApp({
     },
     // Where the AR camera believes it is facing (compass degrees), or null when the phone is
     // pointed too far up/down for the heading to mean anything.
-    cameraHeadingDeg() {
+    cameraHeadingDeg(minHorizontal = 0.5) {
       const scene = this.$refs.arScene;
       if (!scene || !scene.camera) return null;
       const THREE = window.AFRAME.THREE;
       const dir = new THREE.Vector3();
       scene.camera.getWorldDirection(dir);
-      if (dir.x * dir.x + dir.z * dir.z < 0.25) return null;
+      if (dir.x * dir.x + dir.z * dir.z < minHorizontal * minHorizontal) return null;
       return (Math.atan2(dir.x, -dir.z) * 180 / Math.PI + 360) % 360;
     },
     // Automatic compass correction — no user input. The compass the AR scene is built on is
