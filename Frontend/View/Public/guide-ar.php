@@ -72,6 +72,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <button @click="skipAnchorScan" class="pointer-events-auto press text-white/70 text-xs underline">Skip — start without scanning</button>
   </div>
 
+  <div v-if="started && anchorNote" class="absolute inset-x-0 z-20 flex justify-center px-6 pointer-events-none" style="top: 45%;">
+    <div class="bg-emerald-600 text-white text-xs font-semibold rounded-full px-4 py-2 shadow-xl text-center">{{ anchorNote }}</div>
+  </div>
+
   <!-- Pre-app overlay: silent permission check, then (if needed) the gate screen. -->
   <transition name="gate-transition">
     <div v-if="checking || quickStart || !started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
