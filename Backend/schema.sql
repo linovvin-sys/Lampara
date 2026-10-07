@@ -15,6 +15,7 @@
 --   CREATE TABLE floor_plans (id INT AUTO_INCREMENT PRIMARY KEY, building_id INT NOT NULL, floor VARCHAR(50) NOT NULL, image_path VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY building_floor (building_id, floor), FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 --   CREATE TABLE floor_plan_nodes (id INT AUTO_INCREMENT PRIMARY KEY, floor_plan_id INT NOT NULL, x DECIMAL(5,2) NOT NULL, y DECIMAL(5,2) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (floor_plan_id) REFERENCES floor_plans(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 --   CREATE TABLE floor_plan_edges (id INT AUTO_INCREMENT PRIMARY KEY, node_a_id INT NOT NULL, node_b_id INT NOT NULL, FOREIGN KEY (node_a_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE, FOREIGN KEY (node_b_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE, UNIQUE KEY edge_pair (node_a_id, node_b_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   ALTER TABLE qr_anchors ADD COLUMN scan_heading DECIMAL(6,2) NULL;
 --   ALTER TABLE rooms ADD COLUMN path_node_id INT NULL;
 --   ALTER TABLE rooms ADD CONSTRAINT fk_rooms_path_node FOREIGN KEY (path_node_id) REFERENCES floor_plan_nodes(id) ON DELETE SET NULL;
 --   ALTER TABLE floor_plans ADD COLUMN north_offset DECIMAL(6,2) NULL, ADD COLUMN meters_per_unit_x DECIMAL(8,4) NULL, ADD COLUMN meters_per_unit_y DECIMAL(8,4) NULL;
@@ -232,6 +233,10 @@ CREATE TABLE IF NOT EXISTS qr_anchors (
     campus_node_id INT NULL,
     code VARCHAR(32) NOT NULL UNIQUE,
     label VARCHAR(80) NULL,
+    -- Outdoor anchor only: compass bearing (deg clockwise from north, 0-360) a person faces
+    -- while scanning the sign standing at the anchor point. Lets the AR guide set its heading
+    -- from the map the instant the QR is scanned, instead of trusting the phone compass.
+    scan_heading DECIMAL(6,2) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (floor_plan_node_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE,
     FOREIGN KEY (campus_node_id) REFERENCES campus_nodes(id) ON DELETE CASCADE

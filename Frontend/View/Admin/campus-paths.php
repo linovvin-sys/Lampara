@@ -144,6 +144,27 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" @click="showCampusQr">View / print</button>
                 <button type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" @click="removeCampusQr">Remove</button>
               </div>
+              <!-- Which way a person faces while scanning the sign. With this the AR guide
+                   lines the paths up the instant the QR is scanned; without it, only the
+                   position is fixed. -->
+              <div style="margin-top:0.75rem; border-top:1px solid var(--line, #e5e7eb); padding-top:0.6rem;">
+                <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.25rem;">
+                  Direction faced when scanning:
+                  <span v-if="campusAnchor.scan_heading != null">{{ campusAnchor.scan_heading }}°</span>
+                  <span v-else style="color:var(--red-600);">not set</span>
+                </p>
+                <p style="font-size:0.7rem; color:var(--muted); margin:0 0 0.4rem;">
+                  The anchor point must be where a person stands to scan the sign. Add a point where the sign is (or straight ahead of it), select it, then tap below.
+                </p>
+                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;"
+                        :disabled="selectedId === null || String(selectedId) === String(campusAnchor.campus_node_id)" @click="headingFromSelected">
+                  Face toward the selected point
+                </button>
+                <div style="display:flex; gap:0.4rem; align-items:center; margin-top:0.4rem;">
+                  <input type="number" min="0" max="359.99" step="1" v-model="headingDraft" placeholder="or type degrees (N=0, E=90)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
+                  <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.6rem;" @click="saveHeadingDraft">Save</button>
+                </div>
+              </div>
             </template>
             <template v-else>
               <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">

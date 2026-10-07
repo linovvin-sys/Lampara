@@ -63,6 +63,7 @@ createApp({
       // guide's real starting position instead of trusting GPS alone.
       campusAnchor: null,
       qrBusy: false,
+      headingDraft: '',
       showingCampusQr: false
     };
   },
@@ -127,6 +128,7 @@ createApp({
         const res = await fetch('../../../Backend/api/qr-anchors.php?campus=1');
         const data = await res.json();
         this.campusAnchor = (data.success && data.anchors.length) ? data.anchors[0] : null;
+        this.headingDraft = this.campusAnchor && this.campusAnchor.scan_heading != null ? String(this.campusAnchor.scan_heading) : '';
       } catch (e) { /* editor still works without QR state */ }
     },
     qrUrlFor(code) {
@@ -145,11 +147,42 @@ createApp({
         });
         const data = await res.json();
         if (!data.success) { AdminOffline.toast(data.error || 'Could not create the QR code', 'error'); return; }
-        this.campusAnchor = { id: data.id, campus_node_id: this.selectedId, code: data.code, label: data.label };
+        this.campusAnchor = { id: data.id, campus_node_id: this.selectedId, code: data.code, label: data.label, scan_heading: null };
+        this.headingDraft = '';
         this.showingCampusQr = true;
       } finally {
         this.qrBusy = false;
       }
+    },
+    // The direction a person faces while scanning the sign, standing at the anchor point.
+    // Easiest to set from the map: select the point the sign is at / straight ahead of it and the
+    // bearing is worked out from the two positions (no compass involved).
+    async saveHeading(value) {
+      if (!this.campusAnchor) return;
+      if (!(await AdminOffline.guardOnline('Saving the anchor direction'))) return;
+      const res = await fetch('../../../Backend/api/qr-anchors.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anchor_id: this.campusAnchor.id, scan_heading: value })
+      });
+      const data = await res.json();
+      if (!data.success) { AdminOffline.toast(data.error || 'Could not save the direction', 'error'); return; }
+      this.campusAnchor = { ...this.campusAnchor, scan_heading: data.scan_heading };
+      this.headingDraft = data.scan_heading != null ? String(data.scan_heading) : '';
+      AdminOffline.toast('Anchor direction saved', 'success');
+    },
+    headingFromSelected() {
+      const from = this.nodes.find((n) => String(n.id) === String(this.campusAnchor && this.campusAnchor.campus_node_id));
+      const to = this.selected;
+      if (!from || !to || String(from.id) === String(to.id)) return;
+      const p1 = from.lat * Math.PI / 180, p2 = to.lat * Math.PI / 180, dl = (to.lng - from.lng) * Math.PI / 180;
+      const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+      this.saveHeading(Math.round(((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360));
+    },
+    saveHeadingDraft() {
+      const v = parseFloat(this.headingDraft);
+      if (isNaN(v)) { this.saveHeading(null); return; }
+      this.saveHeading(v);
     },
     showCampusQr() {
       if (this.campusAnchor) this.showingCampusQr = true;

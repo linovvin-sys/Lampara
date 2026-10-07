@@ -10,14 +10,15 @@
 //
 // GET    /api/qr-anchors.php?code=abc123 -> public, resolves a scanned QR
 //        indoor  -> { success, kind:'indoor', floor_plan_node_id, floor_plan_id, floor, building_id, building_name, x, y, label }
-//        outdoor -> { success, kind:'outdoor', campus_node_id, lat, lng, node_type, label }
+//        outdoor -> { success, kind:'outdoor', campus_node_id, lat, lng, node_type, label, scan_heading|null }
 // GET    /api/qr-anchors.php?floor_plan_id=1 -> admin/indoor AR guide, that floor's anchor if set
 //        -> { success, anchors: [{ id, floor_plan_node_id, code, label }] }  (0 or 1 entries)
 // GET    /api/qr-anchors.php?campus=1        -> admin/outdoor AR guide, the one campus-wide anchor if set
-//        -> { success, anchors: [{ id, campus_node_id, code, label }] }  (0 or 1 entries)
+//        -> { success, anchors: [{ id, campus_node_id, code, label, scan_heading|null }] }  (0 or 1 entries)
 // POST   /api/qr-anchors.php                 -> admin, sets an anchor to one node (replaces any existing
 //        one in the same scope — same floor, or the campus-wide one)
-//        body (JSON): { floor_plan_node_id, label? } OR { campus_node_id, label? } -> { success, id, code, label }
+//        body (JSON): { floor_plan_node_id, label? } OR { campus_node_id, label?, scan_heading? } -> { success, id, code, label }
+//        OR { anchor_id, scan_heading } -> updates only the facing direction of an existing outdoor anchor (null clears it)
 // DELETE /api/qr-anchors.php?id=1            -> admin, removes the anchor (the node itself is untouched)
 
 header('Content-Type: application/json');
@@ -42,7 +43,7 @@ $conn = $db->connect();
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (!empty($_GET['code'])) {
         $code = (string) $_GET['code'];
-        $stmt = $conn->prepare("SELECT floor_plan_node_id, campus_node_id, label FROM qr_anchors WHERE code = ?");
+        $stmt = $conn->prepare("SELECT * FROM qr_anchors WHERE code = ?");
         $stmt->bind_param('s', $code);
         $stmt->execute();
         $anchor = $stmt->get_result()->fetch_assoc();
@@ -89,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'lat' => (float) $row['lat'], 'lng' => (float) $row['lng'],
             'node_type' => $row['node_type'],
             'label' => $anchor['label'],
+            'scan_heading' => isset($anchor['scan_heading']) ? (float) $anchor['scan_heading'] : null,
         ]);
         exit;
     }
@@ -102,12 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     if ($campus) {
-        $stmt = $conn->prepare("SELECT id, campus_node_id, code, label FROM qr_anchors WHERE campus_node_id IS NOT NULL ORDER BY id");
+        $stmt = $conn->prepare("SELECT * FROM qr_anchors WHERE campus_node_id IS NOT NULL ORDER BY id");
         $stmt->execute();
         $result = $stmt->get_result();
         $anchors = [];
         while ($row = $result->fetch_assoc()) {
-            $anchors[] = ['id' => (int) $row['id'], 'campus_node_id' => (int) $row['campus_node_id'], 'code' => $row['code'], 'label' => $row['label']];
+            $anchors[] = ['id' => (int) $row['id'], 'campus_node_id' => (int) $row['campus_node_id'], 'code' => $row['code'], 'label' => $row['label'],
+                          'scan_heading' => isset($row['scan_heading']) ? (float) $row['scan_heading'] : null];
         }
         $stmt->close();
         echo json_encode(['success' => true, 'anchors' => $anchors]);
@@ -133,6 +136,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+    // Facing direction only: { anchor_id, scan_heading } (null clears it).
+    if (!empty($input['anchor_id'])) {
+        $anchorId = (int) $input['anchor_id'];
+        $heading = (isset($input['scan_heading']) && $input['scan_heading'] !== '') ? fmod(fmod((float) $input['scan_heading'], 360) + 360, 360) : null;
+        $stmt = $conn->prepare("UPDATE qr_anchors SET scan_heading = ? WHERE id = ? AND campus_node_id IS NOT NULL");
+        $stmt->bind_param('di', $heading, $anchorId);
+        $stmt->execute();
+        $stmt->close();
+        echo json_encode(['success' => true, 'scan_heading' => $heading]);
+        exit;
+    }
+
     $floorPlanNodeId = (int) ($input['floor_plan_node_id'] ?? 0);
     $campusNodeId = (int) ($input['campus_node_id'] ?? 0);
     $label = trim((string) ($input['label'] ?? ''));
