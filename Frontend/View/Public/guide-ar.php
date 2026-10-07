@@ -98,6 +98,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
           Enable Camera &amp; Location
         </button>
         <p v-if="statusText && !statusOk" class="text-red-400 text-xs font-mono mt-4">{{ statusText }}</p>
+        <p class="text-white/30 text-[10px] mt-4">{{ arBuild }}</p>
       </div>
     </div>
   </transition>
