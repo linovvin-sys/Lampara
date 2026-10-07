@@ -2,7 +2,16 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v11 (ground fix)';
+const AR_BUILD = 'AR build: v12 (steps)';
+
+// Movement comes from your STEPS, not raw GPS: GPS jumps 5-20 m on its own (worst near walls
+// and indoors), which moved you even while standing still. Each detected step moves you this
+// far in the direction you face, kept on the drawn path; standing still = not moving.
+const STEP_LENGTH_M = 0.7;
+const STEP_SNAP_M = 8;            // after a step, stay on a drawn path if one is this close
+// GPS is then only a safety net for big drift: ignored while it agrees within this distance...
+const GPS_TRUST_MIN_M = 10;
+const GPS_PULL = 0.2;             // ...otherwise you are pulled this fraction of the way toward it per fix
 
 // How far below the phone the ground is, in meters (phone held up in front of you while
 // walking ~1.4). The path is laid exactly this far below the camera. If it looks like it
@@ -269,6 +278,12 @@ createApp({
     async start() {
       this.checking = true;
       this.quickStart = false;
+      // iPhone only grants step counting (motion) from inside the tap that started this.
+      try {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          DeviceMotionEvent.requestPermission().catch(() => {});
+        }
+      } catch (e) { /* not available: GPS-only movement */ }
 
       if (!navigator.geolocation) {
         this.statusText = 'Geolocation not supported.';
@@ -405,6 +420,7 @@ createApp({
       this.startLocationWatch();
       this.startCompassWatch();
       this.startMiniMap();
+      this.startSteps();
 
       // Defined immediately, before anything that could throw and silently
       // stop the rest of this setup — the button that calls this should
@@ -416,7 +432,7 @@ createApp({
           const camEl = scene2.querySelector('[gps-new-camera]');
           const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
           const vid = document.querySelector('#arjs-video');
-          let report = AR_BUILD + '\nground ' + EYE_HEIGHT_M + ' m below phone (?h=)' + '\ncamera fov=' + (scene2.camera ? scene2.camera.fov.toFixed(1) : '?') + ' (long-side ' + CAMERA_LONG_FOV_DEG + ', video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none') + ')' + '\ngps-new-camera found: ' + !!camComp;
+          let report = AR_BUILD + '\nmovement: ' + (this._stepsActive ? 'steps (' + (this.stepCount || 0) + ' so far)' : 'GPS only (no motion sensor)') + '\nground ' + EYE_HEIGHT_M + ' m below phone (?h=)' + '\ncamera fov=' + (scene2.camera ? scene2.camera.fov.toFixed(1) : '?') + ' (long-side ' + CAMERA_LONG_FOV_DEG + ', video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none') + ')' + '\ngps-new-camera found: ' + !!camComp;
           if (camComp) {
             // originCoords/currentCoords belong to AR.js's OLDER gps-camera
             // component — gps-new-camera (what we actually use) never has
@@ -1209,6 +1225,16 @@ createApp({
           if (acc != null && acc > GPS_MAX_ACCURACY_M && this.myPos) return;
           if (!this.myPos) {
             this.myPos = fix;
+          } else if (this._stepsActive) {
+            // Steps move you; GPS only pulls you back when it disagrees by more than its own
+            // noise, so standing still never drifts.
+            const off = haversineMeters(this.myPos, fix);
+            if (off > Math.max(GPS_TRUST_MIN_M, acc || 0)) {
+              this.myPos = {
+                lat: this.myPos.lat + (fix.lat - this.myPos.lat) * GPS_PULL,
+                lng: this.myPos.lng + (fix.lng - this.myPos.lng) * GPS_PULL,
+              };
+            }
           } else {
             // Ease toward the new fix instead of jumping straight to it, so
             // normal jitter between consecutive noisy fixes doesn't visibly
@@ -1221,16 +1247,51 @@ createApp({
             };
           }
           this.statusOk = true;
-          const track = this._track = this._track || [];
-          track.push({ lat: this.myPos.lat, lng: this.myPos.lng, t: Date.now() });
-          if (track.length > 60) track.shift();
-          this.autoAlignHeading();
-          this.refreshCamera(false);
-          this.updateTargetDistance();
+          if (!this._stepsActive) this.afterMove();
+          else { this.refreshCamera(false); this.updateTargetDistance(); }
         },
         (err) => { this.statusText = 'GPS error: ' + err.message; },
         { enableHighAccuracy: true }
       );
+    },
+    // Shared tail of every position change (a step, or a GPS fix when there is no step counter).
+    afterMove() {
+      const track = this._track = this._track || [];
+      track.push({ lat: this.myPos.lat, lng: this.myPos.lng, t: Date.now() });
+      if (track.length > 60) track.shift();
+      this.autoAlignHeading();
+      this.refreshCamera(false);
+      this.updateTargetDistance();
+    },
+    startSteps() {
+      if (this._steps || typeof IndoorNav === 'undefined') return;
+      this._steps = new IndoorNav.StepDetector(() => this.onStep());
+      // Switch to step-based movement once the phone actually delivers motion readings.
+      this._motionProbe = (e) => {
+        const a = e.accelerationIncludingGravity;
+        if (a && a.x !== null) { this._stepsActive = true; window.removeEventListener('devicemotion', this._motionProbe); }
+      };
+      window.addEventListener('devicemotion', this._motionProbe);
+      this._steps.start();
+    },
+    onStep() {
+      if (!this.myPos) return;
+      const cam = this.cameraHeadingDeg(0.05);
+      if (cam !== null) this._walkHeading = cam - (this._alignOffsetDeg || 0);
+      if (this._walkHeading == null) return;
+      const h = this._walkHeading * Math.PI / 180;
+      const kx = PROJ_M_PER_DEG * Math.cos(this.myPos.lat * Math.PI / 180);
+      let next = {
+        lat: this.myPos.lat + STEP_LENGTH_M * Math.cos(h) / PROJ_M_PER_DEG,
+        lng: this.myPos.lng + STEP_LENGTH_M * Math.sin(h) / kx,
+      };
+      if (this.campusGraph.edges.length) {
+        const snap = CampusRoute.snapToGraph(next, this.campusGraph.nodes, this.campusGraph.edges);
+        if (snap && snap.dist <= STEP_SNAP_M) next = { lat: snap.lat, lng: snap.lng };
+      }
+      this.myPos = next;
+      this.stepCount = (this.stepCount || 0) + 1;
+      this.afterMove();
     },
     // Independent compass watch (same technique as guide.php's own) purely
     // for the "turn left/right" off-screen indicator — deliberately NOT
