@@ -76,6 +76,9 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <div class="bg-emerald-600 text-white text-xs font-semibold rounded-full px-4 py-2 shadow-xl text-center">{{ anchorNote }}</div>
   </div>
 
+  <!-- Always-visible build label: tells at a glance whether the phone runs the latest code. -->
+  <div class="fixed bottom-1 left-2 z-40 text-[10px] text-white/50 pointer-events-none select-none" style="text-shadow:0 1px 2px rgba(0,0,0,.8);">{{ arBuild }}</div>
+
   <!-- Pre-app overlay: silent permission check, then (if needed) the gate screen. -->
   <transition name="gate-transition">
     <div v-if="checking || quickStart || !started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
