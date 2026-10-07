@@ -2,7 +2,7 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v7';
+const AR_BUILD = 'AR build: v8';
 
 // The 3D camera must see the same slice of the world as the phone camera, or the paths slide
 // against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
