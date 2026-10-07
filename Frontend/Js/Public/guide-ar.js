@@ -2,7 +2,11 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v9';
+const AR_BUILD = 'AR build: v10 (mini-map)';
+
+// Top-down mini-map (north up) — lets you check, anywhere, that the drawn paths and your
+// position/heading are what the AR scene is using. Tap it to zoom out/in.
+const MINIMAP_RADII_M = [40, 120];
 
 // The 3D camera must see the same slice of the world as the phone camera, or the paths slide
 // against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
@@ -388,6 +392,7 @@ createApp({
       this.started = true;
       this.startLocationWatch();
       this.startCompassWatch();
+      this.startMiniMap();
 
       // Defined immediately, before anything that could throw and silently
       // stop the rest of this setup — the button that calls this should
@@ -987,9 +992,82 @@ createApp({
         turnDistance: Math.round(turn.distance),
         remaining: Math.round(route.length + route.snapDist)
       };
+      this._routePts = route.points;
       this.renderRibbon(route);
     },
+    startMiniMap() {
+      if (this._miniMapTimer) return;
+      this._miniMapZoom = 0;
+      this._miniMapTimer = setInterval(() => this.drawMiniMap(), 200);
+    },
+    toggleMiniMapZoom() {
+      this._miniMapZoom = (this._miniMapZoom + 1) % MINIMAP_RADII_M.length;
+      this.drawMiniMap();
+    },
+    // North-up map centred on where the AR scene thinks you are. Same data the AR uses:
+    // drawn walkways (white), the current route (green), the campus anchor O (yellow ring),
+    // buildings (blue squares), you (blue dot) and the direction you face (arrow).
+    drawMiniMap() {
+      const cv = this.$refs.miniMap;
+      if (!cv || !cv.offsetWidth) return;
+      const dpr = window.devicePixelRatio || 1, S = cv.offsetWidth;
+      if (cv.width !== Math.round(S * dpr)) { cv.width = Math.round(S * dpr); cv.height = Math.round(S * dpr); }
+      const ctx = cv.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, S, S);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath(); ctx.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(S / 2, S / 2, S / 2 - 1, 0, Math.PI * 2); ctx.clip();
+
+      const me = this.displayPos ? this.displayPos() : this.myPos;
+      const radius = MINIMAP_RADII_M[this._miniMapZoom || 0];
+      if (me) {
+        const k = (S / 2) / radius;
+        const kx = PROJ_M_PER_DEG * Math.cos(me.lat * Math.PI / 180);
+        const P = (p) => ({ x: S / 2 + (p.lng - me.lng) * kx * k, y: S / 2 - (p.lat - me.lat) * PROJ_M_PER_DEG * k });
+        const byId = new Map(this.campusGraph.nodes.map((n) => [String(n.id), n]));
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2;
+        this.campusGraph.edges.forEach((e) => {
+          const a = byId.get(String(e.node_a_id)), b = byId.get(String(e.node_b_id));
+          if (!a || !b) return;
+          const A = P(a), B = P(b);
+          ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+        });
+        if (this.target && this._routePts && this._routePts.length > 1) {
+          ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4;
+          ctx.beginPath();
+          this._routePts.forEach((p, i) => { const Q = P(p); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); });
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#60a5fa';
+        this.buildings.forEach((b) => { const Q = P(b); ctx.fillRect(Q.x - 3, Q.y - 3, 6, 6); });
+        const anchorNode = this.campusAnchor && byId.get(String(this.campusAnchor.campus_node_id));
+        if (anchorNode) {
+          const Q = P(anchorNode);
+          ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(Q.x, Q.y, 5, 0, Math.PI * 2); ctx.stroke();
+        }
+        // You + the direction you face in the real world (AR camera heading minus the correction).
+        const cam = this.cameraHeadingDeg(0.05);
+        if (cam !== null) {
+          const h = (cam - (this._alignOffsetDeg || 0)) * Math.PI / 180;
+          ctx.fillStyle = 'rgba(96,165,250,0.35)';
+          ctx.beginPath(); ctx.moveTo(S / 2, S / 2);
+          ctx.arc(S / 2, S / 2, S * 0.3, h - Math.PI / 2 - 0.45, h - Math.PI / 2 + 0.45); ctx.closePath(); ctx.fill();
+        }
+        ctx.fillStyle = '#3b82f6'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(S / 2, S / 2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('N', S / 2, 11);
+      ctx.font = '9px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(radius + ' m', S / 2, S - 5);
+    },
     clearRoute() {
+      this._routePts = null;
       this.removeRibbon();
       this.routeInfo = null;
     },
