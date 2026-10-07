@@ -2,7 +2,16 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: QR pin v3';
+const AR_BUILD = 'AR build: QR pin v4 (fov match)';
+
+// The 3D camera must see the same slice of the world as the phone camera, or the paths slide
+// against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
+// This is the phone camera's view across its LONG side, in degrees — ~65-70 on most phones.
+// Tune per phone without editing code by adding ?fov=NN to the page URL.
+const CAMERA_LONG_FOV_DEG = (() => {
+  try { const v = parseFloat(new URLSearchParams(location.search).get('fov')); if (v > 20 && v < 120) return v; } catch (e) { /* default */ }
+  return 67;
+})();
 
 // Genuine extruded 3D text needs a loaded font mesh (three.js TextGeometry +
 // a font file) — heavier than this needs. This is the standard lightweight
@@ -395,7 +404,8 @@ createApp({
           if (!scene2) { alert('No <a-scene> found in the DOM at all.'); return; }
           const camEl = scene2.querySelector('[gps-new-camera]');
           const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
-          let report = AR_BUILD + '\ngps-new-camera found: ' + !!camComp;
+          const vid = document.querySelector('#arjs-video');
+          let report = AR_BUILD + '\ncamera fov=' + (scene2.camera ? scene2.camera.fov.toFixed(1) : '?') + ' (long-side ' + CAMERA_LONG_FOV_DEG + ', video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none') + ')' + '\ngps-new-camera found: ' + !!camComp;
           if (camComp) {
             // originCoords/currentCoords belong to AR.js's OLDER gps-camera
             // component — gps-new-camera (what we actually use) never has
@@ -719,9 +729,26 @@ createApp({
       const h = vv ? vv.height : window.innerHeight;
       scene.renderer.setSize(w, h, true);
       if (scene.camera) {
-        scene.camera.aspect = w / h;
-        scene.camera.updateProjectionMatrix();
+        const fov = this.matchedFov(w, h);
+        if (scene.camera.aspect !== w / h || (fov && Math.abs(scene.camera.fov - fov) > 0.05)) {
+          scene.camera.aspect = w / h;
+          if (fov) scene.camera.fov = fov;
+          scene.camera.updateProjectionMatrix();
+        }
       }
+    },
+    // Vertical field of view of what is actually on screen: the camera video is shown with
+    // object-fit: cover, so part of it is cropped off. Returns null until the video is ready.
+    matchedFov(sw, sh) {
+      const video = document.querySelector('#arjs-video');
+      if (!video || !video.videoWidth || !video.videoHeight) return null;
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const t = Math.tan(CAMERA_LONG_FOV_DEG * Math.PI / 360);
+      // tan(half-angle) of the video's own vertical extent; the long side gets CAMERA_LONG_FOV_DEG.
+      const tanV = vh >= vw ? t : t * vh / vw;
+      const scale = Math.max(sw / vw, sh / vh);   // cover
+      const visible = sh / (vh * scale);           // fraction of the video's height left on screen
+      return 2 * Math.atan(tanV * visible) * 180 / Math.PI;
     },
     // A-Frame's cursor="rayOrigin: mouse" component (used on the <a-camera>
     // tag) is built for actual mouse/gaze input — on mobile it depends on
