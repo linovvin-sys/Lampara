@@ -57,7 +57,13 @@ createApp({
       locked: EditorLock.get('campus-paths'),
       lockIcon: EditorLock.icon,
       nameDraft: '',
-      nameError: ''
+      nameError: '',
+      // The ONE AR anchor for the whole outdoor campus graph (not per
+      // building, not per node) — scanned once to fix the outdoor AR
+      // guide's real starting position instead of trusting GPS alone.
+      campusAnchor: null,
+      qrBusy: false,
+      showingCampusQr: false
     };
   },
   watch: {
@@ -66,6 +72,15 @@ createApp({
       const n = this.selected;
       this.nameDraft = n ? this.labelOf(n) : '';
       this.nameError = '';
+    },
+    // Draws the actual QR image once the print dialog's canvas exists.
+    async showingCampusQr(open) {
+      if (!open || !this.campusAnchor) return;
+      await this.$nextTick();
+      const el = this.$refs.qrCanvas;
+      if (!el || typeof QRCode === 'undefined') return;
+      el.innerHTML = '';
+      new QRCode(el, { text: this.qrUrlFor(this.campusAnchor.code), width: 180, height: 180 });
     }
   },
   computed: {
@@ -98,11 +113,59 @@ createApp({
     this.initMap();
     await this.loadAll();
     this.fitToData();
+    this.loadCampusAnchor();
     AdminOffline.onSynced(async () => { await this.loadAll(); });
     window.addEventListener('pagehide', () => { if (this.recording) this.releaseWalk(); });
     AdminOffline.onChange(() => { this.rebuild(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.showingCampusQr) this.showingCampusQr = false;
+    });
   },
   methods: {
+    async loadCampusAnchor() {
+      try {
+        const res = await fetch('../../../Backend/api/qr-anchors.php?campus=1');
+        const data = await res.json();
+        this.campusAnchor = (data.success && data.anchors.length) ? data.anchors[0] : null;
+      } catch (e) { /* editor still works without QR state */ }
+    },
+    qrUrlFor(code) {
+      return new URL('../Public/guide-ar.php?qr=' + code, window.location.href).href;
+    },
+    async setCampusQr() {
+      if (this.selectedId === null) return;
+      if (!(await AdminOffline.guardOnline('Generating the campus AR anchor QR'))) return;
+      const label = this.labelOf(this.selected);
+      this.qrBusy = true;
+      try {
+        const res = await fetch('../../../Backend/api/qr-anchors.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campus_node_id: this.selectedId, label })
+        });
+        const data = await res.json();
+        if (!data.success) { AdminOffline.toast(data.error || 'Could not create the QR code', 'error'); return; }
+        this.campusAnchor = { id: data.id, campus_node_id: this.selectedId, code: data.code, label: data.label };
+        this.showingCampusQr = true;
+      } finally {
+        this.qrBusy = false;
+      }
+    },
+    showCampusQr() {
+      if (this.campusAnchor) this.showingCampusQr = true;
+    },
+    async removeCampusQr() {
+      if (!this.campusAnchor) return;
+      const result = await Swal.fire({
+        title: 'Remove the campus AR anchor?',
+        text: 'The printed sign will stop working, and the outdoor AR guide will fall back to GPS-only starting position.',
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#dc2626'
+      });
+      if (!result.isConfirmed) return;
+      await fetch('../../../Backend/api/qr-anchors.php?id=' + this.campusAnchor.id, { method: 'DELETE' });
+      this.campusAnchor = null;
+      this.showingCampusQr = false;
+    },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
       const map = L.map(this.$refs.mapArea).setView([14.3283, 120.9372], 18);

@@ -118,6 +118,21 @@ const ArRibbon = (() => {
           state.mesh.geometry = geo;
         }
       },
+      // Shifts the whole ribbon entity vertically. The geometry's own Y is
+      // baked in at GROUND_Y, which only lands ~1.4m below the camera when
+      // the camera itself sits at the assumed y=1.6 (true indoors, where
+      // the camera's position is fixed — NOT true outdoors, where
+      // gps-new-camera only tracks horizontal GPS and never sets altitude
+      // at all, leaving the camera's real Y wherever A-Frame happens to
+      // default it). A caller that knows the camera's actual live Y should
+      // call this with (camY - 1.4) so the ribbon tracks a consistent
+      // distance below the camera regardless of what that real Y is.
+      setGroundY(y) {
+        if (state) state.entity.object3D.position.y = y;
+      },
+      getGroundY() {
+        return state ? state.entity.object3D.position.y : null;
+      },
       remove() {
         if (!state) return;
         if (state.entity.parentNode) state.entity.parentNode.removeChild(state.entity);

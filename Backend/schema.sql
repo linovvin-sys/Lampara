@@ -217,6 +217,26 @@ CREATE TABLE IF NOT EXISTS sync_temp_ids (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- The AR guide's starting anchor — scanned once, right before the student
+-- starts walking, to fix the real starting position instead of guessing
+-- from wherever the camera happens to be facing (indoor: no GPS at all;
+-- outdoor: GPS exists but can still be a few meters off near buildings).
+-- Exactly one of floor_plan_node_id / campus_node_id is set per row, and
+-- there is at most one anchor per floor plan and at most one for the whole
+-- outdoor campus graph — not one per node. `code` is a random public token,
+-- not the raw node id, so a photographed/shared QR can't be used to
+-- enumerate or guess other nodes.
+CREATE TABLE IF NOT EXISTS qr_anchors (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    floor_plan_node_id INT NULL,
+    campus_node_id INT NULL,
+    code VARCHAR(32) NOT NULL UNIQUE,
+    label VARCHAR(80) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (floor_plan_node_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (campus_node_id) REFERENCES campus_nodes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Seed data — replace the building's lat/lng with a real, walked coordinate.
 INSERT INTO buildings (name, lat, lng, floor_count, building_number, directory) VALUES
 ('Amafel Building (NCST)', 14.328300, 120.937200, 4, 1, NULL);

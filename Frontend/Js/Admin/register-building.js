@@ -1,3 +1,4 @@
+(function () {
 const { createApp } = Vue;
 
 // Two buildings this close together will fall inside the same wide compass
@@ -20,7 +21,7 @@ function haversineMeters(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
-createApp({
+window.LamparaBuildingApp = createApp({
   data() {
     return {
       form: { name: '', lat: '', lng: '', floor_count: 1, building_number: null, directory: '' },
@@ -49,7 +50,13 @@ createApp({
       lockIcon: EditorLock.icon,
       pathNameDraft: '',
       pathNameError: '',
-      pathUndo: null          // what the last delete removed: { label, snapshot }, for the Undo button
+      pathUndo: null,         // what the last delete removed: { label, snapshot }, for the Undo button
+      // The ONE AR-anchor QR for the floor currently open in the path editor
+      // (null if not set yet) — not per point. This is what the indoor AR
+      // guide scans to fix its real starting position, see Backend/api/qr-anchors.php.
+      floorQrAnchor: null,     // { id, floor_plan_node_id, code, label } or null
+      qrBusy: false,
+      showingFloorQr: false
     };
   },
   computed: {
@@ -95,9 +102,21 @@ createApp({
     selectedNodeId(id) {
       this.pathNameDraft = id === null ? '' : (this.pathNames.get(String(id)) || '');
       this.pathNameError = '';
+    },
+    // Draws the actual QR image once the print dialog's canvas exists.
+    async showingFloorQr(open) {
+      if (!open || !this.floorQrAnchor) return;
+      await this.$nextTick();
+      const el = this.$refs.qrCanvas;
+      if (!el || typeof QRCode === 'undefined') return;
+      el.innerHTML = '';
+      new QRCode(el, { text: this.qrUrlFor(this.floorQrAnchor.code), width: 180, height: 180 });
     }
   },
   async mounted() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.showingFloorQr) this.showingFloorQr = false;
+    });
     AdminOffline.onSynced(() => this.loadBuildings());
     AdminOffline.onChange(() => { this.buildings = AdminOffline.overlayBuildings(this.baseBuildings); });
     await this.loadBuildings();
@@ -241,6 +260,7 @@ createApp({
       const data = await res.json();
       this.pathNodes = data.success ? data.nodes : [];
       this.pathEdges = data.success ? data.edges : [];
+      this.loadFloorQrAnchor(plan.id);
     },
     closePathEditor() {
       this.pathUndo = null;
@@ -250,6 +270,56 @@ createApp({
       this.selectedNodeId = null;
       this.crossLinks = [];
       this.crossFloorOptions = null;
+      this.floorQrAnchor = null;
+      this.showingFloorQr = false;
+    },
+    // A floor has AT MOST one AR-anchor QR — this just checks whether it's
+    // already been set, so the panel can show "view/print" vs "set one".
+    async loadFloorQrAnchor(floorPlanId) {
+      try {
+        const res = await fetch('../../../Backend/api/qr-anchors.php?floor_plan_id=' + floorPlanId);
+        const data = await res.json();
+        this.floorQrAnchor = (data.success && data.anchors.length) ? data.anchors[0] : null;
+      } catch (e) { /* editor still works without QR state */ }
+    },
+    // Builds the URL a plain camera app (not just this site's own scanner)
+    // would land on when it decodes the printed QR.
+    qrUrlFor(code) {
+      return new URL('../Student/scan.php?qr=' + code, window.location.href).href;
+    },
+    async setFloorQr() {
+      if (this.selectedNodeId === null) return;
+      if (await this.needsInternet('Generating this floor\'s AR anchor QR')) return;
+      const point = this.pathPointList.find((p) => p.id === this.selectedNodeId);
+      this.qrBusy = true;
+      try {
+        const res = await fetch('../../../Backend/api/qr-anchors.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ floor_plan_node_id: this.selectedNodeId, label: point ? point.name : '' })
+        });
+        const data = await res.json();
+        if (!data.success) { AdminOffline.toast(data.error || 'Could not create the QR code', 'error'); return; }
+        this.floorQrAnchor = { id: data.id, floor_plan_node_id: this.selectedNodeId, code: data.code, label: data.label };
+        this.showingFloorQr = true;
+      } finally {
+        this.qrBusy = false;
+      }
+    },
+    showFloorQr() {
+      if (this.floorQrAnchor) this.showingFloorQr = true;
+    },
+    async removeFloorQr() {
+      if (!this.floorQrAnchor) return;
+      const result = await Swal.fire({
+        title: "Remove this floor's AR anchor?",
+        text: 'The printed sign will stop working, and the AR guide will fall back to starting without a scanned anchor.',
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#dc2626'
+      });
+      if (!result.isConfirmed) return;
+      await fetch('../../../Backend/api/qr-anchors.php?id=' + this.floorQrAnchor.id, { method: 'DELETE' });
+      this.floorQrAnchor = null;
+      this.showingFloorQr = false;
     },
     // Clicking empty canvas drops a new junction point; clicking an existing
     // node instead selects it (see selectNode) — this handler only fires
@@ -547,4 +617,5 @@ createApp({
       }
     }
   }
-}).mount('#app');
+}).mount('#building-app');
+})();

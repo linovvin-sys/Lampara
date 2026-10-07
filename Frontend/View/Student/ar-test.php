@@ -7,6 +7,7 @@
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 <script src="../../assets/vendor/threex-device-orientation-controls.js"></script>
 <script src="../../assets/vendor/aframe-ar.js"></script>
+<link rel="stylesheet" href="../../Css/theme.css">
 <link rel="stylesheet" href="../../Css/Student/ar-test.css">
 </head>
 <body style="background:#000;">

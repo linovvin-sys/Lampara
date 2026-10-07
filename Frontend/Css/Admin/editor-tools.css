@@ -2,12 +2,12 @@
    the lock bar and the list of named points beside the map. */
 
 /* ---- lock bar ---- */
-.lock-bar { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin: 0 0 0.6rem; padding: 0.5rem 0.65rem; border-radius: 0.7rem; background: var(--green-50, #f0fdf4); border: 1px solid var(--line, #e3ede6); }
-.lock-bar.is-locked { background: #fff7ed; border-color: #fed7aa; }
-.lock-btn { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--line, #e3ede6); background: #fff; color: var(--ink, #14251c); font: inherit; font-size: 0.8125rem; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 999px; cursor: pointer; }
-.lock-btn:hover { border-color: var(--green-600, #16a34a); }
-.lock-btn.on { background: #c2410c; border-color: #c2410c; color: #fff; }
-.lock-btn:focus-visible { outline: 2px solid var(--green-500, #22c55e); outline-offset: 2px; }
+.lock-bar { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin: 0 0 0.6rem; padding: 0.5rem 0.65rem; border-radius: 0.7rem; background: var(--blue-50, #f0f5fe); border: 1px solid var(--line, #e2e6f1); }
+.lock-bar.is-locked { background: var(--yellow-50, #fffaeb); border-color: var(--yellow-100, #fef0c7); }
+.lock-btn { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--line, #e2e6f1); background: #fff; color: var(--ink, #16213d); font: inherit; font-size: 0.8125rem; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 999px; cursor: pointer; }
+.lock-btn:hover { border-color: var(--blue-600, #1a4fc4); }
+.lock-btn.on { background: var(--yellow-600, #d99400); border-color: var(--yellow-600, #d99400); color: #fff; }
+.lock-btn:focus-visible { outline: 2px solid var(--blue-500, #3566d6); outline-offset: 2px; }
 .lock-msg { font-size: 0.75rem; color: var(--muted, #5b6b63); line-height: 1.5; flex: 1; min-width: 12rem; }
 .lock-bar.is-locked .lock-msg { color: #9a3412; font-weight: 600; }
 /* a locked map/plan is no longer a crosshair target */
@@ -17,12 +17,12 @@
 /* ---- list of named points ---- */
 .points-list { display: flex; flex-direction: column; gap: 0.3rem; max-height: 19rem; overflow-y: auto; margin: 0 -0.25rem; padding: 0 0.25rem; }
 .pt-row { display: flex; align-items: center; gap: 0.6rem; width: 100%; text-align: left; border: 1px solid transparent; background: transparent; padding: 0.45rem 0.5rem; border-radius: 0.6rem; font: inherit; color: inherit; cursor: pointer; }
-.pt-row:hover { background: var(--green-50, #f0fdf4); }
-.pt-row.sel { background: #ecfdf3; border-color: var(--green-500, #22c55e); }
+.pt-row:hover { background: var(--blue-50, #f0f5fe); }
+.pt-row.sel { background: var(--blue-50, #f0f5fe); border-color: var(--blue-500, #3566d6); }
 .pt-row.static { cursor: default; }
 .pt-row.static:hover { background: transparent; }
-.pt-row:focus-visible { outline: 2px solid var(--green-500, #22c55e); outline-offset: 1px; }
-.pt-badge { flex: none; width: 1.7rem; height: 1.7rem; border-radius: 999px; display: grid; place-items: center; background: #16a34a; color: #fff; font-weight: 800; font-size: 0.72rem; }
+.pt-row:focus-visible { outline: 2px solid var(--blue-500, #3566d6); outline-offset: 1px; }
+.pt-badge { flex: none; width: 1.7rem; height: 1.7rem; border-radius: 999px; display: grid; place-items: center; background: var(--blue-600, #1a4fc4); color: #fff; font-weight: 800; font-size: 0.72rem; }
 .pt-badge.gate { background: #0369a1; }
 .pt-badge.entrance { background: #f59e0b; color: #422006; }
 .pt-badge.wide { width: auto; min-width: 1.7rem; padding: 0 0.4rem; border-radius: 999px; }
@@ -38,7 +38,7 @@
 .name-error { color: #b91c1c; font-size: 0.75rem; margin: 0.3rem 0 0; }
 
 /* the letter next to a point on the map */
-.cp-pt-label { background: #14251c; color: #fff; border: 0; box-shadow: none; font-weight: 800; font-size: 10px; padding: 0 5px; line-height: 15px; border-radius: 999px; }
+.cp-pt-label { background: var(--ink, #16213d); color: #fff; border: 0; box-shadow: none; font-weight: 800; font-size: 10px; padding: 0 5px; line-height: 15px; border-radius: 999px; }
 .cp-pt-label::before { display: none; }
 
 /* floor-plan path editor: the plan on the left, the points list on the right (stacked on narrow screens) */

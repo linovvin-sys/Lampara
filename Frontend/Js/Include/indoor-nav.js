@@ -79,6 +79,24 @@ const IndoorNav = (() => {
     return out;
   }
 
+  // Mid-route drift correction: a scanned QR anchor gives a real plan-percent
+  // point known to sit ON this path (it was placed on a point in the same
+  // walkable-path graph this route was built from). Finds the closest vertex
+  // on the path to that point and returns the cumulative distance there, so
+  // the caller can snap `s` back to ground truth instead of trusting however
+  // far step-counting has drifted. `offMeters` lets the caller sanity-check
+  // the match (a QR from a DIFFERENT, unrelated route would still "match"
+  // its single nearest vertex, just with a large, obviously-wrong offset).
+  function snapToPlanPoint(path, planPoint) {
+    const target = { x: planPoint.x * path.cal.meters_per_unit_x, y: planPoint.y * path.cal.meters_per_unit_y };
+    let bestDist = Infinity, bestS = 0;
+    path.pts.forEach((p, i) => {
+      const d = Math.hypot(p.x - target.x, p.y - target.y);
+      if (d < bestDist) { bestDist = d; bestS = path.cum[i]; }
+    });
+    return { s: bestS, offMeters: bestDist };
+  }
+
   // Next real corner ahead of `s`: { dir: 'left'|'right'|null, distance }.
   // dir null = straight to the end of this segment.
   function nextTurn(path, s, minAngle = 35) {
@@ -132,7 +150,7 @@ const IndoorNav = (() => {
     }
   }
 
-  return { isCalibrated, buildPath, toScene, pointAt, aheadScene, nextTurn, nextCornerDistance, StepDetector };
+  return { isCalibrated, buildPath, toScene, pointAt, aheadScene, nextTurn, nextCornerDistance, snapToPlanPoint, StepDetector };
 })();
 
 if (typeof module !== 'undefined') module.exports = IndoorNav;

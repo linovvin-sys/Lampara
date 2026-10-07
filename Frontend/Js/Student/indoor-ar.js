@@ -20,7 +20,14 @@ createApp({
       hud: null,          // { kind: turn|straight|stairs|arrived, dir, distance, remaining, nextFloor }
       lookHint: null,     // 'left' | 'right' while the path ahead is outside the camera's view
       alignNote: '',      // short confirmation after "Align"
-      motionOk: false
+      motionOk: false,
+      // This floor's registered AR anchor (one per floor, set by an admin),
+      // or null if none exists yet — gates whether starting the guide
+      // requires scanning it first. See begin()/startAnchorScan().
+      floorAnchor: null,
+      anchorScanned: false,
+      scanningAnchor: false,
+      anchorScanError: ''
     };
   },
   computed: {
@@ -33,7 +40,7 @@ createApp({
       this.fail("Something went wrong loading the route.", [String(e && e.message || e)]);
     }
   },
-  beforeUnmount() { this.stopTracking(); },
+  beforeUnmount() { this.stopTracking(); this.stopAnchorScan(); },
   methods: {
     fail(message, detail = []) {
       this.error = message;
@@ -141,8 +148,15 @@ createApp({
       // Non-reactive: big arrays/objects the AR loop reads every 200 ms.
       this._paths = segments.map((seg, i) => IndoorNav.buildPath(seg.points, segPlans[i]));
       this._plans = segPlans;
+      this._fromPlan = fromPlan;
       this._images = {};
       segPlans.forEach((p) => this.ensureImage(from.building_id, p));
+
+      try {
+        const anchorRes = await fetch(API + 'qr-anchors.php?floor_plan_id=' + fromPlan.id);
+        const anchorData = await anchorRes.json();
+        this.floorAnchor = (anchorData.success && anchorData.anchors.length) ? anchorData.anchors[0] : null;
+      } catch (e) { this.floorAnchor = null; }
 
       this.fromRoom = from;
       this.toRoom = to;
@@ -151,8 +165,16 @@ createApp({
       this.stage = 'gate';
     },
 
-    // ---- Start: permissions need a user gesture, so they're requested here ----
-    async begin() {
+    // ---- Start: tapped from the gate screen. If this floor has a registered
+    // AR anchor QR, scanning it comes first (see startAnchorScan); otherwise
+    // this goes straight to permissions + the AR scene, same as before. ----
+    begin() {
+      if (this.floorAnchor && !this.anchorScanned) { this.startAnchorScan(); return; }
+      this.proceedToNav();
+    },
+    // Permissions need a user gesture, so they're requested here, right
+    // before the AR scene actually mounts.
+    async proceedToNav() {
       try {
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
           this.motionOk = (await DeviceMotionEvent.requestPermission()) === 'granted';
@@ -244,6 +266,79 @@ createApp({
       const path = this._paths[this.segIndex];
       this.s = IndoorNav.nextCornerDistance(path, this.s);
       this.tick();
+    },
+    // Scanning the floor's one registered AR anchor (set by an admin in
+    // Register Building) sets the exact real starting position before the
+    // AR scene ever mounts — this is the whole point: the walk starts from
+    // a known point on the plan, not from wherever the camera happens to be
+    // facing when AR opens. Uses its own short-lived camera preview (not
+    // AR.js's feed, which doesn't exist yet at this stage).
+    async startAnchorScan() {
+      this.scanningAnchor = true;
+      this.anchorScanError = '';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        this._anchorStream = stream;
+        await this.$nextTick();
+        const video = this.$refs.anchorVideo;
+        if (!video) throw new Error('no video element');
+        video.srcObject = stream;
+        await video.play();
+        this._anchorScanLoop(video);
+      } catch (e) {
+        this.anchorScanError = "Couldn't open the camera.";
+        this.scanningAnchor = false;
+      }
+    },
+    stopAnchorScan() {
+      this.scanningAnchor = false;
+      if (this._anchorStream) { this._anchorStream.getTracks().forEach((t) => t.stop()); this._anchorStream = null; }
+    },
+    async _anchorScanLoop(video) {
+      if (!this._anchorCanvas) this._anchorCanvas = document.createElement('canvas');
+      const canvas = this._anchorCanvas;
+      while (this.scanningAnchor) {
+        if (video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const result = typeof jsQR !== 'undefined' ? jsQR(frame.data, frame.width, frame.height) : null;
+          if (result && result.data) {
+            this.stopAnchorScan();
+            await this.handleAnchorCode(result.data);
+            return;
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    },
+    // Only usable if it resolves to THIS floor's own registered anchor —
+    // anything else (wrong floor, a stray QR from elsewhere) is rejected so
+    // the walk can't start from a position that isn't actually where the
+    // student is standing.
+    async handleAnchorCode(raw) {
+      let code = raw;
+      try { const u = new URL(raw); code = u.searchParams.get('qr') || raw; } catch (e) { /* plain code, not a URL */ }
+      try {
+        const res = await fetch(API + 'qr-anchors.php?code=' + encodeURIComponent(code));
+        const data = await res.json();
+        if (!data.success || !this._fromPlan || data.floor_plan_id !== this._fromPlan.id) {
+          this.anchorScanError = "That's not this floor's anchor QR.";
+          return;
+        }
+        const path = this._paths[0];
+        this.s = IndoorNav.snapToPlanPoint(path, { x: data.x, y: data.y }).s;
+        this.anchorScanned = true;
+        this.proceedToNav();
+      } catch (e) {
+        this.anchorScanError = 'Could not look up that QR code.';
+      }
+    },
+    skipAnchorScan() {
+      this.anchorScanned = true;
+      this.proceedToNav();
     },
     // The next floor you actually have to walk on. A floor the route merely
     // passes through (you arrive and leave by the same stairwell, ~0 m of

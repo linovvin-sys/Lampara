@@ -59,6 +59,13 @@ const FAR_BOOST_FROM = 100;        // from here the destination marker is enlarg
 const FAR_BOOST_TO = 300;          // ...reaching its largest at this distance
 const FAR_BOOST_MAX = 1.9;         // ...which is this many times the normal size
 const OFF_PATH_METERS = 60;        // farther from any walkway than this -> no ribbon
+// Raw phone GPS while walking is typically only accurate to 3-10m, worse
+// near buildings, and jitters between fixes — this can't be eliminated
+// (it's the hardware's real accuracy, not a bug), only smoothed so the
+// ribbon/arrow don't visibly jump with every noisy fix. Doesn't touch
+// AR.js's own separate internal camera GPS tracking.
+const GPS_MAX_ACCURACY_M = 30;    // a fix worse than this is dropped outright, keeping the last good position
+const GPS_SMOOTH_ALPHA = 0.35;    // how much each new fix moves the smoothed position (0-1, lower = calmer but slower to follow real movement)
 
 function haversineMeters(a, b) {
   const R = 6371000;
@@ -119,7 +126,21 @@ createApp({
       chatMessages: [],
       chatInput: '',
       chatLoading: false,
-      arEntities: {} // building.id -> {wrapper, label, arrow}
+      arEntities: {}, // building.id -> {wrapper, label, arrow}
+      // The campus's one registered AR anchor (Campus Paths admin page), or
+      // null if none is set — gates whether starting requires scanning it
+      // first. Mirrors indoor-ar.js's floor anchor, same idea: fix the real
+      // starting position from a known point instead of trusting GPS's
+      // first fix alone, which can be a few meters off near buildings.
+      campusAnchor: null,
+      scanningAnchor: false,
+      anchorScanned: false,
+      anchorScanError: '',
+      // Right after a successful scan (not a skip), the WHOLE walkway graph
+      // shows in AR at the registered anchor — not just a single destination
+      // route — until a building is searched and picked, at which point
+      // this disappears in favor of the normal single-route ribbon.
+      showAllPaths: false
     };
   },
   computed: {
@@ -190,11 +211,91 @@ createApp({
       // once this device has loaded them once.
       this.buildings = await LamparaCache.loadBuildings('../../../Backend/api/buildings.php');
       this.campusGraph = await LamparaCache.loadCampusGraph('../../../Backend/api/campus-graph.php');
+      try {
+        const res = await fetch('../../../Backend/api/qr-anchors.php?campus=1');
+        const data = await res.json();
+        this.campusAnchor = (data.success && data.anchors.length) ? data.anchors[0] : null;
+      } catch (e) { this.campusAnchor = null; }
 
-      // AR.js requests the camera itself once <a-scene> mounts, right after
-      // this same tap — not before the user knows why.
-      this.started = true;
       this.checking = false;
+      if (this.campusAnchor && !this.anchorScanned) { this.startAnchorScan(); return; }
+      this.proceedToAr();
+    },
+    // Scanning the campus's one registered AR anchor fixes a known-precise
+    // starting lat/lng, used to seed `myPos` for the route/ribbon math
+    // instead of waiting on (and fully trusting) GPS's first fix, which can
+    // be several meters off near buildings. AR.js's own internal GPS
+    // tracking for the 3D scene is untouched either way — this only affects
+    // our own route calculations.
+    async startAnchorScan() {
+      this.scanningAnchor = true;
+      this.anchorScanError = '';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        this._anchorStream = stream;
+        await this.$nextTick();
+        const video = this.$refs.anchorVideo;
+        if (!video) throw new Error('no video element');
+        video.srcObject = stream;
+        await video.play();
+        this._anchorScanLoop(video);
+      } catch (e) {
+        this.anchorScanError = "Couldn't open the camera.";
+        this.scanningAnchor = false;
+      }
+    },
+    stopAnchorScan() {
+      this.scanningAnchor = false;
+      if (this._anchorStream) { this._anchorStream.getTracks().forEach((t) => t.stop()); this._anchorStream = null; }
+    },
+    async _anchorScanLoop(video) {
+      if (!this._anchorCanvas) this._anchorCanvas = document.createElement('canvas');
+      const canvas = this._anchorCanvas;
+      while (this.scanningAnchor) {
+        if (video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const result = typeof jsQR !== 'undefined' ? jsQR(frame.data, frame.width, frame.height) : null;
+          if (result && result.data) {
+            this.stopAnchorScan();
+            await this.handleAnchorCode(result.data);
+            return;
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    },
+    async handleAnchorCode(raw) {
+      let code = raw;
+      try { const u = new URL(raw); code = u.searchParams.get('qr') || raw; } catch (e) { /* plain code, not a URL */ }
+      try {
+        const res = await fetch('../../../Backend/api/qr-anchors.php?code=' + encodeURIComponent(code));
+        const data = await res.json();
+        if (!data.success || data.kind !== 'outdoor') {
+          this.anchorScanError = "That's not the campus anchor QR.";
+          return;
+        }
+        this.myPos = { lat: data.lat, lng: data.lng };
+        this.statusOk = true;
+        this.anchorScanned = true;
+        this.showAllPaths = true;
+        this.proceedToAr();
+      } catch (e) {
+        this.anchorScanError = 'Could not look up that QR code.';
+      }
+    },
+    skipAnchorScan() {
+      this.stopAnchorScan();
+      this.anchorScanned = true;
+      this.proceedToAr();
+    },
+    proceedToAr() {
+      // AR.js requests the camera itself once <a-scene> mounts, right after
+      // the original tap — not before the user knows why.
+      this.started = true;
       this.startLocationWatch();
       this.startCompassWatch();
 
@@ -221,7 +322,9 @@ createApp({
             // object, not on the component itself — it sets
             // threeLoc.initialPosition, so that's what actually needs
             // checking, not camComp.initialPosition (always undefined).
-            report += '\norigin established (threeLoc.initialPosition)=' + !!(camComp.threeLoc && camComp.threeLoc.initialPosition);
+            const originVal = camComp.threeLoc && camComp.threeLoc.initialPosition;
+            report += '\norigin established (threeLoc.initialPosition)=' + !!originVal + (originVal ? ' [' + originVal.join(', ') + ']' : '');
+            report += '\norigin override attempted and succeeded (_originOverrideDone)=' + !!this._originOverrideDone;
             report += '\n_currentPosition=' + (camComp._currentPosition ? JSON.stringify(camComp._currentPosition) : 'null (no GPS fix accurate enough yet)');
             // AR.js's OWN internal GPS watch silently discards any fix with
             // accuracy worse than 100m before it updates _currentPosition or
@@ -231,6 +334,23 @@ createApp({
             // way to tell whether you're actually close to clearing AR.js's
             // threshold or not.
           }
+          // What the camera's own Y actually is (gps-new-camera never sets
+          // altitude — if this isn't ~1.6, the ribbon's ground-tracking
+          // (setGroundY = camY - 1.4) should be compensating for it).
+          if (camEl && camEl.object3D) {
+            const cp = camEl.object3D.position;
+            report += '\n\nCamera scene position: x=' + cp.x.toFixed(2) + ' y=' + cp.y.toFixed(2) + ' z=' + cp.z.toFixed(2);
+          }
+          if (this._ribbon && this._ribbon.active) {
+            report += '\nSingle-route ribbon entity Y offset=' + this._ribbon.getGroundY();
+          }
+          if (this._allPathRibbons && this._allPathRibbons.length) {
+            report += '\nAll-paths ribbons built: ' + this._allPathRibbons.length + ' segment(s), first entity Y offset=' + this._allPathRibbons[0].getGroundY();
+          } else {
+            report += '\nAll-paths ribbons built: 0 (either no edges loaded, or latLonToWorld is still failing — see campusGraph line below)';
+          }
+          report += '\ncampusGraph loaded: ' + this.campusGraph.nodes.length + ' node(s), ' + this.campusGraph.edges.length + ' edge(s)';
+          report += '\nshowAllPaths=' + this.showAllPaths + ' anchorScanned=' + this.anchorScanned;
           if (this.target && this.arEntities[this.target.id]) {
             const entry = this.arEntities[this.target.id];
             const pos = entry.wrapper.object3D.position;
@@ -255,6 +375,51 @@ createApp({
       this.$nextTick(() => {
         const scene = this.$refs.arScene;
         if (!scene) return;
+
+        // Wins the race against AR.js's own GPS watch: gps-new-camera only
+        // sets its origin from a real fix if initialPosition is still null
+        // at that point (see aframe-ar.js's _gpsReceived). A single
+        // synchronous attempt at scene-ready time turned out to be
+        // unreliable — threeLoc isn't guaranteed to exist that exact
+        // instant — so this polls every 150ms until it actually succeeds
+        // (or AR.js's own GPS beats us to it, in which case initialPosition
+        // is already set and we correctly back off instead of clobbering
+        // it). Setting this means the scanned QR's precise lat/lng becomes
+        // the scene's actual coordinate origin — not just a separate
+        // variable (myPos) used only for our own route math, which never
+        // touched what AR.js uses to place anything in 3D space. THIS is
+        // what was actually causing the path to render tens of meters off.
+        if (this.anchorScanned && this.myPos && !this._originOverrideDone) {
+          const myLat = this.myPos.lat, myLng = this.myPos.lng;
+          let tries = 0;
+          const tryOverride = () => {
+            tries++;
+            try {
+              const camEl0 = scene.querySelector('[gps-new-camera]');
+              const camComp0 = camEl0 && camEl0.components && camEl0.components['gps-new-camera'];
+              if (camComp0 && camComp0.threeLoc) {
+                if (!camComp0.threeLoc.initialPosition) {
+                  camComp0.threeLoc.setWorldOrigin(myLng, myLat);
+                }
+                this._originOverrideDone = true;
+                return;
+              }
+            } catch (e) { /* threeLoc not fully ready yet — retry */ }
+            if (tries < 40) setTimeout(tryOverride, 150); // ~6s ceiling
+          };
+          tryOverride();
+        }
+
+        // Everything GPS-placed (buildings, ribbons) hangs off this one
+        // rotating group instead of the scene directly, so a manual twist
+        // (rotateWorld) fixes compass-drift "slant" by eye in seconds —
+        // simpler and more reliable than computing/trusting a heading
+        // correction from sensors that are already the thing drifting.
+        if (!this._worldGroup) {
+          const group = document.createElement('a-entity');
+          scene.appendChild(group);
+          this._worldGroup = group;
+        }
 
         const onSceneReady = () => {
           this.forceArSize();
@@ -380,6 +545,7 @@ createApp({
           });
           // Camera just moved in the scene — the ribbon starts at its feet.
           this.updateRoute(true);
+          if (this.showAllPaths) this.renderAllPaths();
         });
       }
 
@@ -405,7 +571,7 @@ createApp({
           this.openChat(b);
         });
 
-        scene.appendChild(wrapper);
+        (this._worldGroup || scene).appendChild(wrapper);
         this.arEntities[b.id] = { wrapper, label, labelLayers, arrow: null };
         setLabelColor(this.arEntities[b.id], '#ffffff', 0.55);
       });
@@ -418,6 +584,10 @@ createApp({
         if (prev.arrow) { prev.wrapper.removeChild(prev.arrow); prev.arrow = null; }
       }
       this.target = building ? { ...building } : null;
+      if (this.target && this.showAllPaths) {
+        this.showAllPaths = false;
+        this.removeAllPathsRibbons();
+      }
       if (!this.target) { this.clearRoute(); return; }
 
       const entry = this.arEntities[this.target.id];
@@ -548,18 +718,80 @@ createApp({
     removeRibbon() {
       if (this._ribbon) this._ribbon.remove();
     },
+    // Shows the WHOLE walkway graph in AR right after a successful anchor
+    // scan — every edge, not just a route to a destination — since no
+    // destination is known yet at that point. Disappears the moment a
+    // building is picked (see setTarget), replaced by the normal single
+    // route. Built once (edges don't move); retried on each GPS fix only
+    // until AR.js's origin is established, same pattern as renderRibbon.
+    // Rotates a point around the camera's CURRENT position (not a fixed
+    // distant origin) — pivoting anywhere else makes a manual rotate look
+    // like sideways sliding instead of an actual turn.
+    rotateAroundCamera(x, z, camX, camZ) {
+      const deg = this._alignOffsetDeg || 0;
+      if (!deg) return { x, z };
+      const rad = deg * Math.PI / 180;
+      const dx = x - camX, dz = z - camZ;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      return { x: camX + dx * cos - dz * sin, z: camZ + dx * sin + dz * cos };
+    },
+    renderAllPaths() {
+      if (!this._allPathRibbons) this._allPathRibbons = [];
+      const scene = this.$refs.arScene;
+      const camEl = scene && scene.querySelector('[gps-new-camera]');
+      const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
+      if (!camComp || !camEl.object3D) return;
+      const camPos = camEl.object3D.position;
+      if (this._allPathRibbons.length && !this._forceRebuildPaths) {
+        // Already built — just keep tracking the camera's real height,
+        // since gps-new-camera's Y can still settle/shift after the
+        // first fix.
+        const y = camPos.y - 1.4;
+        this._allPathRibbons.forEach((r) => r.setGroundY(y));
+        return;
+      }
+      this.removeAllPathsRibbons();
+      this._forceRebuildPaths = false;
+      if (!this.campusGraph.edges.length) return;
+
+      const nodeById = new Map(this.campusGraph.nodes.map((n) => [String(n.id), n]));
+      this.campusGraph.edges.forEach((edge) => {
+        const a = nodeById.get(String(edge.node_a_id));
+        const b = nodeById.get(String(edge.node_b_id));
+        if (!a || !b) return;
+        try {
+          let [ax, az] = camComp.latLonToWorld(a.lat, a.lng);
+          let [bx, bz] = camComp.latLonToWorld(b.lat, b.lng);
+          ({ x: ax, z: az } = this.rotateAroundCamera(ax, az, camPos.x, camPos.z));
+          ({ x: bx, z: bz } = this.rotateAroundCamera(bx, bz, camPos.x, camPos.z));
+          const ribbon = ArRibbon.create(this._worldGroup || scene);
+          // Solid, not fading — this is the whole network, not a route
+          // leading somewhere specific yet.
+          ribbon.update([{ x: ax, y: az }, { x: bx, y: bz }], { fadeEnd: false });
+          // See renderRibbon's comment: gps-new-camera never sets altitude.
+          ribbon.setGroundY(camPos.y - 1.4);
+          this._allPathRibbons.push(ribbon);
+        } catch (e) { /* no origin yet — retried on the next GPS fix */ }
+      });
+    },
+    removeAllPathsRibbons() {
+      if (this._allPathRibbons) this._allPathRibbons.forEach((r) => r.remove());
+      this._allPathRibbons = [];
+    },
     renderRibbon(route) {
       const scene = this.$refs.arScene;
       const camEl = scene && scene.querySelector('[gps-new-camera]');
       const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
       if (!camComp || !camEl.object3D) return;
+      const camPos0 = camEl.object3D.position;
 
       // GPS -> scene coordinates (x east, z south). Throws until AR.js has
       // established its origin from the first accurate fix — just retry next fix.
       let world;
       try {
         world = route.points.map((p) => {
-          const [x, z] = camComp.latLonToWorld(p.lat, p.lng);
+          let [x, z] = camComp.latLonToWorld(p.lat, p.lng);
+          ({ x, z } = this.rotateAroundCamera(x, z, camPos0.x, camPos0.z));
           return { x, y: z };
         });
       } catch (e) { return; }
@@ -570,7 +802,8 @@ createApp({
       const t = this.target;
       if (t && typeof t.lat === 'number' && typeof t.lng === 'number') {
         try {
-          const [ax, az] = camComp.latLonToWorld(t.lat, t.lng);
+          let [ax, az] = camComp.latLonToWorld(t.lat, t.lng);
+          ({ x: ax, z: az } = this.rotateAroundCamera(ax, az, camPos0.x, camPos0.z));
           const last = world[world.length - 1];
           if (!last || Math.hypot(ax - last.x, az - last.y) > 1.5) world.push({ x: ax, y: az });
         } catch (e) { /* no origin yet: the ribbon still draws to the entrance */ }
@@ -587,16 +820,37 @@ createApp({
       pts = CampusRoute.truncate(pts, RIBBON_VISIBLE_METERS);
       if (pts.length < 2) return;
 
-      if (!this._ribbon) this._ribbon = ArRibbon.create(scene);
+      if (!this._ribbon) this._ribbon = ArRibbon.create(this._worldGroup || scene);
       // Solid right up to the marker; only a route too long to show in full fades out at its far end.
       this._ribbon.update(pts, { fadeEnd: !reachesMarker });
+      // gps-new-camera never sets altitude — cam.y isn't the assumed 1.6 the
+      // ribbon's baked-in height expects, so track wherever it actually is.
+      this._ribbon.setGroundY(cam.y - 1.4);
     },
     selectBuilding(building) { this.setTarget(building); },
     // Shared by start() and by toggleLocation() re-enabling.
     startLocationWatch() {
       this.gpsWatchId = navigator.geolocation.watchPosition(
         (pos) => {
-          this.myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const acc = pos.coords.accuracy;
+          const fix = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          // A fix GPS itself isn't confident in is worse than no update at
+          // all — keep the last good (or scanned) position instead of
+          // snapping to it.
+          if (acc != null && acc > GPS_MAX_ACCURACY_M && this.myPos) return;
+          if (!this.myPos) {
+            this.myPos = fix;
+          } else {
+            // Ease toward the new fix instead of jumping straight to it, so
+            // normal jitter between consecutive noisy fixes doesn't visibly
+            // teleport the ribbon/arrow. If the scanned anchor seeded myPos,
+            // this is also what keeps that correction from being wiped out
+            // the instant the next raw fix arrives.
+            this.myPos = {
+              lat: this.myPos.lat + (fix.lat - this.myPos.lat) * GPS_SMOOTH_ALPHA,
+              lng: this.myPos.lng + (fix.lng - this.myPos.lng) * GPS_SMOOTH_ALPHA,
+            };
+          }
           this.statusOk = true;
           this.updateTargetDistance();
         },
@@ -637,6 +891,16 @@ createApp({
     // AR.js's own internal camera stream the way guide.php's toggle does.
     toggleCamera() {
       this.cameraOn = !this.cameraOn;
+    },
+    // Manually twists everything GPS-placed (buildings, ribbons) to
+    // counteract compass drift — tap until it visually lines up with the
+    // real street. Simpler and more reliable than deriving a correction
+    // from the same sensor that's drifting in the first place.
+    rotateWorld(deg) {
+      this._alignOffsetDeg = (this._alignOffsetDeg || 0) + deg;
+      this._forceRebuildPaths = true;
+      if (this.showAllPaths) this.renderAllPaths();
+      if (this.target) this.updateRoute(true);
     },
     // Pauses only OUR OWN distance-tracking GPS watch (used for the 2D
     // card). AR.js's own internal gps-new-camera tracking for the 3D

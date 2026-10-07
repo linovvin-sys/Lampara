@@ -1,4 +1,7 @@
-<?php $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css'); ?>
+<?php
+$cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
+$themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -11,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide.css">

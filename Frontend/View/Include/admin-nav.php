@@ -17,14 +17,9 @@ $navItems = [
         'icon'  => '<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
     ],
     'manage-buildings' => [
-        'label' => 'Manage Buildings',
-        'href'  => 'manage-buildings.php',
+        'label' => 'Buildings',
+        'href'  => 'buildings.php',
         'icon'  => '<rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/>',
-    ],
-    'register-building' => [
-        'label' => 'Register Building',
-        'href'  => 'register-building.php',
-        'icon'  => '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/>',
     ],
     'floor-calibration' => [
         'label' => 'Floor Calibration',
@@ -35,11 +30,6 @@ $navItems = [
         'label' => 'Campus Paths',
         'href'  => 'campus-paths.php',
         'icon'  => '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 17c4-1 2-6 5-8s3-2 3-2"/>',
-    ],
-    'register-room' => [
-        'label' => 'Register Room',
-        'href'  => 'register-room.php',
-        'icon'  => '<path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16"/><path d="M4 21h16M9 12v.01"/>',
     ],
     'test-chat' => [
         'label' => 'Test Chat',

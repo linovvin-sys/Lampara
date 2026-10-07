@@ -1,4 +1,5 @@
 <?php
+$themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'test-chat';
 $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
@@ -14,6 +15,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/test-chat.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>

@@ -18,7 +18,7 @@
 
 /* Leaflet divIcon markers for walkway points. */
 .cp-node { width: 16px; height: 16px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); box-sizing: border-box; }
-.cp-node.junction { background: #16a34a; }
+.cp-node.junction { background: var(--blue-600, #1a4fc4); }
 .cp-node.gate { background: #0369a1; }
 .cp-node.entrance { background: #f59e0b; }
 .cp-node.is-selected { box-shadow: 0 0 0 3px #dc2626; }

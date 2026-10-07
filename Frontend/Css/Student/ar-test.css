@@ -52,4 +52,4 @@ a-scene { position: fixed; inset: 0; z-index: 0; }
   border-radius: 10px;
   line-height: 1.5;
 }
-#status b { color: #4ade80; }
+#status b { color: var(--blue-500, #3566d6); }

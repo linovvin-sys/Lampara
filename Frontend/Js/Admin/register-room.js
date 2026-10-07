@@ -1,3 +1,4 @@
+(function () {
 const { createApp } = Vue;
 
 // "08:00" (native <input type="time"> value) -> "8:00 AM", matching the
@@ -21,7 +22,7 @@ function parse12Hour(s) {
   return `${String(h).padStart(2, '0')}:${m[2]}`;
 }
 
-createApp({
+window.LamparaRoomApp = createApp({
   data() {
     return {
       form: {
@@ -381,4 +382,5 @@ createApp({
       }
     }
   }
-}).mount('#app');
+}).mount('#room-app');
+})();

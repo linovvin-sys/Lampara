@@ -25,7 +25,7 @@ const AdminOffline = (() => {
   const POLL_MS = 20000;
 
   const API = new URL('../../../Backend/api/', location.href).href;
-  const ADMIN_PAGES = ['dashboard.php', 'manage-buildings.php', 'register-building.php', 'register-room.php', 'campus-paths.php', 'floor-calibration.php', 'test-chat.php'];
+  const ADMIN_PAGES = ['dashboard.php', 'buildings.php', 'campus-paths.php', 'floor-calibration.php', 'test-chat.php'];
 
   // ---------- small helpers ----------
   const same = (a, b) => a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b);

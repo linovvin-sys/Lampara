@@ -1,4 +1,5 @@
 <?php
+$themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'campus-paths';
 $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
@@ -16,6 +17,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/campus-paths.css?v=<?= $pageCssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/editor-tools.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/editor-tools.css') ?>">
@@ -23,6 +25,23 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+  .qr-print-canvas { display: inline-block; padding: 1rem; background: #fff; border-radius: 0.75rem; }
+  .qr-print-canvas img, .qr-print-canvas canvas { display: block; }
+  .modal-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 1.25rem; visibility: hidden; pointer-events: none; }
+  .modal-overlay.is-open { visibility: visible; pointer-events: auto; }
+  .modal-backdrop { position: absolute; inset: 0; background: rgba(16, 24, 56, 0.45); backdrop-filter: blur(3px); opacity: 0; transition: opacity 220ms ease; }
+  .modal-overlay.is-open .modal-backdrop { opacity: 1; }
+  .modal-sheet { position: relative; background: #fff; border-radius: 1.25rem; box-shadow: 0 30px 60px -20px rgba(16,24,56,0.4); width: 100%; max-width: 24rem; display: flex; flex-direction: column; opacity: 0; transform: scale(0.95) translateY(6px); transition: opacity 200ms ease, transform 200ms ease; }
+  .modal-overlay.is-open .modal-sheet { opacity: 1; transform: scale(1) translateY(0); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line, #e2e6f1); }
+  .modal-head h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+  .modal-close { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 999px; border: 0; background: none; color: var(--muted, #5b6b79); cursor: pointer; }
+  .modal-close:hover { background: var(--blue-50, #f0f5fe); }
+  .modal-body { padding: 1.25rem; }
+  .modal-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--line, #e2e6f1); display: flex; justify-content: flex-end; }
+</style>
 </head>
 <body class="admin-body">
 
@@ -113,6 +132,29 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             </div>
           </div>
 
+          <!-- One AR anchor for the whole outdoor campus graph (not per
+               building, not per point) — scanned once when the outdoor AR
+               guide starts, to fix the exact starting position instead of
+               trusting GPS alone near buildings. -->
+          <div class="tinted-card" style="padding:0.9rem 1rem;">
+            <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.3rem;">Outdoor AR anchor</p>
+            <template v-if="campusAnchor">
+              <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">Set at <strong>{{ campusAnchor.label || 'this point' }}</strong>.</p>
+              <div style="display:flex; gap:0.5rem;">
+                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" @click="showCampusQr">View / print</button>
+                <button type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" @click="removeCampusQr">Remove</button>
+              </div>
+            </template>
+            <template v-else>
+              <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">
+                None yet. Select a point on the map (ideally the main gate or a prominent entrance), then set it as the campus's one AR anchor.
+              </p>
+              <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" :disabled="selectedId === null || qrBusy" @click="setCampusQr">
+                {{ qrBusy ? 'Generating…' : (selectedId === null ? 'Select a point first' : 'Set selected point as AR anchor') }}
+              </button>
+            </template>
+          </div>
+
           <div class="card">
             <div class="pts-head">
               <h3 class="side-title">Points ({{ pointList.length }})</h3>
@@ -148,6 +190,29 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
           </div>
         </div>
       </div>
+
+      <teleport to="body">
+        <div class="modal-overlay" :class="{ 'is-open': showingCampusQr }" :aria-hidden="!showingCampusQr">
+          <div class="modal-backdrop" @click="showingCampusQr = false"></div>
+          <div class="modal-sheet" style="text-align:center;" role="dialog" aria-modal="true" aria-label="Outdoor AR anchor QR">
+            <div class="modal-head">
+              <h3>Outdoor AR anchor</h3>
+              <button type="button" class="modal-close" @click="showingCampusQr = false" aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:0.9rem;">
+              <div class="qr-print-canvas" ref="qrCanvas"></div>
+              <p style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0;">
+                Print this and post it at <strong>{{ campusAnchor ? (campusAnchor.label || 'this spot') : '' }}</strong>. Scanning it when starting the outdoor AR guide sets the exact starting anchor instead of relying on GPS alone.
+              </p>
+            </div>
+            <div class="modal-foot">
+              <button type="button" class="btn btn-primary" @click="showingCampusQr = false">Done</button>
+            </div>
+          </div>
+        </div>
+      </teleport>
 
     </div>
   </main>

@@ -1,7 +1,8 @@
+(function () {
 const { createApp } = Vue;
 const COLORS = ['#22c55e', '#16a34a', '#15803d', '#86efac', '#65a30d', '#14532d'];
 
-createApp({
+window.LamparaListApp = createApp({
   data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [] }; },
   computed: {
     filtered() {
@@ -86,4 +87,5 @@ createApp({
       return months === 1 ? '1 month ago' : months + ' months ago';
     }
   }
-}).mount('#app');
+}).mount('#list-app');
+})();

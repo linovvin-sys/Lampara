@@ -1,4 +1,5 @@
 <?php
+$themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/indoor-ar.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/indoor-ar.js');
 $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
@@ -22,6 +23,8 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 <script src="../../assets/vendor/threex-device-orientation-controls.js"></script>
 <script src="../../assets/vendor/aframe-ar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Student/indoor-ar.css?v=<?= $pageCssVer ?>">
 </head>
 <body>
@@ -52,6 +55,17 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
       <button class="ia-btn ia-btn-light" @click="goBack">Back to the map</button>
     </div>
 
+    <div v-else-if="scanningAnchor" class="ia-center ia-card-dark">
+      <h1>Scan this floor's QR</h1>
+      <p class="ia-muted">Point the camera at the QR code posted on {{ segFloors[0] }} — this sets your exact starting spot.</p>
+      <div style="position:relative; width:100%; max-width:22rem; border-radius:1rem; overflow:hidden; margin:0.5rem 0;">
+        <video ref="anchorVideo" autoplay playsinline muted style="width:100%; display:block;"></video>
+      </div>
+      <p v-if="anchorScanError" class="ia-muted" style="color:#fca5a5;">{{ anchorScanError }}</p>
+      <button class="ia-link" @click="stopAnchorScan">Cancel</button>
+      <button class="ia-link" @click="skipAnchorScan">Skip — start without scanning</button>
+    </div>
+
     <div v-else class="ia-center ia-card-dark">
       <div class="ia-logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#fff"/></svg></div>
       <h1>Walk to {{ toRoom.room_name }}</h1>
@@ -60,8 +74,9 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
         &middot; {{ segFloors.length > 1 ? segFloors.length + ' floors' : segFloors[0] }}
         &middot; about {{ totalMeters }} m
       </p>
-      <p class="ia-note">Stand at the sign you scanned, hold the phone up, and walk. The green path shows the way.</p>
-      <button class="ia-btn ia-btn-green" @click="begin">Start AR guide</button>
+      <p v-if="floorAnchor && !anchorScanned" class="ia-note">This floor has a posted QR code — scanning it sets your exact starting spot instead of guessing from the camera.</p>
+      <p v-else class="ia-note">Stand at the sign you scanned, hold the phone up, and walk. The green path shows the way.</p>
+      <button class="ia-btn ia-btn-green" @click="begin">{{ floorAnchor && !anchorScanned ? 'Scan QR to begin' : 'Start AR guide' }}</button>
       <button class="ia-link" @click="goBack">Cancel</button>
     </div>
   </div>

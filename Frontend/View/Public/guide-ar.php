@@ -1,4 +1,5 @@
 <?php
+$themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Public/guide-ar.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Public/guide-ar.js');
@@ -16,11 +17,13 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 <script src="../../assets/vendor/threex-device-orientation-controls.js"></script>
 <script src="../../assets/vendor/aframe-ar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide-ar.css?v=<?= $pageCssVer ?>">
 </head>
 <body class="bg-black">
@@ -63,6 +66,20 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       <div v-if="checking" class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow lamp-breathe">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
       </div>
+      <!-- Scanning the campus's one posted anchor QR, if it has one — fixes
+           the exact starting position before AR.js ever mounts, instead of
+           trusting GPS's first fix alone (which can be a few meters off
+           near buildings). -->
+      <div v-else-if="scanningAnchor" class="text-center max-w-sm px-6">
+        <h1 class="gate-heading text-white text-xl font-bold mb-2">Scan the campus QR</h1>
+        <p class="gate-desc text-white/60 text-sm mb-4">Point the camera at the posted anchor code — this sets your exact starting spot.</p>
+        <div class="relative w-full rounded-2xl overflow-hidden mb-4">
+          <video ref="anchorVideo" autoplay playsinline muted class="w-full block"></video>
+        </div>
+        <p v-if="anchorScanError" class="text-red-400 text-xs mb-3">{{ anchorScanError }}</p>
+        <button @click="stopAnchorScan" class="press text-white/60 text-xs underline block mx-auto mb-2">Cancel</button>
+        <button @click="skipAnchorScan" class="press text-white/60 text-xs underline block mx-auto">Skip — start without scanning</button>
+      </div>
       <div v-else-if="quickStart" class="text-center">
         <button @click="start" class="gate-icon press w-16 h-16 mx-auto rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -100,6 +117,15 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <span class="text-xs font-medium text-white">{{ !locationOn ? 'Distance off' : (!statusOk ? 'GPS + Compass' : (headingInit ? 'GPS + Compass' : 'GPS ready · Compass…')) }}</span>
       </button>
       <button @click="runArDebug" class="press bg-emerald-500 text-zinc-900 text-xs font-bold rounded-full px-3 py-1.5">AR debug</button>
+      <!-- Compass drift makes the whole GPS-placed world (path, buildings)
+           visually rotated relative to the real street — this lets you
+           twist it back by eye instead of trusting the same sensor that's
+           drifting. -->
+      <div class="pointer-events-auto flex items-center gap-1 bg-white/10 border border-white/15 rounded-full px-1 py-1">
+        <button @click="rotateWorld(-5)" class="press text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center">&#8634;</button>
+        <span class="text-xs text-white/60 px-0.5">Align path</span>
+        <button @click="rotateWorld(5)" class="press text-white text-xs font-bold rounded-full w-7 h-7 flex items-center justify-center">&#8635;</button>
+      </div>
     </div>
     <a href="../Student/manual-search.php" class="self-start pointer-events-auto flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 8.7a9.9 9.9 0 0 1 10.9 2M5 12a9.9 9.9 0 0 1 3-2.2M12 19.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM8.8 15.2a5.5 5.5 0 0 1 6.6.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>

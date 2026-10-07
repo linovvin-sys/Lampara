@@ -1,26 +1,22 @@
 /* Lampara admin — shared design system. Mobile-first: a sticky top bar with
    horizontally-scrolling nav pills; a real left sidebar takes over on desktop.
-   Same bright all-green palette as the public landing + login pages — a moss
-   (yellow-leaning green) shade is used only where a warning needs to read
-   differently from the primary green (stale buildings, open flags). */
+   School blue/yellow/white palette — the token NAMES below stayed the same
+   (--green-*, --moss-*) so every one of the 21 usages across this file keeps
+   working untouched; only the VALUES changed, to theme.css's blue (primary)
+   and yellow (the existing "amber" warning role, which already wanted a
+   yellow-leaning color before this retheme). */
 
 :root {
-  --green-50:  #f0fdf4;
-  --green-100: #dcfce7;
-  --green-200: #bbf7d0;
-  --green-500: #22c55e;
-  --green-600: #16a34a;
-  --green-700: #15803d;
-  --green-800: #14532d;
-  --moss-100:  #ecfccb;
-  --moss-500:  #65a30d;
-  --red-50:    #fef2f2;
+  --green-50:  var(--blue-50);
+  --green-100: var(--blue-100);
+  --green-200: var(--blue-100);
+  --green-500: var(--blue-500);
+  --green-600: var(--blue-600);
+  --green-700: var(--blue-700);
+  --green-800: var(--blue-900);
+  --moss-100:  var(--yellow-100);
+  --moss-500:  var(--yellow-700);
   --red-200:   #fecaca;
-  --red-600:   #b91c1c;
-  --ink:       #14251c;
-  --muted:     #5b6b63;
-  --line:      #e3ede6;
-  --bg:        #f8faf7;
 }
 
 * { box-sizing: border-box; }

@@ -1,24 +1,21 @@
 :root {
-  --green-50:  #f0fdf4;
-  --green-100: #dcfce7;
-  --green-500: #22c55e;
-  --green-600: #16a34a;
-  --green-700: #15803d;
-  --moss-100:  #ecfccb;
-  --moss-500:  #65a30d;
-  --ink:       #14251c;
-  --muted:     #5b6b63;
-  --line:      #e3ede6;
+  --green-50:  var(--blue-50);
+  --green-100: var(--blue-100);
+  --green-500: var(--blue-500);
+  --green-600: var(--blue-600);
+  --green-700: var(--blue-700);
+  --moss-100:  var(--yellow-100);
+  --moss-500:  var(--yellow-700);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 #camera-feed { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
-.lamp-glow { filter: drop-shadow(0 0 18px rgba(16, 185, 129, 0.55)); }
-/* The precompiled tailwind.css bundle has no emerald border utilities (it
+.lamp-glow { filter: drop-shadow(0 0 18px rgba(26, 79, 196, 0.55)); }
+/* The precompiled tailwind.css bundle has no brand-blue border utilities (it
    only ships classes other pages already used) — defined directly here
    instead of pulling in the Tailwind build step. */
-.scan-ring { border-color: #22c55e; }
-.scan-input:focus { outline: none; border-color: #22c55e; }
+.scan-ring { border-color: var(--green-500); }
+.scan-input:focus { outline: none; border-color: var(--green-500); }
 .pointer-events-auto { pointer-events: auto; }
 
 /* ---- Stage 2: result screen (full card-based redesign) ---- */

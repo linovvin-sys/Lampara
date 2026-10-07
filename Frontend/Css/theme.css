@@ -1,0 +1,36 @@
+/* Lampara — shared brand theme (blue / yellow / white).
+   Linked on every page, before that page's own stylesheet, so any rule in
+   any Admin/Student/Public CSS file can reference these instead of a
+   hardcoded hex. Defined once here — change a shade in one place and it
+   updates everywhere. */
+:root {
+  /* Primary blue — headers, nav, primary buttons, links */
+  --blue-900: #0b2559;
+  --blue-700: #123a8f;
+  --blue-600: #1a4fc4;
+  --blue-500: #3566d6;
+  --blue-100: #dbe6fb;
+  --blue-50:  #f0f5fe;
+
+  /* Accent yellow — highlights, active states, badges, CTAs */
+  --yellow-700: #a66400;
+  --yellow-600: #d99400;
+  --yellow-500: #f5b400;
+  --yellow-400: #ffca33;
+  --yellow-100: #fef0c7;
+  --yellow-50:  #fffaeb;
+
+  /* White / off-white — backgrounds, cards, text-on-blue */
+  --white:     #ffffff;
+  --off-white: #f6f8fd;
+
+  /* Neutral text/borders — blue-tinted, not green-tinted, to read as one family */
+  --ink:   #16213d;
+  --muted: #5b6579;
+  --line:  #e2e6f1;
+  --bg:    #f6f8fd;
+
+  /* Unrelated to the brand palette — kept distinct so destructive actions never read as "just another accent" */
+  --red-600: #dc2626;
+  --red-50:  #fef2f2;
+}

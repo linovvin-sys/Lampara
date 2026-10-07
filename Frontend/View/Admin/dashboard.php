@@ -1,4 +1,5 @@
 <?php
+$themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'dashboard';
 $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
@@ -14,6 +15,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/dashboard.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -33,8 +35,8 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
           <p>A quick look at the campus directory you're maintaining.</p>
         </div>
         <div style="display:flex; gap:0.6rem;">
-          <a href="register-building.php" class="btn btn-secondary">+ Building</a>
-          <a href="register-room.php" class="btn btn-primary">+ Room</a>
+          <a href="buildings.php?tab=add-building" class="btn btn-secondary">+ Building</a>
+          <a href="buildings.php?tab=add-room" class="btn btn-primary">+ Room</a>
         </div>
       </div>
 
@@ -75,7 +77,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
         <div class="card">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem;">
             <h2 class="section-title" style="margin:0;">Recently updated buildings</h2>
-            <a href="manage-buildings.php" class="btn-link" style="font-size:0.75rem; color: var(--green-700);">View all &rarr;</a>
+            <a href="buildings.php" class="btn-link" style="font-size:0.75rem; color: var(--green-700);">View all &rarr;</a>
           </div>
           <div v-if="loading" class="empty-state">Loading…</div>
           <template v-else>
@@ -87,7 +89,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
                 <div style="color: var(--muted); font-size:0.75rem;">{{ b.room_count }} room(s) &middot; {{ b.updated_at ? 'updated ' + timeAgo(b.updated_at) : 'not synced yet' }}</div>
               </div>
               <span v-if="b.open_flags > 0" class="badge badge-amber">{{ b.open_flags }} flag(s)</span>
-              <a :href="'register-building.php?edit=' + b.id" class="btn-link" style="font-size:0.75rem; color: var(--muted); margin-left:0.5rem;">Edit</a>
+              <a :href="'buildings.php?tab=add-building&edit=' + b.id" class="btn-link" style="font-size:0.75rem; color: var(--muted); margin-left:0.5rem;">Edit</a>
             </div>
           </template>
         </div>
