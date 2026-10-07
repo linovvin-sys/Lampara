@@ -454,7 +454,7 @@ createApp({
       root.setAttribute('position', `${end.x} 0.2 ${end.y}`);
 
       const pin = document.createElement('a-entity');
-      pin.setAttribute('animation__bob', 'property: position; dir: alternate; dur: 1200; easing: easeInOutQuad; loop: true; from: 0 1.5 0; to: 0 1.8 0');
+      pin.setAttribute('position', '0 1.6 0'); // still, not bobbing: a moving pin reads as an unstable position
       const cone = document.createElement('a-cone');
       cone.setAttribute('radius-bottom', '0.22');
       cone.setAttribute('radius-top', '0');

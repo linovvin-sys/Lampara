@@ -2,7 +2,7 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: QR pin v4 (fov match)';
+const AR_BUILD = 'AR build: QR pin v5 (static path)';
 
 // The 3D camera must see the same slice of the world as the phone camera, or the paths slide
 // against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
@@ -897,7 +897,7 @@ createApp({
       arrow.setAttribute('position', '0 0.4 0');
       // Slower + a gentler ease (was 650ms, snappy enough to feel like a
       // twitch) reads as a soft, floaty bob instead of a rigid back-and-forth.
-      arrow.setAttribute('animation__bob', 'property: position; dir: alternate; dur: 1400; easing: easeInOutQuad; loop: true; to: 0 0.65 0');
+      // No bobbing: a marker moving up and down reads as an unstable position.
       arrow.setAttribute('animation__spin', 'property: rotation; dur: 4000; easing: linear; loop: true; to: 0 360 0');
 
       const shaft = document.createElement('a-cylinder');

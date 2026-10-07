@@ -14,7 +14,9 @@ const ArRibbon = (() => {
   const GROUND_Y = 0.2;
   const HALF_WIDTH = 0.6;
   const CHEVRON_METERS = 2;   // one chevron per this much path
-  const SCROLL_SPEED = 0.7;   // chevron repeats per second, drifting toward the destination
+  // Chevrons stay still: a scrolling texture made a perfectly still path look like it was
+  // sliding. Set above 0 (chevron repeats per second) to bring the drift back.
+  const SCROLL_SPEED = 0;
 
   // Chevron pattern, tileable along the path. Canvas top = +v = walking direction.
   function createTexture() {
@@ -108,7 +110,7 @@ const ArRibbon = (() => {
           const mesh = new THREE.Mesh(geo, material);
           mesh.frustumCulled = false; // geometry is rebuilt in world space; skip stale bounding-sphere culling
           const entity = document.createElement('a-entity');
-          entity.setAttribute('ribbon-scroll', '');
+          if (SCROLL_SPEED) entity.setAttribute('ribbon-scroll', '');
           entity.__ribbonTexture = texture;
           entity.setObject3D('mesh', mesh);
           scene.appendChild(entity);
