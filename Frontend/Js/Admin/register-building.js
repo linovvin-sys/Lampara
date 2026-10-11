@@ -24,6 +24,8 @@ function haversineMeters(a, b) {
 window.LamparaBuildingApp = createApp({
   data() {
     return {
+      snap: '',            // the form as last saved / loaded: anything different counts as an unsaved change
+      loaded: false,       // first list of buildings has arrived (until then the side list shows a skeleton)
       form: { name: '', lat: '', lng: '', floor_count: 1, building_number: null, directory: '' },
       baseBuildings: [],   // last data from the server
       buildings: [],       // server data + changes made offline (shown on the page)
@@ -86,6 +88,10 @@ window.LamparaBuildingApp = createApp({
         return { id: n.id, name: label(n.id), short: PointNames.short(label(n.id)), links };
       }).sort((a, b) => PointNames.compare(a.name, b.name));
     },
+    // What counts as the admin's edits (every field of the form).
+    dirtyView() { return this.form; },
+    dirty() { return JSON.stringify(this.dirtyView) !== this.snap; },
+    hasPin() { return isFinite(parseFloat(this.form.lat)) && isFinite(parseFloat(this.form.lng)); },
     nearbyWarnings() {
       const lat = parseFloat(this.form.lat), lng = parseFloat(this.form.lng);
       if (!isFinite(lat) || !isFinite(lng)) return [];
@@ -98,6 +104,10 @@ window.LamparaBuildingApp = createApp({
     }
   },
   watch: {
+    // Keep the pin on the map in step with the coordinates (typed, captured, loaded for editing or cleared).
+    'form.lat'() { this.syncPin(); },
+    'form.lng'() { this.syncPin(); },
+    buildings() { this.drawOtherBuildings(); },
     // The Name field follows whichever point is selected.
     selectedNodeId(id) {
       this.pathNameDraft = id === null ? '' : (this.pathNames.get(String(id)) || '');
@@ -114,6 +124,10 @@ window.LamparaBuildingApp = createApp({
     }
   },
   async mounted() {
+    this.markClean();
+    // Closing or reloading the tab with unsaved edits asks first (the browser shows its own message).
+    window.addEventListener('beforeunload', (e) => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
+    this.$nextTick(() => this.initPickMap());
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.showingFloorQr) this.showingFloorQr = false;
     });
@@ -127,6 +141,108 @@ window.LamparaBuildingApp = createApp({
     }
   },
   methods: {
+    // True when it is OK to throw away what is on the form (nothing changed, or the admin agreed).
+    async confirmDiscard() {
+      if (!this.dirty) return true;
+      const r = await Swal.fire({
+        icon: 'warning', title: 'Discard your changes?', text: 'You have unsaved changes on this form.',
+        showCancelButton: true, confirmButtonText: 'Discard', cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#ff0000', cancelButtonColor: '#55556b', reverseButtons: true
+      });
+      return r.isConfirmed;
+    },
+    markClean() { this.snap = JSON.stringify(this.dirtyView); },
+    async tryEdit(b) {
+      if (this.editingId === b.id) return;
+      if (!(await this.confirmDiscard())) return;
+      this.startEdit(b);
+    },
+    async tryCancel() {
+      if (!(await this.confirmDiscard())) return;
+      this.cancelEdit();
+    },
+    // ---- pin-on-a-map picker ----
+    initPickMap() {
+      const el = this.$refs.pickMap;
+      if (!el || this._pickMap || typeof L === 'undefined') return;
+      const map = L.map(el, CampusBounds.mapOptions({ zoomControl: true })).setView([14.3283, 120.9372], 18);
+      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
+      });
+      const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
+      });
+      sat.addTo(map);
+      L.control.layers({ Satellite: sat, Streets: osm }, null, { position: 'topright' }).addTo(map);
+      this._pickOthers = L.layerGroup().addTo(map);
+      map.on('click', (e) => this.setPin(e.latlng.lat, e.latlng.lng));
+      this._pickMap = map;
+      // The form lives in a tab that starts hidden: re-measure whenever the map becomes visible or resizes,
+      // and centre it properly the first time it has a real size.
+      if (typeof ResizeObserver !== 'undefined') {
+        this._pickRO = new ResizeObserver(() => {
+          if (!el.clientWidth) return;
+          map.invalidateSize();
+          if (!this._pickCentred) { this._pickCentred = true; this.centrePick(); }
+        });
+        this._pickRO.observe(el);
+      }
+      this.drawOtherBuildings();
+      this.syncPin();
+    },
+    // Already-registered buildings, shown small and grey so a new pin can be placed relative to them.
+    drawOtherBuildings() {
+      if (!this._pickOthers) return;
+      this._pickOthers.clearLayers();
+      this.buildings.filter((b) => b.id !== this.editingId).forEach((b) => {
+        const lat = parseFloat(b.lat), lng = parseFloat(b.lng);
+        if (!isFinite(lat) || !isFinite(lng)) return;
+        L.circleMarker([lat, lng], { radius: 6, weight: 2, color: '#fff', fillColor: '#64748b', fillOpacity: 0.95, interactive: true })
+          .bindTooltip(b.name, { direction: 'top', offset: [0, -6] }).addTo(this._pickOthers);
+      });
+    },
+    centrePick() {
+      const map = this._pickMap;
+      if (!map) return;
+      const lat = parseFloat(this.form.lat), lng = parseFloat(this.form.lng);
+      if (isFinite(lat) && isFinite(lng)) { map.setView([lat, lng], Math.max(map.getZoom(), 18)); return; }
+      const pts = this.buildings.map((b) => [parseFloat(b.lat), parseFloat(b.lng)]).filter((p) => isFinite(p[0]) && isFinite(p[1]));
+      if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.4), { maxZoom: 18 });
+    },
+    // Takes the pin off the map again (a mis-tap, or to start over). Saving needs a new pin afterwards.
+    clearPin() {
+      this.form.lat = '';
+      this.form.lng = '';
+      this.geoStatus = '';
+    },
+    setPin(lat, lng) {
+      if (!CampusBounds.contains(lat, lng)) {
+        AdminOffline.toast('That spot is outside the campus area. Pin the building inside the school grounds.', 'info');
+        this.syncPin();
+        return;
+      }
+      this.form.lat = lat.toFixed(6);
+      this.form.lng = lng.toFixed(6);
+      this.geoStatus = '';
+    },
+    syncPin() {
+      const map = this._pickMap;
+      if (!map) return;
+      const lat = parseFloat(this.form.lat), lng = parseFloat(this.form.lng);
+      if (!isFinite(lat) || !isFinite(lng)) {
+        if (this._pickMarker) { map.removeLayer(this._pickMarker); this._pickMarker = null; }
+        return;
+      }
+      if (!this._pickMarker) {
+        const icon = L.divIcon({ className: 'pick-pin', html: '<span></span>', iconSize: [30, 38], iconAnchor: [15, 36] });
+        this._pickMarker = L.marker([lat, lng], { icon, draggable: true, autoPan: true }).addTo(map);
+        this._pickMarker.on('dragend', () => { const p = this._pickMarker.getLatLng(); this.setPin(p.lat, p.lng); });
+      } else {
+        const cur = this._pickMarker.getLatLng();
+        if (Math.abs(cur.lat - lat) > 1e-7 || Math.abs(cur.lng - lng) > 1e-7) this._pickMarker.setLatLng([lat, lng]);
+      }
+      if (map.getContainer().clientWidth && !map.getBounds().contains([lat, lng])) map.panTo([lat, lng]);
+    },
     captureLocation() {
       if (!navigator.geolocation) {
         this.geoStatus = 'Geolocation not supported by this browser.';
@@ -137,9 +253,15 @@ window.LamparaBuildingApp = createApp({
       this.geoError = false;
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          if (!CampusBounds.contains(pos.coords.latitude, pos.coords.longitude)) {
+            this.geoStatus = 'Your location is outside the campus area, so it was not used. Tap the map to pin the building instead.';
+            this.geoError = true;
+            return;
+          }
           this.form.lat = pos.coords.latitude.toFixed(6);
           this.form.lng = pos.coords.longitude.toFixed(6);
-          this.geoStatus = `Captured (±${Math.round(pos.coords.accuracy)}m accuracy)`;
+          if (this._pickMap) this._pickMap.setView([pos.coords.latitude, pos.coords.longitude], Math.max(this._pickMap.getZoom(), 19));
+          this.geoStatus = `Captured (±${Math.round(pos.coords.accuracy)}m accuracy). Drag the pin if it is off.`;
           this.geoError = false;
         },
         (err) => { this.geoStatus = 'Location denied or unavailable: ' + err.message; this.geoError = true; },
@@ -153,11 +275,19 @@ window.LamparaBuildingApp = createApp({
         if (data.success) this.baseBuildings = data.buildings;
       } catch (e) { /* offline with no saved copy — start from whatever is pending */ }
       this.buildings = AdminOffline.overlayBuildings(this.baseBuildings);
+      this.loaded = true;
     },
     startEdit(b) {
       this.editingId = b.id;
       this.form = { name: b.name, lat: String(b.lat), lng: String(b.lng), floor_count: b.floor_count || 1, building_number: b.building_number, directory: b.directory || '' };
       this.geoStatus = '';
+      this.drawOtherBuildings();
+      this.$nextTick(() => { this.syncPin(); this.centrePick(); });
+      this.markClean();
+      // Forget the previous building's plans straight away. They used to stay on screen (and stay there for good for a
+      // building made offline or whose request failed), so one building's plan looked like it belonged to every other.
+      this.floorPlans = {};
+      this._planLoadFor = b.id;
       if (!AdminOffline.isTemp(b.id)) this.loadFloorPlans(b.id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
@@ -167,16 +297,20 @@ window.LamparaBuildingApp = createApp({
       this.geoStatus = '';
       this.floorPlans = {};
       this.closePathEditor();
+      this.markClean();
     },
     async loadFloorPlans(buildingId) {
+      // A slow answer for a building you have already left must not overwrite the one you are looking at now.
+      const stale = () => this._planLoadFor !== buildingId || this.editingId !== buildingId;
       try {
         const res = await fetch('../../../Backend/api/floor-plans.php?building_id=' + buildingId, { credentials: 'same-origin' });
         const data = await res.json();
-        if (!data.success) return;
+        if (stale()) return;
+        if (!data.success) { this.floorPlans = {}; return; }
         const byFloor = {};
         data.plans.forEach((p) => { byFloor[p.floor] = p; });
         this.floorPlans = byFloor;
-      } catch (e) { this.floorPlans = {}; } // offline and never opened: floor plans unavailable
+      } catch (e) { if (!stale()) this.floorPlans = {}; } // offline and never opened: floor plans unavailable
     },
     // ---- lock ----
     toggleLock() {
@@ -227,6 +361,10 @@ window.LamparaBuildingApp = createApp({
       event.target.value = ''; // lets picking the same file again re-trigger change
       if (!file) return;
       if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Uploading a floor plan'); return; }
+      // The building is fixed NOW, when the file is picked, not when it has finished reading: switching to another
+      // building in between used to send the plan to that other building.
+      const buildingId = this.editingId;
+      if (!buildingId || AdminOffline.isTemp(buildingId)) { AdminOffline.toast('Save the building first, then upload its floor plans.', 'info'); return; }
       this.uploadingFloor = floor;
       const reader = new FileReader();
       reader.onload = async () => {
@@ -234,11 +372,12 @@ window.LamparaBuildingApp = createApp({
           const res = await fetch('../../../Backend/api/floor-plans.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ building_id: this.editingId, floor, image: reader.result })
+            body: JSON.stringify({ building_id: buildingId, floor, image: reader.result })
           });
           const data = await res.json();
           if (data.success) {
-            this.floorPlans = { ...this.floorPlans, [floor]: { id: data.id, image_path: data.image_path } };
+            // only show it if that building is still the one on screen
+            if (this.editingId === buildingId) this.floorPlans = { ...this.floorPlans, [floor]: { id: data.id, image_path: data.image_path } };
           } else {
             Swal.fire({ icon: 'error', title: 'Upload failed', text: data.error || 'unknown' });
           }
@@ -314,7 +453,7 @@ window.LamparaBuildingApp = createApp({
       const result = await Swal.fire({
         title: "Remove this floor's AR anchor?",
         text: 'The printed sign will stop working, and the AR guide will fall back to starting without a scanned anchor.',
-        icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#dc2626'
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000'
       });
       if (!result.isConfirmed) return;
       await fetch('../../../Backend/api/qr-anchors.php?id=' + this.floorQrAnchor.id, { method: 'DELETE' });
@@ -440,7 +579,7 @@ window.LamparaBuildingApp = createApp({
       const r = await Swal.fire({
         icon: 'warning', title: `Remove all ${count} points on ${this.pathEditorFloor}?`,
         text: 'Every connection is removed too, including stairs links to other floors, and rooms lose their entry point. You can undo it right afterwards.',
-        showCancelButton: true, confirmButtonText: 'Remove all', confirmButtonColor: '#dc2626'
+        showCancelButton: true, confirmButtonText: 'Remove all', confirmButtonColor: '#ff0000'
       });
       if (!r.isConfirmed) return;
       const res = await fetch('../../../Backend/api/floor-plan-graph.php?floor_plan_id=' + plan.id + '&all=1', { method: 'DELETE' });
@@ -549,7 +688,7 @@ window.LamparaBuildingApp = createApp({
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Remove',
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ff0000',
         cancelButtonColor: '#6b7280'
       });
       if (!result.isConfirmed) return;
@@ -569,6 +708,10 @@ window.LamparaBuildingApp = createApp({
     // Saves to the server when it's reachable; otherwise keeps the change on this
     // device (AdminOffline) to be synced later with the admin's approval.
     async submitBuilding() {
+      if (!this.hasPin) {
+        Swal.fire({ icon: 'info', title: 'Pin the building', text: 'Tap the map to drop a pin where this building is, then save.' });
+        return;
+      }
       this.submitting = true;
       const fields = {
         name: this.form.name, lat: parseFloat(this.form.lat), lng: parseFloat(this.form.lng),
@@ -603,7 +746,7 @@ window.LamparaBuildingApp = createApp({
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Delete',
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ff0000',
         cancelButtonColor: '#6b7280'
       });
       if (!result.isConfirmed) return;

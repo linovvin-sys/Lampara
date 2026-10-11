@@ -29,7 +29,7 @@ createApp({
       distance: null,          // real meters between A and B
       bearing: null,           // real compass bearing (deg) walking A -> B
       compassOn: false, liveHeading: null,
-      saving: false,
+      saving: false, suggesting: false, suggestNote: '', justSaved: false,
       // Lock: while on, taps on the plan can't place, replace or clear the two points.
       // "Measure it for me": walk from A to B (steps + compass) or mark A and B with GPS.
       measure: 'walk',         // 'walk' | 'gps'
@@ -43,6 +43,17 @@ createApp({
   },
   computed: {
     plan() { return this.plans.find((p) => String(p.id) === String(this.planId)) || null; },
+    // What is still missing before Save works, in plain words.
+    missing() {
+      const m = [];
+      if (this.pts.length < 2) m.push('two points on the plan (A and B)');
+      if (!(this.distance > 0)) m.push('the real distance');
+      if (this.bearing === null || this.bearing === '') m.push('the compass direction');
+      return m;
+    },
+    calibratedCount() { return this.plans.filter((p) => this.isCalibrated(p)).length; },
+    // The next floor of this building that still needs calibrating (not the one being edited).
+    nextPlan() { return this.plans.find((p) => !this.isCalibrated(p) && String(p.id) !== String(this.planId)) || null; },
     // The side list: the two points, named like everywhere else (Point A, Point B).
     pointList() {
       return this.pts.map((p, i) => ({ i, name: 'Point ' + PointNames.label(i), short: PointNames.label(i), x: p.x, y: p.y }));
@@ -72,6 +83,13 @@ createApp({
     AdminOffline.onSynced(async () => { await this.loadBuildings(); await this.loadPlans(true); });
     AdminOffline.onChange(() => { this.buildings = AdminOffline.overlayBuildings(this.baseBuildings); this.plans = AdminOffline.overlayPlans(this.basePlans); });
     await this.loadBuildings();
+    // Come back to where you left off: the same building and floor as last time, if they still exist.
+    const lastB = safeGet('lampara_cal_building'), lastP = safeGet('lampara_cal_plan');
+    if (lastB && this.buildings.some((b) => String(b.id) === lastB)) {
+      this.buildingId = Number(lastB) || lastB;
+      await this.loadPlans();
+      if (lastP && this.plans.some((p) => String(p.id) === lastP)) { this.planId = Number(lastP) || lastP; this.pickPlan(); }
+    }
   },
   beforeUnmount() { this.stopCompass(); this.stopSteps(); },
   methods: {
@@ -106,7 +124,18 @@ createApp({
       this.plans = AdminOffline.overlayPlans(this.basePlans);
       if (keep) this.planId = keep;
     },
-    pickPlan() { this.resetInputs(); },
+    pickPlan() {
+      this.resetInputs();
+      this.justSaved = false; this.suggestNote = '';
+      safeSet('lampara_cal_building', String(this.buildingId || ''));
+      safeSet('lampara_cal_plan', String(this.planId || ''));
+    },
+    goNext() {
+      if (!this.nextPlan) return;
+      this.planId = this.nextPlan.id;
+      this.pickPlan();
+      this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    },
     resetInputs() {
       this.cancelWalk();
       this.gps = { a: null, b: null }; this.gpsNote = ''; this.walkNote = '';
@@ -157,6 +186,61 @@ createApp({
       if (!this.undoPts) return;
       this.pts = this.undoPts;
       this.undoPts = null;
+    },
+    // Finds the longest straight run of the drawn walkable path on this floor and puts A and B at its two ends.
+    async suggestHallway() {
+      if (this.locked || !this.plan) return;
+      this.suggesting = true; this.suggestNote = '';
+      try {
+        const res = await fetch(API + 'floor-plan-graph.php?floor_plan_id=' + this.plan.id, { credentials: 'same-origin' });
+        const data = await res.json();
+        const nodes = new Map((data.nodes || []).map((n) => [n.id, n]));
+        const edges = (data.edges || []).filter((e) => nodes.has(e.node_a_id) && nodes.has(e.node_b_id));
+        if (!edges.length) { this.suggestNote = 'This floor has no walkable path drawn yet, so there is nothing to suggest. Tap two points on the plan yourself.'; return; }
+        const W = this.imgSize.w || 1500, H = this.imgSize.h || 1900;       // measure in pixels so a stretched plan doesn't skew angles
+        const pos = (n) => ({ x: Number(n.x) / 100 * W, y: Number(n.y) / 100 * H });
+        const adj = new Map();
+        edges.forEach((e) => {
+          if (!adj.has(e.node_a_id)) adj.set(e.node_a_id, []);
+          if (!adj.has(e.node_b_id)) adj.set(e.node_b_id, []);
+          adj.get(e.node_a_id).push(e.node_b_id); adj.get(e.node_b_id).push(e.node_a_id);
+        });
+        const COS = Math.cos(8 * Math.PI / 180);                              // up to 8 degrees of bend still counts as straight
+        let best = null;
+        const starts = [];
+        edges.forEach((e) => { starts.push([e.node_a_id, e.node_b_id], [e.node_b_id, e.node_a_id]); });
+        for (const [a, b] of starts) {
+          const pa = pos(nodes.get(a)), pb = pos(nodes.get(b));
+          const dx = pb.x - pa.x, dy = pb.y - pa.y, len0 = Math.hypot(dx, dy);
+          if (!len0) continue;
+          const ux = dx / len0, uy = dy / len0;
+          let prev = a, cur = b;
+          for (let guard = 0; guard < 60; guard++) {
+            const pc = pos(nodes.get(cur));
+            let next = null, bestCos = COS;
+            (adj.get(cur) || []).forEach((n) => {
+              if (n === prev) return;
+              const pn = pos(nodes.get(n)), ex = pn.x - pc.x, ey = pn.y - pc.y, l = Math.hypot(ex, ey);
+              if (!l) return;
+              const c = (ex * ux + ey * uy) / l;
+              if (c >= bestCos) { bestCos = c; next = n; }
+            });
+            if (next === null) break;
+            prev = cur; cur = next;
+          }
+          const pe = pos(nodes.get(cur)), len = Math.hypot(pe.x - pa.x, pe.y - pa.y);
+          if (!best || len > best.len) best = { a, end: cur, len };
+        }
+        if (!best || best.len < Math.max(W, H) * 0.08) { this.suggestNote = 'No long straight hallway was found on the path. Tap two points on the plan yourself.'; return; }
+        const na = nodes.get(best.a), nb = nodes.get(best.end);
+        if (this.pts.length) this.undoPts = this.pts.map((q) => ({ ...q }));
+        this.pts = [{ x: Number(na.x), y: Number(na.y) }, { x: Number(nb.x), y: Number(nb.y) }];
+        this.suggestNote = 'Placed A and B at the two ends of the longest straight hallway (about ' + Math.round(best.len / W * 100) + '% of the plan width). Make sure you can walk it, or drag the points or tap your own.';
+      } catch (e) {
+        this.suggestNote = "Couldn't read the walkable path (you may be offline). Tap two points on the plan yourself.";
+      } finally {
+        this.suggesting = false;
+      }
     },
     onImgLoad(e) { this.imgSize = { w: e.target.naturalWidth, h: e.target.naturalHeight }; },
     tapPlan(e) {
@@ -306,9 +390,11 @@ createApp({
         });
         if (out.queued) {
           this.plans = AdminOffline.overlayPlans(this.basePlans);
+          this.justSaved = true;
           Swal.fire({ icon: 'info', title: 'Saved on this device', text: "It will be offered for sync when you're back online.", timer: 2600, showConfirmButton: false });
         } else {
           await this.loadPlans(true); // pick up the new saved values and timestamp
+          this.justSaved = true;
           Swal.fire({ icon: 'success', title: 'Calibration saved', timer: 1400, showConfirmButton: false });
         }
       } catch (e) {

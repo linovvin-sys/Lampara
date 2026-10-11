@@ -17,7 +17,7 @@
 const StudentOffline = (() => {
   const API = new URL('../../../Backend/api/', location.href).href;
   const PAGES = ['../Public/index.php', '../Public/guide.php', '../Public/guide-ar.php',
-                 '../Student/scan.php', '../Student/manual-search.php', '../Student/indoor-ar.php'];
+                 '../Student/scan.php', '../Student/manual-search.php', '../Student/indoor-ar.php', '../Public/map.php'];
   const DATA_FRESH_MS = 60 * 60 * 1000;        // don't re-download the directory more than hourly on page loads
   const PAGES_EVERY_MS = 6 * 60 * 60 * 1000;
   const HEARTBEAT_MS = 30000;
@@ -118,6 +118,20 @@ const StudentOffline = (() => {
         }
       }
 
+      // The static campus maps (2D / 3D): keep their images ready so the Campus Map page opens offline.
+      try {
+        const sm = await getJson('static-maps.php');
+        for (const k of ['2d', '3d']) {
+          const m = sm.maps && sm.maps[k];
+          if (!m) continue;
+          parts.push([k, m.updated_at, m.image_path].join(':'));
+          if (workerKeepsImages) {
+            const mapUrl = new URL('../../' + m.image_path + '?v=' + encodeURIComponent(m.updated_at || ''), location.href).href;
+            if (!(await caches.match(mapUrl))) await fetch(mapUrl).catch(() => {});
+          }
+        }
+      } catch (e) { /* maps are optional: the rest of the directory still saves */ }
+
       const signature = hash(parts.join('|'));
       const previous = getLS(SIG_KEY);
       setLS(SIG_KEY, signature);
@@ -173,7 +187,7 @@ const StudentOffline = (() => {
         font:600 10.5px/1.5 'Outfit',system-ui,sans-serif;letter-spacing:.01em}
       .so-badge[hidden]{display:none}
       .so-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom,0px));z-index:2147483000;
-        max-width:calc(100vw - 2rem);padding:.55rem .95rem;border-radius:999px;background:#14251c;color:#fff;
+        max-width:calc(100vw - 2rem);padding:.55rem .95rem;border-radius:999px;background:#0d0e33;color:#fff;
         font:600 12.5px/1.3 'Outfit',system-ui,sans-serif;box-shadow:0 10px 30px -8px rgba(0,0,0,.5);pointer-events:none}`;
     document.head.appendChild(style);
   }

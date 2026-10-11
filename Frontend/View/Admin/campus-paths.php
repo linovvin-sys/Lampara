@@ -12,18 +12,23 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Campus Paths</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/campus-paths.css?v=<?= $pageCssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/editor-tools.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/editor-tools.css') ?>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
@@ -35,15 +40,16 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
   .modal-overlay.is-open .modal-backdrop { opacity: 1; }
   .modal-sheet { position: relative; background: #fff; border-radius: 1.25rem; box-shadow: 0 30px 60px -20px rgba(16,24,56,0.4); width: 100%; max-width: 24rem; display: flex; flex-direction: column; opacity: 0; transform: scale(0.95) translateY(6px); transition: opacity 200ms ease, transform 200ms ease; }
   .modal-overlay.is-open .modal-sheet { opacity: 1; transform: scale(1) translateY(0); }
-  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line, #e2e6f1); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line, #e3e3f0); }
   .modal-head h3 { margin: 0; font-size: 1rem; font-weight: 700; }
-  .modal-close { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 999px; border: 0; background: none; color: var(--muted, #5b6b79); cursor: pointer; }
-  .modal-close:hover { background: var(--blue-50, #f0f5fe); }
+  .modal-close { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 999px; border: 0; background: none; color: var(--muted, #55556b); cursor: pointer; }
+  .modal-close:hover { background: var(--blue-50, #f1f1fb); }
   .modal-body { padding: 1.25rem; }
-  .modal-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--line, #e2e6f1); display: flex; justify-content: flex-end; }
+  .modal-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--line, #e3e3f0); display: flex; justify-content: flex-end; }
 </style>
 </head>
 <body class="admin-body">
+<script>LamparaSkeleton.show('admin')</script>
 
 <div class="admin-shell">
   <?php include __DIR__ . '/../Include/admin-nav.php'; ?>
@@ -78,6 +84,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             <button type="button" class="btn btn-primary" :disabled="locating || recording || locked" @click="dropHere">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px; margin-right:0.35rem;"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" stroke="currentColor" stroke-width="2"/></svg>
               {{ locating ? 'Locating…' : 'Drop a point here' }}
+            </button>
+            <button type="button" class="btn btn-secondary" :disabled="locating || recording || locked" @click="captureLocation">
+              {{ locating ? 'Locating…' : 'Capture my location' }}
             </button>
             <button type="button" class="btn" :class="recording ? 'btn-rec-on' : 'btn-secondary'" :disabled="locating || locked" @click="toggleWalk">
               <span v-if="recording" class="rec-dot"></span>{{ recording ? 'Stop recording' : 'Record my walk' }}

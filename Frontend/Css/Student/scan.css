@@ -36,7 +36,7 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 }
 .here-pill-text { flex: 1; min-width: 0; font-size: 0.8125rem; color: var(--muted); }
 .here-pill-text strong { color: var(--ink); font-weight: 700; }
-.here-pill-sub { display: block; font-size: 0.75rem; color: #9aa79f; margin-top: 0.1rem; }
+.here-pill-sub { display: block; font-size: 0.75rem; color: #9a9ab0; margin-top: 0.1rem; }
 .here-pill-source { flex-shrink: 0; }
 
 .source-tag {
@@ -46,7 +46,7 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 }
 .source-tag.ai { background: var(--ink); color: #ffffff; }
 .source-tag.ai .dot { width: 0.35rem; height: 0.35rem; border-radius: 999px; background: var(--green-500); }
-.source-tag.manual { background: #eef1ee; color: var(--muted); }
+.source-tag.manual { background: #eeeef5; color: var(--muted); }
 
 .result-heading { text-align: center; margin: 1rem 0 1.25rem; }
 .result-heading h1 { font-size: 1.5rem; font-weight: 800; margin: 0; }
@@ -69,8 +69,8 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
   font-size: 0.75rem; font-weight: 700; border-radius: 0.5rem; padding: 0.3rem 0.6rem;
 }
 .hours-badge .dot { width: 0.35rem; height: 0.35rem; border-radius: 999px; background: var(--green-500); }
-.no-hours { color: #9aa79f; font-size: 0.75rem; font-style: italic; }
-.building-line { color: #9aa79f; font-size: 0.75rem; margin-top: 0.5rem; }
+.no-hours { color: #9a9ab0; font-size: 0.75rem; font-style: italic; }
+.building-line { color: #9a9ab0; font-size: 0.75rem; margin-top: 0.5rem; }
 
 .report-btn {
   display: flex; align-items: center; gap: 0.4rem;
@@ -90,5 +90,5 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 
 .not-found { padding: 3rem 1.5rem 0; text-align: center; }
 .not-found p.primary { color: var(--muted); margin: 0 0 0.25rem; }
-.not-found p.secondary { color: #9aa79f; font-size: 0.75rem; margin: 0 0 1.25rem; }
+.not-found p.secondary { color: #9a9ab0; font-size: 0.75rem; margin: 0 0 1.25rem; }
 .not-found .link-btn { display: block; margin: 0 auto 0.5rem; background: none; border: none; font-family: inherit; cursor: pointer; color: var(--green-700); font-weight: 700; font-size: 0.875rem; }

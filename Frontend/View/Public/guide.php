@@ -8,18 +8,24 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Guide</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="../../assets/icon-192.png">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide.css">
 </head>
 <body class="bg-black">
+<script>LamparaSkeleton.show('guide')</script>
 
 <div id="app" class="relative w-screen h-screen text-white select-none overflow-hidden">
 
@@ -49,16 +55,16 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
     <div v-if="checking || quickStart || !started" class="absolute inset-0 z-30 flex items-center justify-center bg-zinc-950">
       <!-- brief silent check for an already-granted permission — avoids a
            flash of the full gate screen for returning users who'll skip it -->
-      <div v-if="checking" class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow lamp-breathe">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div v-if="checking" class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center lamp-glow lamp-breathe">
+        <img src="../../assets/logo.svg" alt="" width="32" height="32" style="display:block">
       </div>
 
       <!-- returning visitor, permission already granted — one lightweight
            tap (not the full explanation) still gets a real gesture for the
            compass permission request inside start() -->
       <div v-else-if="quickStart" class="text-center">
-        <button @click="start" class="gate-icon press w-16 h-16 mx-auto rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <button @click="start" class="gate-icon press w-16 h-16 mx-auto rounded-2xl bg-white flex items-center justify-center lamp-glow">
+          <img src="../../assets/logo.svg" alt="" width="37" height="37" style="display:block">
         </button>
         <p class="gate-heading text-white/50 text-xs mt-3">Tap to continue</p>
       </div>
@@ -66,8 +72,8 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
       <!-- setup / permission screen — only reached on a genuine first visit,
            or if permission was previously denied/reset -->
       <div v-else class="text-center max-w-sm px-6">
-        <div class="gate-icon w-14 h-14 mx-auto mb-5 rounded-2xl bg-emerald-500 flex items-center justify-center lamp-glow">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div class="gate-icon w-14 h-14 mx-auto mb-5 rounded-2xl bg-white flex items-center justify-center lamp-glow">
+          <img src="../../assets/logo.svg" alt="" width="32" height="32" style="display:block">
         </div>
         <h1 class="gate-heading text-2xl font-bold mb-2">Start Lampara</h1>
         <p class="gate-desc text-white/60 text-sm mb-6 leading-relaxed">Needs camera, location, and compass permission to point you toward nearby registered buildings.</p>
@@ -93,10 +99,16 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
         <span class="text-xs font-medium text-white">{{ !locationOn ? 'Location off' : (!statusOk ? 'GPS + Compass' : (headingInit ? 'GPS + Compass' : 'GPS ready · Compass…')) }}</span>
       </button>
     </div>
-    <a href="../Student/manual-search.php" class="self-start flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 8.7a9.9 9.9 0 0 1 10.9 2M5 12a9.9 9.9 0 0 1 3-2.2M12 19.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM8.8 15.2a5.5 5.5 0 0 1 6.6.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      No signal? Search manually
-    </a>
+    <div class="flex items-center gap-2 flex-wrap ">
+      <a href="../Student/manual-search.php" class="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M8.5 8.7a9.9 9.9 0 0 1 10.9 2M5 12a9.9 9.9 0 0 1 3-2.2M12 19.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6ZM8.8 15.2a5.5 5.5 0 0 1 6.6.1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        No signal? Search manually
+      </a>
+      <a href="map.php" class="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z"/><path d="M9 4v13M15 7v13"/></svg>
+        Campus map
+      </a>
+    </div>
     <div class="flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-3.5 py-2.5">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="flex-shrink-0"><circle cx="10.5" cy="10.5" r="6.5" stroke="#fff" stroke-opacity="0.5" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="#fff" stroke-opacity="0.5" stroke-width="1.8" stroke-linecap="round"/></svg>
       <input v-model="searchQuery" type="text" placeholder="Search a building to get directions…"
@@ -138,7 +150,7 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
   <!-- target building: bouncing arrow + card, promoted once search finds a match -->
   <div v-if="started && locationOn && target" class="absolute top-[36%] -translate-x-1/2 z-10 text-center transition-all duration-300" :style="{ left: 'clamp(140px, ' + target.leftPercent + '%, calc(100% - 140px))' }">
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="mx-auto mb-2 lamp-glow ar-bounce" :style="{ transform: 'rotate(' + (target.offscreen ? (target.offscreen === 'left' ? -90 : 90) : 0) + 'deg)' }">
-      <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#10b981"/>
+      <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#ffd100"/>
     </svg>
     <div class="bg-white text-zinc-900 rounded-2xl px-4 py-3 inline-block shadow-2xl">
       <div class="font-semibold text-base">{{ target.name }}</div>
@@ -177,14 +189,14 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
         </div>
         <transition-group tag="div" name="msg" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm" ref="chatLog">
           <div v-for="(m, i) in chatMessages" :key="i" class="flex items-end gap-2" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div v-if="m.role !== 'user'" class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+            <div v-if="m.role !== 'user'" class="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+              <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
             </div>
             <div class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%] text-left" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></div>
           </div>
           <div v-if="chatLoading" key="typing" class="flex items-end gap-2 justify-start">
-            <div class="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+            <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+              <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
             </div>
             <span class="inline-flex items-center gap-1 bg-zinc-100 rounded-2xl px-4 py-3.5">
               <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>

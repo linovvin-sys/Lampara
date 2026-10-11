@@ -1,36 +1,55 @@
-/* Lampara — shared brand theme (blue / yellow / white).
+/* Lampara — shared brand theme (NCST: dark blue / yellow / red on white).
    Linked on every page, before that page's own stylesheet, so any rule in
    any Admin/Student/Public CSS file can reference these instead of a
    hardcoded hex. Defined once here — change a shade in one place and it
-   updates everywhere. */
+   updates everywhere.
+
+   Brand palette:  Primary #2E3192 · Secondary #FFD100 · Accent #FF0000 · Background #FFFFFF · Text #000000 */
 :root {
-  /* Primary blue — headers, nav, primary buttons, links */
-  --blue-900: #0b2559;
-  --blue-700: #123a8f;
-  --blue-600: #1a4fc4;
-  --blue-500: #3566d6;
-  --blue-100: #dbe6fb;
-  --blue-50:  #f0f5fe;
+  /* Primary — dark blue: headers, nav, primary buttons, links */
+  --primary:  #2e3192;
+  --blue-900: #161850;
+  --blue-700: #23267a;
+  --blue-600: #2e3192;
+  --blue-500: #4a4eb0;
+  --blue-100: #dcddf4;
+  --blue-50:  #f1f1fb;
 
-  /* Accent yellow — highlights, active states, badges, CTAs */
-  --yellow-700: #a66400;
-  --yellow-600: #d99400;
-  --yellow-500: #f5b400;
-  --yellow-400: #ffca33;
-  --yellow-100: #fef0c7;
-  --yellow-50:  #fffaeb;
+  /* Secondary — NCST yellow: highlights, active states, badges, CTAs */
+  --secondary: #ffd100;
+  --yellow-700: #8a6d00;
+  --yellow-600: #d4ab00;
+  --yellow-500: #ffd100;
+  --yellow-400: #ffdc40;
+  --yellow-100: #fff3b8;
+  --yellow-50:  #fffbe3;
 
-  /* White / off-white — backgrounds, cards, text-on-blue */
+  /* Accent — red: destructive actions, alerts, "needs attention" */
+  --accent:   #ff0000;
+  --red-600:  #ff0000;
+  --red-50:   #fff0f0;
+
+  /* White background, black text, neutral (blue-grey) supporting tones */
   --white:     #ffffff;
-  --off-white: #f6f8fd;
+  --off-white: #f7f7fc;
+  --ink:   #000000;
+  --muted: #55556b;
+  --line:  #e3e3f0;
+  --bg:    #ffffff;
 
-  /* Neutral text/borders — blue-tinted, not green-tinted, to read as one family */
-  --ink:   #16213d;
-  --muted: #5b6579;
-  --line:  #e2e6f1;
-  --bg:    #f6f8fd;
+  /* Shape + depth, shared so every page feels like one product */
+  --radius-sm: 0.6rem;
+  --radius:    1rem;
+  --radius-lg: 1.4rem;
+  --shadow-sm: 0 1px 2px rgba(22, 24, 80, 0.06), 0 1px 3px rgba(22, 24, 80, 0.05);
+  --shadow:    0 8px 24px -10px rgba(22, 24, 80, 0.18);
+  --shadow-lg: 0 18px 40px -16px rgba(22, 24, 80, 0.32);
+  --ring:      0 0 0 3px rgba(46, 49, 146, 0.22);
 
-  /* Unrelated to the brand palette — kept distinct so destructive actions never read as "just another accent" */
-  --red-600: #dc2626;
-  --red-50:  #fef2f2;
+  /* Skeleton loading blocks (see skeleton.css) */
+  --sk-base:  #ececf6;
+  --sk-shine: #f8f8fd;
 }
+
+/* Keyboard focus: one clear ring everywhere, using the brand yellow on dark and blue on light */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

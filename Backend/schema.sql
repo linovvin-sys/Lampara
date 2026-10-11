@@ -27,6 +27,8 @@
 --   ALTER TABLE buildings ADD COLUMN entrance_node_id INT NULL;
 --   ALTER TABLE buildings ADD CONSTRAINT fk_buildings_entrance_node FOREIGN KEY (entrance_node_id) REFERENCES campus_nodes(id) ON DELETE SET NULL;
 
+--   CREATE TABLE static_maps (kind ENUM('2d','3d') NOT NULL PRIMARY KEY, image_path VARCHAR(255) NOT NULL, title VARCHAR(100) NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS buildings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -254,3 +256,41 @@ INSERT INTO rooms (building_id, room_number, room_name, floor, room_type, catego
 (@amafel_id, '105', 'OSA (Student Affairs)', '1st Floor', 'office', 'office', '8:00 AM – 5:00 PM, Mon–Fri', NULL),
 (@amafel_id, '301', 'Physics Lecture Hall', '3rd Floor', 'classroom', 'classroom', NULL, '3rd floor, past the stairwell'),
 (@amafel_id, '302', 'Chemistry Lab', '3rd Floor', 'classroom', 'classroom', NULL, NULL);
+
+-- The two static campus maps students can open from the landing page (an overhead 2D map and a 3D
+-- render). One row per kind; uploading again replaces the image. Managed on the admin "Campus Map" page.
+CREATE TABLE IF NOT EXISTS static_maps (
+    kind ENUM('2d', '3d') NOT NULL PRIMARY KEY,
+    image_path VARCHAR(255) NOT NULL,
+    title VARCHAR(100) NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Pins on the static campus map: a building's entrance (labelled with the building name), a campus gate, or a highlighted
+-- "key place" (landmark) such as Admission, Treasury, Clinic or the Faculty room.
+-- x / y are percentages of the map picture (0-100), so they stay put at any size. Managed on the admin "Campus Map" page.
+CREATE TABLE IF NOT EXISTS static_map_markers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('2d', '3d') NOT NULL,
+    marker_type ENUM('entrance', 'gate', 'landmark') NOT NULL DEFAULT 'entrance',
+    building_id INT NULL,
+    label VARCHAR(100) NULL,
+    x DECIMAL(5, 2) NOT NULL,
+    y DECIMAL(5, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY marker_kind (kind),
+    FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Building outlines and road lines drawn under the AR mini-map (imported from the campus map export, in GPS coordinates).
+-- points = JSON [[lat, lng], ...]; building_id is set when an outline was matched to a registered building.
+CREATE TABLE IF NOT EXISTS campus_footprints (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('building', 'road') NOT NULL,
+    building_id INT NULL,
+    points MEDIUMTEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY footprint_kind (kind),
+    FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

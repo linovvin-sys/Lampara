@@ -14,7 +14,9 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Lampara — Indoor AR Guide</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#000000">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,9 +27,13 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <script src="../../assets/vendor/aframe-ar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Student/indoor-ar.css?v=<?= $pageCssVer ?>">
 </head>
 <body>
+<script>LamparaSkeleton.show('guide')</script>
 
 <div id="app" class="ia-root">
 
@@ -44,7 +50,7 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
   <!-- Loading / error / gate -->
   <div v-if="stage !== 'nav'" class="ia-screen">
     <div v-if="stage === 'loading'" class="ia-center">
-      <div class="ia-logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="ia-logo"><img src="../../assets/logo.svg" alt="" width="32" height="32" style="display:block"></div>
       <p class="ia-muted">Preparing your route…</p>
     </div>
 
@@ -96,10 +102,10 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
       <div class="ia-banner">
         <svg v-if="hud.kind === 'turn' || hud.kind === 'straight'" width="28" height="28" viewBox="0 0 24 24" fill="none"
              :style="{ transform: 'rotate(' + (hud.dir === 'left' ? -90 : hud.dir === 'right' ? 90 : 0) + 'deg)' }">
-          <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#059669"/>
+          <path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#d4ab00"/>
         </svg>
-        <svg v-else-if="hud.kind === 'stairs'" width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 20h4v-4h4v-4h4V8h4" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <svg v-else width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg v-else-if="hud.kind === 'stairs'" width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 20h4v-4h4v-4h4V8h4" stroke="#d4ab00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg v-else width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#d4ab00" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="ia-banner-text">
           <div class="ia-banner-title">
             <template v-if="hud.kind === 'turn'">Turn {{ hud.dir }} in {{ hud.distance }} m</template>

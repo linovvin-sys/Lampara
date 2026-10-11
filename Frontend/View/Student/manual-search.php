@@ -10,16 +10,22 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Manual Search</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Student/manual-search.css?v=<?= $pageCssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body>
+<script>LamparaSkeleton.show('public')</script>
 
 <div id="app" class="shell">
   <div class="topbar">

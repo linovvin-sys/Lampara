@@ -1,0 +1,9 @@
+/* Lampara — brand colours for the camera pages that use Tailwind utility classes (guide, scan, ...).
+   Tailwind's CDN build knows "emerald" but not our palette, so those classes are remapped here:
+   emerald accents become NCST yellow (readable on dark), dark-on-white accents become the primary blue. */
+.bg-emerald-400, .bg-emerald-500 { background-color: var(--secondary, #ffd100) !important; }
+.hover\:bg-emerald-400:hover { background-color: var(--yellow-400, #ffdc40) !important; }
+.bg-emerald-600 { background-color: var(--primary, #2e3192) !important; color: #fff !important; }
+.bg-emerald-50 { background-color: var(--blue-50, #f1f1fb) !important; }
+.text-emerald-600, .text-emerald-700 { color: var(--primary, #2e3192) !important; }
+.border-emerald-400\/90, .border-emerald-400 { border-color: var(--secondary, #ffd100) !important; }

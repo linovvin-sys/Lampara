@@ -10,18 +10,23 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Dashboard</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/dashboard.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
+<script>LamparaSkeleton.show('admin')</script>
 
 <div class="admin-shell">
   <?php include __DIR__ . '/../Include/admin-nav.php'; ?>
@@ -45,29 +50,29 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
           <div class="stat-icon" style="background: var(--green-100); color: var(--green-700);">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/></svg>
           </div>
-          <div class="stat-value">{{ buildings.length }}</div>
+          <div class="stat-value"><span v-if="loading" class="sk sk-title" style="width:2.5rem"></span><template v-else>{{ buildings.length }}</template></div>
           <div class="stat-label">Buildings</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon" style="background: var(--green-200); color: var(--green-800);">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16"/><path d="M4 21h16M9 12v.01"/></svg>
           </div>
-          <div class="stat-value">{{ rooms.length }}</div>
+          <div class="stat-value"><span v-if="loading" class="sk sk-title" style="width:2.5rem"></span><template v-else>{{ rooms.length }}</template></div>
           <div class="stat-label">Rooms</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon" style="background: var(--moss-100); color: var(--moss-500);">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
           </div>
-          <div class="stat-value">{{ officeCount }}</div>
+          <div class="stat-value"><span v-if="loading" class="sk sk-title" style="width:2.5rem"></span><template v-else>{{ officeCount }}</template></div>
           <div class="stat-label">Offices</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" :style="{ background: openFlags.length ? '#fef2f2' : 'var(--green-100)', color: openFlags.length ? '#b91c1c' : 'var(--green-700)' }">
+          <div class="stat-icon" :style="{ background: openFlags.length ? '#fff0f0' : 'var(--green-100)', color: openFlags.length ? '#cc0000' : 'var(--green-700)' }">
             <svg v-if="openFlags.length" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h13l-3 4 3 4H5"/></svg>
             <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
           </div>
-          <div class="stat-value">{{ openFlags.length }}</div>
+          <div class="stat-value"><span v-if="loading" class="sk sk-title" style="width:2.5rem"></span><template v-else>{{ openFlags.length }}</template></div>
           <div class="stat-label">Open reports</div>
         </div>
       </div>
@@ -75,11 +80,11 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
       <div class="grid-2">
 
         <div class="card">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem;">
+          <div class="card-head">
             <h2 class="section-title" style="margin:0;">Recently updated buildings</h2>
             <a href="buildings.php" class="btn-link" style="font-size:0.75rem; color: var(--green-700);">View all &rarr;</a>
           </div>
-          <div v-if="loading" class="empty-state">Loading…</div>
+          <div v-if="loading" aria-hidden="true"><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div></div>
           <template v-else>
             <div v-if="recentBuildings.length === 0" class="empty-state">No buildings registered yet.</div>
             <div v-for="b in recentBuildings" :key="b.id" class="list-row">
@@ -94,11 +99,11 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
           </template>
         </div>
 
-        <div class="card">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.9rem;">
+        <div class="card" id="reports">
+          <div class="card-head">
             <h2 class="section-title" style="margin:0;">Open outdated-info reports</h2>
           </div>
-          <div v-if="loading" class="empty-state">Loading…</div>
+          <div v-if="loading" aria-hidden="true"><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div></div>
           <template v-else>
             <div v-if="openFlags.length === 0" class="empty-state">Nothing flagged — the directory looks current.</div>
             <div v-for="f in openFlags" :key="f.id" class="list-row" style="align-items:flex-start;">
@@ -108,7 +113,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
                   {{ f.room_name }} &middot; {{ f.building_name }}
                 </div>
                 <div v-if="f.note" style="color: var(--muted); font-size:0.8125rem; margin-top:0.25rem;">&ldquo;{{ f.note }}&rdquo;</div>
-                <div style="color: #9aa79f; font-size:0.7rem; margin-top:0.25rem;">{{ timeAgo(f.created_at) }}</div>
+                <div style="color: #9a9ab0; font-size:0.7rem; margin-top:0.25rem;">{{ timeAgo(f.created_at) }}</div>
               </div>
               <button @click="resolveFlag(f)" class="btn btn-secondary btn-sm-pad">Resolve</button>
             </div>

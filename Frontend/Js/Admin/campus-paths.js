@@ -212,7 +212,7 @@ createApp({
       const result = await Swal.fire({
         title: 'Remove this AR anchor?',
         text: 'The printed sign at ' + (anchor.label || 'this point') + ' will stop working.',
-        icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#dc2626'
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000'
       });
       if (!result.isConfirmed) return;
       await fetch('../../../Backend/api/qr-anchors.php?id=' + anchor.id, { method: 'DELETE' });
@@ -221,15 +221,15 @@ createApp({
     },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
-      const map = L.map(this.$refs.mapArea).setView([14.3283, 120.9372], 18);
+      const map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView([14.3283, 120.9372], 18);
       const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 21, maxNativeZoom: 19
+        bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
       });
       // Satellite is the useful one here — walkways are visible on it.
       const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri',
-        maxZoom: 21, maxNativeZoom: 19
+        bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
       });
       sat.addTo(map);
       L.control.layers({ Satellite: sat, Streets: osm }, null, { position: 'topright' }).addTo(map);
@@ -282,7 +282,7 @@ createApp({
         const a = byId.get(String(e.node_a_id)), b = byId.get(String(e.node_b_id));
         if (!a || !b) return;
         const line = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
-          color: '#22c55e', weight: 5, opacity: 0.9, dashArray: e._pending ? '2 8' : null,
+          color: '#ffd100', weight: 5, opacity: 0.9, dashArray: e._pending ? '2 8' : null,
           interactive: !this.locked     // a locked map ignores taps on connections
         });
         line.on('click', (ev) => { L.DomEvent.stopPropagation(ev); this.deleteEdge(e); });
@@ -456,7 +456,7 @@ createApp({
     },
     async deleteEdge(edge) {
       if (this.lockedNow('remove a connection')) return;
-      const r = await Swal.fire({ title: 'Remove this connection?', icon: 'question', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#dc2626' });
+      const r = await Swal.fire({ title: 'Remove this connection?', icon: 'question', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000' });
       if (!r.isConfirmed) return;
       const out = await this.save(
         { type: 'edge.delete', payload: { id: edge.id }, label: 'Removed a walkway connection' },
@@ -485,7 +485,7 @@ createApp({
       const r = await Swal.fire({
         icon: 'warning', title: `Remove all ${count} points?`,
         text: 'Every connection is removed too, and buildings lose their entrance. You can undo it right afterwards.',
-        showCancelButton: true, confirmButtonText: 'Remove all', confirmButtonColor: '#dc2626'
+        showCancelButton: true, confirmButtonText: 'Remove all', confirmButtonColor: '#ff0000'
       });
       if (!r.isConfirmed) return;
       try {
@@ -603,6 +603,31 @@ createApp({
           this.map.setView([p.lat, p.lng], Math.max(this.map.getZoom(), 19));
         }
         this.gpsNote = (p.snapped ? 'Joined the existing point you are standing at. ' : 'Dropped at your location. ') +
+          (acc > POOR_GPS_METERS ? `GPS is only accurate to ±${acc} m: wait for a better fix and drag the point if it looks off.` : `(±${acc} m)`);
+        this.locating = false;
+      }, (err) => {
+        this.gpsNote = 'Could not get your location: ' + err.message;
+        this.locating = false;
+      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    },
+
+    // Records the spot where the admin is standing as a single point. Unlike dropHere it
+    // never connects to the selected point, so it can be used for a standalone location
+    // (a gate, an entrance, a sign). Joins an existing point if one is within a few meters.
+    captureLocation() {
+      if (this.lockedNow('capture your location')) return;
+      if (!navigator.geolocation) { this.gpsNote = 'This browser has no location support.'; return; }
+      this.locating = true;
+      this.gpsNote = 'Capturing your location…';
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude, acc = Math.round(pos.coords.accuracy);
+        const p = await this.placePoint(lat, lng, null);
+        if (p.id !== null) {
+          this.select(p.id);
+          this.map.setView([p.lat, p.lng], Math.max(this.map.getZoom(), 19));
+        }
+        this.gpsNote = (p.snapped ? 'Selected the existing point you are standing at. ' : 'Captured your location. ') +
+          `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} ` +
           (acc > POOR_GPS_METERS ? `GPS is only accurate to ±${acc} m: wait for a better fix and drag the point if it looks off.` : `(±${acc} m)`);
         this.locating = false;
       }, (err) => {

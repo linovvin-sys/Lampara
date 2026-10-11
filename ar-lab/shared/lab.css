@@ -1,0 +1,57 @@
+/* AR Lab — styles for the launcher and the on-screen HUD (NCST navy / yellow, same palette as the app). */
+:root{
+  --navy:#161850; --blue:#2e3192; --gold:#ffd100; --ink:#12132b; --muted:#5a5b75; --line:#e1e1ef; --bg:#f7f7fc; --card:#fff;
+  --ok:#1b6b3a; --warn:#8a5a00; --bad:#b3261e; --font:'Outfit',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body.lab{font-family:var(--font);background:var(--bg);color:var(--ink);line-height:1.5;min-height:100dvh;height:auto}
+
+/* ---- HUD (engine pages) ---- */
+#arlab-hud{position:fixed;inset:0;z-index:10000;pointer-events:none;font-family:var(--font);color:#fff;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+#arlab-hud button,#arlab-hud a,#arlab-hud textarea{pointer-events:auto}
+#arlab-hud .hud-top{display:flex;align-items:center;gap:10px;padding:10px 12px}
+#arlab-hud .hud-back,#arlab-hud .hud-toggle{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.25);
+  background:rgba(22,24,80,.78);color:#fff;font:700 18px var(--font);display:grid;place-items:center;text-decoration:none;cursor:pointer}
+#arlab-hud .hud-title{flex:1;min-width:0;background:rgba(22,24,80,.78);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 14px;
+  display:flex;flex-direction:column;line-height:1.15}
+#arlab-hud .hud-title b{font-size:14px}
+#arlab-hud .hud-title span{font-size:11px;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#arlab-hud .hud-card{margin:0 12px;padding:12px;border-radius:14px;background:rgba(22,24,80,.88);border:1px solid rgba(255,255,255,.2)}
+#arlab-hud .hud-card[hidden]{display:none}
+#arlab-hud .hud-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#arlab-hud .hud-grid i{display:block;font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+#arlab-hud .hud-grid b{font-size:14px;font-variant-numeric:tabular-nums}
+#arlab-hud .hud-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#arlab-hud .hud-actions button,#arlab-hud .hud-cancel{font:600 12px var(--font);padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+#arlab-hud .hud-status{margin:10px 12px 0;padding:8px 12px;border-radius:12px;background:rgba(22,24,80,.88);font-size:13px;border-left:4px solid var(--gold)}
+#arlab-hud .hud-status[hidden]{display:none}
+#arlab-hud .hud-status.err{border-left-color:#ff6b61}
+#arlab-hud .hud-status.ok{border-left-color:#66d68c}
+#arlab-hud .hud-bottom{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;justify-content:space-between;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0))}
+#arlab-hud .hud-dist{background:rgba(22,24,80,.82);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:6px 14px;display:flex;flex-direction:column;line-height:1.1}
+#arlab-hud .hud-dist b{font-size:26px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}
+#arlab-hud .hud-dist span{font-size:11px;color:rgba(255,255,255,.7)}
+#arlab-hud .hud-save{font:700 13px var(--font);padding:11px 18px;border-radius:999px;border:0;background:var(--gold);color:var(--navy);cursor:pointer}
+#arlab-hud .hud-rate{position:absolute;inset:0;background:rgba(10,11,40,.7);display:grid;place-items:center;padding:16px}
+#arlab-hud .hud-rate[hidden]{display:none}
+#arlab-hud .hud-rate-box{width:min(26rem,100%);background:#fff;color:var(--ink);border-radius:16px;padding:18px}
+#arlab-hud .hud-rate-box h3{margin:0 0 12px}
+#arlab-hud .hud-rate-opts{display:grid;gap:8px}
+#arlab-hud .hud-rate-opts button{font:700 14px var(--font);padding:12px;border-radius:10px;border:2px solid var(--navy);background:#fff;color:var(--navy);cursor:pointer}
+#arlab-hud .hud-rate-opts button:hover{background:var(--navy);color:#fff}
+#arlab-hud textarea{width:100%;margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px;font:14px var(--font)}
+#arlab-hud .hud-rate-row{margin-top:10px;display:flex;justify-content:flex-end}
+#arlab-hud .hud-rate-row .hud-cancel{color:var(--navy);border-color:var(--line);background:#fff}
+
+/* ---- Start gate (every engine page needs a tap before camera/motion permissions) ---- */
+.gate{position:fixed;inset:0;z-index:9999;background:radial-gradient(120% 90% at 50% 0,#2e3192 0,#161850 70%);color:#fff;display:grid;place-items:center;padding:24px;text-align:center}
+.gate>div{max-width:26rem}
+.gate h1{font-size:1.7rem;margin:0 0 6px}
+.gate p{margin:0 0 10px;color:rgba(255,255,255,.8)}
+.gate .big{font:800 16px var(--font);padding:14px 26px;border-radius:999px;border:0;background:var(--gold);color:var(--navy);cursor:pointer;margin-top:10px}
+.gate .warn{background:rgba(255,209,0,.15);border:1px solid rgba(255,209,0,.5);border-radius:12px;padding:10px 12px;font-size:13px;text-align:left}
+.gate .err{color:#ffb4ab;font-size:13px;margin-top:12px}
+.gate a{color:var(--gold)}

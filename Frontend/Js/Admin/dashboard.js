@@ -1,5 +1,5 @@
 const { createApp } = Vue;
-const COLORS = ['#22c55e', '#16a34a', '#15803d', '#86efac', '#65a30d', '#14532d'];
+const COLORS = ['#2e3192', '#ffd100', '#ff0000', '#6a6dd0', '#ffe066', '#9b9ce6'];
 
 createApp({
   data() {

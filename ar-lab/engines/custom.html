@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>AR Lab - Baseline three.js</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  html,body{background:#000;overflow:hidden}
+  #cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  #gl{position:fixed;inset:0;width:100%;height:100%;z-index:1}
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
+</head>
+<body>
+<video id="cam" playsinline muted autoplay></video>
+<canvas id="gl"></canvas>
+
+<script src="../shared/geo.js"></script>
+<script src="../shared/campus.js"></script>
+<script src="../shared/path.js"></script>
+<script src="../shared/sensors.js"></script>
+<script src="../shared/hud.js"></script>
+<script src="../shared/nav.js"></script>
+<script type="module">
+import * as THREE from 'three';
+
+/* Engine 5: no AR library. Camera video behind a transparent three.js canvas, camera orientation built from
+   DeviceOrientation, camera position from a filtered GPS watch. Everything the libraries do for you is written
+   out here, so the other engines can be judged against it. World frame: +X east, -Z north, +Y up. */
+
+let route = ARLab.route.get();
+// follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
+const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
+const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
+let hud, nav, compass, renderer, scene, camera, path, filt = S.gpsFilter(), fix = null, first = true;
+const video = document.getElementById('cam');
+
+ARLab.gate({
+  title: 'Baseline: bare three.js',
+  lead: 'No AR library. Raw camera, compass and GPS. Hold the phone upright and walk toward B.',
+  onStart: start
+});
+
+async function start() {
+  await routeReady;
+  if ((await S.requestMotion()) !== 'granted') throw new Error('Motion and compass permission was denied. Allow it in the browser settings and try again.');
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+  video.srcObject = stream; await video.play();
+
+  hud = ARLab.hud.create({ route, engine: 'Baseline three.js', tagline: 'No library: DeviceOrientation + GPS' });
+  route = await ARLab.sensors.startFromHere(route, hud);          // plan from where the person actually stands now
+  if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
+  compass = S.compass(); compass.start();
+  hud.addAction('Heading -5°', () => compass.nudge(-5));
+  hud.addAction('Heading +5°', () => compass.nudge(+5));
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setClearColor(0x000000, 0);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, 1, 0.1, 4000);
+  resize(); addEventListener('resize', resize);
+
+  nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
+  hud.addAction('Next point', () => nav.next());
+  nav.begin();
+
+  hud.setStatus('Waiting for GPS...');
+  S.watchGps((f) => { hud.setGps(f); fix = filt(f); nav.update(fix); if (first) { first = false; hud.setStatus('GPS locked. Follow the arrow.', 'ok'); setTimeout(() => hud.setStatus(''), 3000); } },
+             (m) => hud.error(m));
+  requestAnimationFrame(loop);
+}
+
+// Only the current leg exists in the scene. The scene origin is point A.
+function showLeg(leg, idx, total, others) {
+  path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
+  path.items().forEach((it) => { const o = geo.enu(route.a, it); it.obj.position.set(o.e, 0, -o.n); scene.add(it.obj); });
+}
+function clearLeg() {
+  if (!path) return;
+  path.items().forEach((it) => scene.remove(it.obj)); path.dispose(); path = null;
+}
+
+function resize() {                                  // vertical FOV from the phone camera's long-side FOV
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h;
+  camera.fov = h >= w ? cfg.longFov : geo.deg(2 * Math.atan(Math.tan(geo.rad(cfg.longFov) / 2) / camera.aspect));
+  camera.updateProjectionMatrix();
+}
+
+const zee = new THREE.Vector3(0, 0, 1), up = new THREE.Vector3(0, 1, 0);
+const euler = new THREE.Euler(), q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2), qYaw = new THREE.Quaternion();
+function orient() {
+  if (compass.alpha === null) return false;
+  const a = geo.rad(compass.alpha), b = geo.rad(compass.beta), g = geo.rad(compass.gamma);
+  const so = geo.rad((screen.orientation && screen.orientation.angle) || window.orientation || 0);
+  euler.set(b, a, -g, 'YXZ'); camera.quaternion.setFromEuler(euler);
+  camera.quaternion.multiply(q1).multiply(q0.setFromAxisAngle(zee, -so));
+  // yaw correction: iOS learned offset + the tester's manual nudge. Heading grows clockwise, so rotate by the negative.
+  qYaw.setFromAxisAngle(up, -geo.rad(compass.offset + compass.manual));
+  camera.quaternion.premultiply(qYaw);
+  return true;
+}
+
+let lastLbl = 0, compassWarn = false, lastMs = 0, camSet = false;
+function loop(ms) {
+  requestAnimationFrame(loop);
+  if (!orient()) { compassWarn = true; hud.setStatus('No compass data. Open this on a phone, outdoors.', 'err'); return; }
+  if (compassWarn) { compassWarn = false; hud.setStatus(''); }
+  if (fix) {                                         // glide toward the filtered position instead of jumping once per GPS fix
+    const o = geo.enu(route.a, fix), dt = Math.min(0.25, (ms - lastMs) / 1000), k = 1 - Math.exp(-dt / 0.6);
+    if (!camSet) { camera.position.set(o.e, cfg.eyeHeight, -o.n); camSet = true; }
+    else { camera.position.x += (o.e - camera.position.x) * k; camera.position.z += (-o.n - camera.position.z) * k; camera.position.y = cfg.eyeHeight; }
+  }
+  lastMs = ms;
+  hud.setHeading(compass.heading, compass.label());
+  if (path) {
+    path.animate(ms / 1000);
+    if (fix && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(fix)); }
+  }
+  renderer.render(scene, camera); hud.frame();
+}
+</script>
+</body>
+</html>

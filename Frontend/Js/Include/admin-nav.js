@@ -24,6 +24,29 @@
   });
 })();
 
+// Dropdown groups in the sidebar ("Campus Editor"). A group holding the current page starts open;
+// otherwise the last choice is remembered (localStorage may be blocked, so every access is guarded).
+(function () {
+  var groups = document.querySelectorAll('[data-nav-group]');
+  groups.forEach(function (group) {
+    var key = 'lampara_nav_' + group.getAttribute('data-nav-group');
+    var btn = group.querySelector('.nav-group-toggle');
+    if (!btn) return;
+    function setOpen(open) {
+      group.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    if (!group.classList.contains('has-active')) {
+      try { if (localStorage.getItem(key) === '1') setOpen(true); } catch (e) { /* storage blocked */ }
+    }
+    btn.addEventListener('click', function () {
+      var open = !group.classList.contains('is-open');
+      setOpen(open);
+      try { localStorage.setItem(key, open ? '1' : '0'); } catch (e) { /* storage blocked */ }
+    });
+  });
+})();
+
 // Confirm before logging out — mirrors the delete confirmations elsewhere
 // in the admin panel instead of navigating away on a single misclick.
 (function () {
@@ -41,7 +64,7 @@
         icon: waiting ? 'warning' : 'question',
         showCancelButton: true,
         confirmButtonText: 'Log out',
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ff0000',
         cancelButtonColor: '#6b7280'
       }).then(function (result) {
         if (!result.isConfirmed) return;

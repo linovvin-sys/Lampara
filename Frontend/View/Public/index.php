@@ -5,24 +5,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Campus AR Guide</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="../../assets/icon-192.png">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Public/index.css">
 </head>
 <body>
+<script>LamparaSkeleton.show('public')</script>
 
 <div class="backdrop"></div>
 
 <nav class="navbar">
   <a href="#home" class="brand nav-link-home" data-target="home">
     <span class="brand-mark">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+      <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
     </span>
     Lampara
   </a>
@@ -52,6 +57,7 @@
 
           <div class="actions fade-up fade-up-3">
             <a href="guide-ar.php" class="btn btn-primary">Start Navigating</a>
+            <a href="map.php" class="btn btn-secondary">Campus Map</a>
             <a href="../Admin/login.php" class="btn btn-secondary">Admin Login</a>
           </div>
         </div>

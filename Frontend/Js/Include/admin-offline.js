@@ -349,7 +349,7 @@ const AdminOffline = (() => {
 
   function opsListHtml(items) {
     return '<ul style="text-align:left;margin:0.5rem 0 0;padding-left:1.1rem;max-height:14rem;overflow:auto;font-size:0.875rem;line-height:1.6;">' +
-      items.map((o) => `<li>${esc(o.label)}${o.status === 'failed' ? ' <span style="color:#b91c1c">(failed last time)</span>' : ''}${o.status === 'conflict' ? ' <span style="color:#b45309">(needs a decision)</span>' : ''}</li>`).join('') + '</ul>';
+      items.map((o) => `<li>${esc(o.label)}${o.status === 'failed' ? ' <span style="color:#cc0000">(failed last time)</span>' : ''}${o.status === 'conflict' ? ' <span style="color:#b45309">(needs a decision)</span>' : ''}</li>`).join('') + '</ul>';
   }
 
   async function sendBatch(items) {
@@ -397,7 +397,7 @@ const AdminOffline = (() => {
         html: `<p style="margin:0 0 0.4rem"><b>${esc(o.label)}</b></p><p style="margin:0;font-size:0.875rem">${esc(o.message)}</p>${diffHtml(o)}`,
         showDenyButton: true, showCancelButton: true,
         confirmButtonText: 'Keep my changes', denyButtonText: "Keep the server's version", cancelButtonText: 'Decide later',
-        confirmButtonColor: '#16a34a', denyButtonColor: '#6b7280', allowOutsideClick: false
+        confirmButtonColor: '#2e3192', denyButtonColor: '#6b7280', allowOutsideClick: false
       });
       if (r.isConfirmed) { o.force = true; o.status = 'pending'; resend = true; }
       else if (r.isDenied) { ops = ops.filter((x) => x !== o); }
@@ -456,7 +456,7 @@ const AdminOffline = (() => {
     } else {
       const failHtml = failed.length
         ? '<p style="margin:0.6rem 0 0.2rem;font-weight:600">Not saved:</p><ul style="text-align:left;margin:0;padding-left:1.1rem;font-size:0.875rem;line-height:1.6">' +
-          failed.map((o) => `<li>${esc(o.label)}: <span style="color:#b91c1c">${esc(o.message)}</span></li>`).join('') + '</ul>' : '';
+          failed.map((o) => `<li>${esc(o.label)}: <span style="color:#cc0000">${esc(o.message)}</span></li>`).join('') + '</ul>' : '';
       const waitHtml = waiting.length ? `<p style="margin:0.6rem 0 0;font-size:0.875rem">${waiting.length} change${waiting.length === 1 ? ' is' : 's are'} waiting for your decision.</p>` : '';
       const heldHtml = held.length ? `<p style="margin:0.6rem 0 0;font-size:0.875rem">${held.length} change${held.length === 1 ? ' is' : 's are'} waiting on another change.</p>` : '';
       await notify({ icon: failed.length ? 'warning' : 'info', title: `${totalOk} saved`, html: `<p style="margin:0">${left ? left + ' still waiting on this device.' : 'Nothing left waiting.'}</p>${failHtml}${waitHtml}${heldHtml}` });
@@ -489,10 +489,10 @@ const AdminOffline = (() => {
       html: `<p style="margin:0;font-size:0.875rem">You made these while offline. Nothing is sent until you say so.</p>${opsListHtml(ops)}`,
       showDenyButton: true, showCancelButton: true,
       confirmButtonText: 'Sync now', denyButtonText: 'Discard all', cancelButtonText: 'Decide later',
-      confirmButtonColor: '#16a34a', denyButtonColor: '#dc2626', allowOutsideClick: false
+      confirmButtonColor: '#2e3192', denyButtonColor: '#ff0000', allowOutsideClick: false
     });
     if (r.isDenied) {
-      const sure = await notify({ icon: 'warning', title: 'Discard these changes?', text: "They'll be deleted from this device and never sent.", showCancelButton: true, confirmButtonText: 'Discard', confirmButtonColor: '#dc2626' });
+      const sure = await notify({ icon: 'warning', title: 'Discard these changes?', text: "They'll be deleted from this device and never sent.", showCancelButton: true, confirmButtonText: 'Discard', confirmButtonColor: '#ff0000' });
       if (sure.isConfirmed) { clearAll(); toast('Offline changes discarded', 'info'); emit('synced', { ok: 0 }); }
       return;
     }
@@ -506,12 +506,12 @@ const AdminOffline = (() => {
     const style = document.createElement('style');
     style.textContent = `
       .sync-chip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(0.9rem + env(safe-area-inset-bottom,0px));z-index:60;display:flex;align-items:center;gap:0.55rem;
-        max-width:calc(100vw - 2rem);padding:0.5rem 0.55rem 0.5rem 0.9rem;border-radius:999px;background:#14251c;color:#fff;font:600 0.8125rem/1.2 'Outfit',system-ui,sans-serif;
+        max-width:calc(100vw - 2rem);padding:0.5rem 0.55rem 0.5rem 0.9rem;border-radius:999px;background:#0d0e33;color:#fff;font:600 0.8125rem/1.2 'Outfit',system-ui,sans-serif;
         box-shadow:0 10px 30px -8px rgba(0,0,0,.45)}
       .sync-chip[hidden]{display:none}
-      .sync-chip .sc-dot{width:8px;height:8px;border-radius:999px;background:#f59e0b;flex:none}
-      .sync-chip.is-online .sc-dot{background:#34d399}
-      .sync-chip button{border:0;border-radius:999px;background:#22c55e;color:#052e16;font:inherit;padding:0.4rem 0.8rem;cursor:pointer}
+      .sync-chip .sc-dot{width:8px;height:8px;border-radius:999px;background:#ffd100;flex:none}
+      .sync-chip.is-online .sc-dot{background:#ffe066}
+      .sync-chip button{border:0;border-radius:999px;background:#2e3192;color:#ffffff;font:inherit;padding:0.4rem 0.8rem;cursor:pointer}
       .sync-chip button[hidden]{display:none}
       .sync-chip .sc-txt{min-width:0}`;
     document.head.appendChild(style);

@@ -20,12 +20,16 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Buildings</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/manage-buildings.css">
 <link rel="stylesheet" href="../../Css/Admin/register-building.css">
@@ -34,6 +38,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
@@ -67,7 +72,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
     height: calc(100% - 0.6rem);
     width: 0;
     border-radius: 0.75rem;
-    background: var(--blue-600, #1a4fc4);
+    background: var(--blue-600, #2e3192);
     box-shadow: 0 6px 16px -6px rgba(26, 79, 196, 0.55);
     transition: transform 280ms var(--ease-in-out), width 280ms var(--ease-in-out);
     will-change: transform, width;
@@ -81,7 +86,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
     font: inherit;
     font-size: 0.8125rem;
     font-weight: 700;
-    color: var(--muted, #5b6b79);
+    color: var(--muted, #55556b);
     background: none;
     border: 0;
     padding: 0.6rem 1.05rem;
@@ -92,7 +97,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
   }
   .tab-btn svg { flex: none; opacity: 0.8; transition: opacity 200ms ease; }
   @media (hover: hover) and (pointer: fine) {
-    .tab-btn:hover { color: var(--ink, #16213d); }
+    .tab-btn:hover { color: var(--ink, #0d0e33); }
   }
   .tab-btn:active { transform: scale(0.96); }
   .tab-btn.is-active { color: #ffffff; }
@@ -133,7 +138,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 
   /* ---- Search box: a visible focus glow instead of a flat outline. ---- */
   .search-box { transition: box-shadow 160ms ease, border-color 160ms ease; border-radius: 999px; }
-  .search-box:focus-within { box-shadow: 0 0 0 3px var(--blue-100, #dbe6fb); border-color: var(--blue-500, #3566d6); }
+  .search-box:focus-within { box-shadow: 0 0 0 3px var(--blue-100, #dcddf4); border-color: var(--blue-500, #4a4eb0); }
 
   /* ---- Edit/Delete row actions: a bit more tactile than bare text links. ---- */
   .edit-link, .delete-link, .room-action {
@@ -141,8 +146,8 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
     padding: 0.25rem 0.55rem; border-radius: 999px;
     transition: background-color 140ms ease, color 140ms ease, transform 120ms var(--ease-out);
   }
-  .edit-link:hover { background: var(--blue-50, #f0f5fe); }
-  .delete-link:hover, .room-delete:hover { background: var(--red-50, #fef2f2); }
+  .edit-link:hover { background: var(--blue-50, #f1f1fb); }
+  .delete-link:hover, .room-delete:hover { background: var(--red-50, #fff0f0); }
   .edit-link:active, .delete-link:active, .room-action:active { transform: scale(0.95); }
 
   @media (prefers-reduced-motion: reduce) {
@@ -156,12 +161,12 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
   .stat-pill {
     display: inline-flex; align-items: center; gap: 0.45rem;
     padding: 0.5rem 0.9rem; border-radius: 999px;
-    background: rgba(255, 255, 255, 0.75); border: 1px solid var(--line, #e2e6f1);
-    font-size: 0.75rem; font-weight: 700; color: var(--muted, #5b6b79);
+    background: rgba(255, 255, 255, 0.75); border: 1px solid var(--line, #e3e3f0);
+    font-size: 0.75rem; font-weight: 700; color: var(--muted, #55556b);
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
-  .stat-pill strong { color: var(--ink, #16213d); font-size: 0.9375rem; font-weight: 800; }
-  .stat-pill .stat-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--blue-600, #1a4fc4); flex: none; }
+  .stat-pill strong { color: var(--ink, #0d0e33); font-size: 0.9375rem; font-weight: 800; }
+  .stat-pill .stat-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--blue-600, #2e3192); flex: none; }
 
   .building-row {
     border-radius: 1.1rem !important;
@@ -176,9 +181,9 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
   .building-meta .meta-text, .building-meta .stale-text {
     display: inline-flex; align-items: center;
     padding: 0.15rem 0.55rem; border-radius: 999px;
-    background: var(--blue-50, #f0f5fe); font-size: 0.6875rem; font-weight: 600;
+    background: var(--blue-50, #f1f1fb); font-size: 0.6875rem; font-weight: 600;
   }
-  .building-meta .stale-text { background: var(--yellow-50, #fffaeb); color: var(--yellow-700, #a66400); }
+  .building-meta .stale-text { background: var(--yellow-50, #fffbe3); color: var(--yellow-700, #8a6d00); }
   .building-meta .dot { display: none; } /* status now reads from the pill's own color, not a separate dot */
 
   /* ================= Form sections: quiet dividers that group related fields ================= */
@@ -186,11 +191,11 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
     display: flex; align-items: center; gap: 0.5rem;
     margin: 1.4rem 0 0.9rem;
     font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--blue-700, #123a8f);
+    color: var(--blue-700, #23267a);
   }
   .field-divider:first-child { margin-top: 0; }
   .field-divider svg { flex: none; opacity: 0.85; }
-  .field-divider::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line, #e2e6f1), transparent); }
+  .field-divider::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line, #e3e3f0), transparent); }
 
   /* ================= Toggle group: segmented pills with a touch more presence ================= */
   .toggle-group { gap: 0.2rem; }
@@ -202,13 +207,13 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
     border: 1px solid transparent; border-radius: 1rem; padding: 1rem !important;
     transition: border-color 160ms ease, background-color 160ms ease;
   }
-  #building-app .list-row:hover { border-color: var(--line, #e2e6f1); background: rgba(240, 245, 254, 0.4); }
+  #building-app .list-row:hover { border-color: var(--line, #e3e3f0); background: rgba(240, 245, 254, 0.4); }
   #building-app .list-row:last-child { border-bottom: 1px solid transparent !important; }
 
   /* ================= Path editor: calmer surface, clearer active point ================= */
   .lock-bar { border-radius: 1rem; }
   .points-list .pt-row { border-radius: 0.85rem; }
-  .points-list .pt-row.sel { box-shadow: 0 0 0 1px var(--blue-500, #3566d6) inset; }
+  .points-list .pt-row.sel { box-shadow: 0 0 0 1px var(--blue-500, #4a4eb0) inset; }
   .pt-badge { box-shadow: 0 2px 6px -2px rgba(26, 79, 196, 0.5); }
 
   /* QR print dialog: the code sits on plain white, never themed, so it
@@ -216,9 +221,18 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
   .qr-print-canvas { display: inline-block; padding: 1rem; background: #fff; border-radius: 0.75rem; }
   .qr-print-canvas img, .qr-print-canvas canvas { display: block; }
 
+  /* ================= Room picker (Add/Edit Room sidebar): building -> room dropdowns ================= */
+  .room-picker { padding: 1.1rem 1.2rem; }
+  .room-picker-title { margin: 0 0 0.25rem; font-size: 0.9375rem; font-weight: 700; }
+  .room-picker-hint { margin: 0 0 0.9rem; color: var(--muted); font-size: 0.8125rem; line-height: 1.55; }
+  .room-picker-count { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.75rem; }
+  .room-picker-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line, #e3e3f0); }
+  .room-picker-editing { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-700, #23267a); background: var(--blue-50, #f1f1fb); border: 1px solid var(--blue-100, #dcddf4); padding: 0.2rem 0.55rem; border-radius: 999px; }
+  .room-picker-delete { color: var(--red-600, #ff0000); }
+
   /* ================= Rooms sidebar: a frosted dark glass panel instead of flat ink ================= */
   .rooms-panel {
-    background: linear-gradient(165deg, #1b2a52, var(--ink, #16213d)) !important;
+    background: linear-gradient(165deg, #23267a, var(--ink, #0d0e33)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px -18px rgba(16, 24, 56, 0.5);
   }
   .room-row {
@@ -237,20 +251,20 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 
   /* ================= Section cards (Floor Plans / Registered Buildings): a touch of lift ================= */
   .section-title { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9375rem; }
-  .section-title::before { content: ''; width: 0.3rem; height: 0.3rem; border-radius: 999px; background: var(--blue-600, #1a4fc4); }
+  .section-title::before { content: ''; width: 0.3rem; height: 0.3rem; border-radius: 999px; background: var(--blue-600, #2e3192); }
 
   /* ================= Modal trigger card: the compact summary that replaces
      always-expanded heavy editing (floor plans, marker placement) inline. ================= */
   .modal-trigger-card { cursor: pointer; transition: border-color 160ms ease, transform 140ms var(--ease-out); }
-  .modal-trigger-card:hover { border-color: var(--blue-500, #3566d6); }
+  .modal-trigger-card:hover { border-color: var(--blue-500, #4a4eb0); }
   .modal-trigger-card:active { transform: scale(0.99); }
-  .modal-trigger-card:focus-visible { outline: 2px solid var(--blue-500, #3566d6); outline-offset: 2px; }
+  .modal-trigger-card:focus-visible { outline: 2px solid var(--blue-500, #4a4eb0); outline-offset: 2px; }
   .modal-trigger-row { display: flex; align-items: center; gap: 0.9rem; }
-  .modal-trigger-arrow { flex: none; color: var(--muted, #5b6b79); transition: transform 160ms var(--ease-out); }
-  .modal-trigger-card:hover .modal-trigger-arrow { transform: translateX(3px); color: var(--blue-600, #1a4fc4); }
-  .marker-thumb { position: relative; width: 3.25rem; height: 3.25rem; border-radius: 0.6rem; overflow: hidden; flex: none; border: 1px solid var(--line, #e2e6f1); }
+  .modal-trigger-arrow { flex: none; color: var(--muted, #55556b); transition: transform 160ms var(--ease-out); }
+  .modal-trigger-card:hover .modal-trigger-arrow { transform: translateX(3px); color: var(--blue-600, #2e3192); }
+  .marker-thumb { position: relative; width: 3.25rem; height: 3.25rem; border-radius: 0.6rem; overflow: hidden; flex: none; border: 1px solid var(--line, #e3e3f0); }
   .marker-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .marker-thumb-dot { position: absolute; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--blue-600, #1a4fc4); border: 1.5px solid #fff; transform: translate(-50%, -100%); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+  .marker-thumb-dot { position: absolute; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--blue-600, #2e3192); border: 1.5px solid #fff; transform: translate(-50%, -100%); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
 
   /* ================= Modal shell: centered sheet over a blurred backdrop.
      Entrance starts from a visible 0.95 scale (never from 0 — nothing in the
@@ -291,19 +305,19 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
   .modal-overlay:not(.is-open) .modal-sheet { transition-duration: 140ms; }
   .modal-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line, #e2e6f1); flex: none;
+    padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--line, #e3e3f0); flex: none;
   }
-  .modal-head h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink, #16213d); }
+  .modal-head h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink, #0d0e33); }
   .modal-close {
     display: inline-flex; align-items: center; justify-content: center;
     width: 2rem; height: 2rem; border-radius: 999px; border: 0; background: none;
-    color: var(--muted, #5b6b79); cursor: pointer;
+    color: var(--muted, #55556b); cursor: pointer;
     transition: background-color 140ms ease, transform 120ms var(--ease-out);
   }
-  .modal-close:hover { background: var(--blue-50, #f0f5fe); color: var(--ink, #16213d); }
+  .modal-close:hover { background: var(--blue-50, #f1f1fb); color: var(--ink, #0d0e33); }
   .modal-close:active { transform: scale(0.92); }
   .modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
-  .modal-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--line, #e2e6f1); display: flex; justify-content: flex-end; flex: none; }
+  .modal-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--line, #e3e3f0); display: flex; justify-content: flex-end; flex: none; }
   @media (max-width: 640px) {
     .modal-overlay { padding: 0; align-items: flex-end; }
     .modal-sheet { max-width: 100%; max-height: 88vh; border-radius: 1.25rem 1.25rem 0 0; }
@@ -316,6 +330,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 </style>
 </head>
 <body class="admin-body">
+<script>LamparaSkeleton.show('admin')</script>
 
 <div class="admin-shell">
   <?php include __DIR__ . '/../Include/admin-nav.php'; ?>
@@ -355,7 +370,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
               <p>{{ buildings.length }} building(s) on file</p>
             </div>
             <div class="search-box">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="#9aa79f" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="#9aa79f" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="#9a9ab0" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="#9a9ab0" stroke-width="1.8" stroke-linecap="round"/></svg>
               <input v-model="q" type="text" placeholder="Search buildings">
             </div>
           </div>
@@ -368,11 +383,17 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 
           <div class="manage-grid">
             <div class="stagger-in">
+              <template v-if="!loaded">
+                <div v-for="n in 4" :key="'sk' + n" class="card building-row" aria-hidden="true">
+                  <span class="sk sk-avatar"></span>
+                  <div class="sk-stack" style="flex:1"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span><span class="sk sk-line w-25"></span></div>
+                </div>
+              </template>
               <div v-for="b in filtered" :key="b.id" class="card building-row">
                 <div class="avatar" :style="{ background: colorFor(b.id) }">{{ b.name.charAt(0) }}</div>
                 <div style="flex:1; min-width:0;">
                   <div style="font-weight:600; font-size:0.875rem;" class="truncate">{{ b.name }}</div>
-                  <div style="font-family:'JetBrains Mono',monospace; font-size:0.6875rem; color:#9aa79f;">{{ b.lat }}, {{ b.lng }}</div>
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:0.6875rem; color:#9a9ab0;">{{ b.lat }}, {{ b.lng }}</div>
                   <div class="building-meta">
                     <span class="dot" :class="isStale(b.updated_at) ? 'dot-amber' : 'dot-green'"></span>
                     <span :class="isStale(b.updated_at) ? 'stale-text' : 'meta-text'">{{ timeAgo(b.updated_at) }}</span>
@@ -383,12 +404,12 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                   </div>
                 </div>
               </div>
-              <div v-if="filtered.length === 0" class="empty-state">No buildings match.</div>
+              <div v-if="loaded && filtered.length === 0" class="empty-state">No buildings match.</div>
             </div>
 
             <div class="card map-card">
               <div class="map-head">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 20l-6-2V6l6 2 6-2 6 2v12l-6-2-6 2Z" stroke="#5b6b63" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8v12M15 6v12" stroke="#5b6b63" stroke-width="1.7"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 20l-6-2V6l6 2 6-2 6 2v12l-6-2-6 2Z" stroke="#55556b" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 8v12M15 6v12" stroke="#55556b" stroke-width="1.7"/></svg>
                 <span style="font-weight:600; font-size:0.8125rem;">Campus Map Preview</span>
                 <span class="map-n">N &uarr;</span>
               </div>
@@ -418,16 +439,26 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                   <input v-model="form.name" type="text" required placeholder="e.g. Amafel Building (NCST)">
                 </div>
 
-                <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>Location</div>
-                <div class="field field-row">
-                  <div>
-                    <label>Latitude</label>
-                    <input v-model="form.lat" type="text" required placeholder="14.328300" style="font-family:'JetBrains Mono',monospace;">
-                  </div>
-                  <div>
-                    <label>Longitude</label>
-                    <input v-model="form.lng" type="text" required placeholder="120.937200" style="font-family:'JetBrains Mono',monospace;">
-                  </div>
+                <button type="button" @click="captureLocation" class="btn btn-secondary geo-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="#2e3192" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" stroke="#2e3192" stroke-width="1.8"/></svg>
+                  Capture My Current Location
+                </button>
+                <p v-if="geoStatus" class="geo-status" :class="geoError ? 'geo-error' : 'geo-ok'">{{ geoStatus }}</p>
+
+                <div class="field-divider" style="margin-top:1.4rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>Location</div>
+                <p class="pick-hint">Tap the map to pin the building, then drag the pin to fine-tune. Switch to Satellite to see rooftops.</p>
+                <div class="pick-map-wrap">
+                  <div ref="pickMap" class="pick-map" role="application" aria-label="Map for pinning the building"></div>
+                </div>
+                <div class="pick-bar">
+                  <p class="pick-status" :class="{ 'is-set': hasPin }">
+                    <template v-if="hasPin">Pinned at {{ Number(form.lat).toFixed(6) }}, {{ Number(form.lng).toFixed(6) }}</template>
+                    <template v-else>No pin yet &mdash; tap the map where the building is.</template>
+                  </p>
+                  <button v-if="hasPin" type="button" class="pick-remove" @click="clearPin">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+                    Remove pin
+                  </button>
                 </div>
 
                 <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/></svg>Capacity &amp; Numbering</div>
@@ -445,12 +476,6 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                   First digit of every room number in this building (e.g. Amafel = 1, so its rooms are 1101, 1204… and may carry a section, like 1101 - A). Leave blank for buildings with no numbered rooms.
                 </p>
 
-                <button type="button" @click="captureLocation" class="btn btn-secondary geo-btn">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="#1a4fc4" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" stroke="#1a4fc4" stroke-width="1.8"/></svg>
-                  Capture My Current Location
-                </button>
-                <p v-if="geoStatus" class="geo-status" :class="geoError ? 'geo-error' : 'geo-ok'">{{ geoStatus }}</p>
-
                 <div v-if="nearbyWarnings.length" class="tinted-card warn-card">
                   <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
                     <span class="dot dot-amber"></span>
@@ -461,17 +486,18 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                   </p>
                 </div>
 
-                <div class="field-divider" style="margin-top:1.4rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16l-6-3-6 3Z"/></svg>Notes</div>
+                <div class="field-divider" style="margin-top:1.4rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16l-6-3-6 3Z"/></svg>Description</div>
                 <div class="field">
-                  <label>Notes (optional — general, not room-specific)</label>
-                  <textarea v-model="form.directory" rows="4" placeholder="Any campus-wide facts not tied to a specific room."></textarea>
+                  <label>Description (optional — general, not room-specific)</label>
+                  <textarea v-model="form.directory" rows="4" placeholder="Describe the building: what it is used for, general facts that are not tied to one room."></textarea>
                 </div>
 
-                <div style="display:flex; align-items:center; gap:0.75rem;">
+                <div class="form-actions">
                   <button type="submit" :disabled="submitting" class="btn btn-primary" :class="{ 'is-loading': submitting }">
                     <span v-if="submitting" class="btn-spinner"></span>{{ submitting ? 'Saving…' : (editingId ? 'Save Changes' : 'Register Building') }}
                   </button>
-                  <button v-if="editingId" type="button" @click="cancelEdit" class="btn-link" style="color: var(--muted); font-size:0.8125rem;">Cancel</button>
+                  <button v-if="editingId" type="button" @click="tryCancel" class="btn-link" style="color: var(--muted); font-size:0.8125rem;">Cancel</button>
+                  <span v-if="dirty && !submitting" class="dirty-note"><span class="dirty-dot"></span>Unsaved changes</span>
                 </div>
               </form>
 
@@ -488,11 +514,34 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                   </p>
                 </div>
 
+                <div class="quick-nav">
+                  <h3 class="section-title">Registered Buildings ({{ buildings.length }})</h3>
+                  <div class="card quick-list">
+                    <div v-if="!loaded" aria-hidden="true">
+                      <div v-for="n in 4" :key="'sk' + n" class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div>
+                    </div>
+                    <div v-else-if="buildings.length === 0" class="empty-state">None yet — add one with the form.</div>
+                    <div v-for="b in buildings" :key="b.id" class="quick-row" :class="{ 'is-current': editingId === b.id }"
+                         role="button" tabindex="0" :aria-current="editingId === b.id ? 'true' : null" @click="tryEdit(b)" @keydown.enter.self="tryEdit(b)">
+                      <div class="avatar quick-avatar">{{ b.name.charAt(0) }}</div>
+                      <div class="quick-text">
+                        <div class="quick-name truncate">{{ b.name }}
+                          <span v-if="b._pending" class="quick-pending">Not synced</span>
+                        </div>
+                        <div class="quick-meta">{{ b.floor_count }} floor(s) &middot; {{ b.building_number !== null ? 'Bldg #' + b.building_number : 'no bldg #' }} &middot; {{ b.room_count }} room(s)</div>
+                      </div>
+                      <span v-if="editingId === b.id" class="quick-editing">Editing</span>
+                      <button v-else type="button" class="btn-link quick-act" @click.stop="tryEdit(b)">Edit</button>
+                      <button v-if="!b._pending" type="button" class="btn-link quick-act quick-del" @click.stop="deleteBuilding(b)">Delete</button>
+                    </div>
+                  </div>
+                </div>
+
                 <div v-if="editingId && !editingIsLocalOnly">
                   <h3 class="section-title">Floor Plans</h3>
                   <div class="card modal-trigger-card" data-modal-open="floorPlansModal" tabindex="0" role="button">
                     <div class="modal-trigger-row">
-                      <div class="avatar" style="background: var(--blue-600, #1a4fc4); flex-shrink:0;">
+                      <div class="avatar" style="background: var(--blue-600, #2e3192); flex-shrink:0;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4V4Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 14h16M10 4v16" stroke="#fff" stroke-width="1.6"/></svg>
                       </div>
                       <div style="flex:1; min-width:0;">
@@ -576,15 +625,15 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                                 :y1="(pathNodes.find(n => n.id === edge.node_a_id) || {}).y + '%'"
                                 :x2="(pathNodes.find(n => n.id === edge.node_b_id) || {}).x + '%'"
                                 :y2="(pathNodes.find(n => n.id === edge.node_b_id) || {}).y + '%'"
-                                stroke="#1a4fc4" stroke-width="2" :style="{ pointerEvents: pathLocked ? 'none' : 'stroke', cursor: 'pointer' }" @click="deleteEdge(edge)" />
+                                stroke="#2e3192" stroke-width="2" :style="{ pointerEvents: pathLocked ? 'none' : 'stroke', cursor: 'pointer' }" @click="deleteEdge(edge)" />
                         </svg>
                         <div v-for="node in pathNodes" :key="node.id" @click.stop="selectNode(node)" @pointerdown="startDrag(node, $event)"
-                             :style="{ position: 'absolute', left: node.x + '%', top: node.y + '%', transform: 'translate(-50%, -50%)', width: '14px', height: '14px', borderRadius: '999px', background: selectedNodeId === node.id ? '#f59e0b' : '#1a4fc4', border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)', cursor: pathLocked ? 'pointer' : 'grab', touchAction: pathLocked ? 'auto' : 'none' }">
+                             :style="{ position: 'absolute', left: node.x + '%', top: node.y + '%', transform: 'translate(-50%, -50%)', width: '14px', height: '14px', borderRadius: '999px', background: selectedNodeId === node.id ? '#ffd100' : '#2e3192', border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)', cursor: pathLocked ? 'pointer' : 'grab', touchAction: pathLocked ? 'auto' : 'none' }">
                           <span class="cp-pt-label" style="position:absolute; left:50%; bottom:100%; transform:translate(-50%, -1px); pointer-events:none;">{{ pointShort(node) }}</span>
                         </div>
                         <button v-if="selectedNodeId !== null && !pathLocked" type="button" @click.stop="deleteSelectedNode"
                                 :style="{ position: 'absolute', left: (pathNodes.find(n => n.id === selectedNodeId) || {}).x + '%', top: (pathNodes.find(n => n.id === selectedNodeId) || {}).y + '%', transform: 'translate(6px, -26px)' }"
-                                style="width:22px; height:22px; border-radius:999px; background:#dc2626; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.3); color:#fff; font-size:13px; line-height:1; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;">
+                                style="width:22px; height:22px; border-radius:999px; background:#ff0000; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.3); color:#fff; font-size:13px; line-height:1; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;">
                           ×
                         </button>
                       </div>
@@ -643,7 +692,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                       </aside>
                       </div>
 
-                      <div v-if="selectedNodeId !== null" style="margin-top:0.6rem; padding:0.6rem 0.75rem; background:#fffbeb; border:1px solid #fde68a; border-radius:0.5rem;">
+                      <div v-if="selectedNodeId !== null" style="margin-top:0.6rem; padding:0.6rem 0.75rem; background:#fffbeb; border:1px solid #fff3b8; border-radius:0.5rem;">
                         <p style="font-size:0.75rem; font-weight:600; color:#92400e; margin:0 0 0.4rem;">Connections to other floors (stairs/elevator)</p>
                         <div v-if="crossLinks.length" style="display:flex; flex-direction:column; gap:0.3rem; margin-bottom:0.5rem;">
                           <div v-for="link in crossLinks" :key="link.edgeId" style="display:flex; align-items:center; justify-content:space-between; font-size:0.75rem; color:#78350f;">
@@ -654,13 +703,13 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                         <p v-else style="font-size:0.75rem; color:#a16207; margin:0 0 0.5rem;">Not connected to any other floor yet.</p>
                         <button type="button" @click="openCrossFloorPicker" :disabled="pathLocked" class="btn btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.6rem;">+ Connect to another floor</button>
 
-                        <div v-if="crossFloorOptions" style="margin-top:0.6rem; border-top:1px solid #fde68a; padding-top:0.6rem;">
+                        <div v-if="crossFloorOptions" style="margin-top:0.6rem; border-top:1px solid #fff3b8; padding-top:0.6rem;">
                           <div v-if="Object.keys(crossFloorOptions).length === 0" style="font-size:0.75rem; color:#a16207;">
                             No junctions exist on any other floor yet — add one there first (Edit walkable paths on that floor).
                           </div>
                           <div v-for="(nodes, floorName) in crossFloorOptions" :key="floorName" style="margin-bottom:0.75rem;">
                             <p style="font-size:0.7rem; font-weight:700; color:#78350f; margin:0 0 0.3rem;">{{ floorName }}</p>
-                            <div v-if="floorPlans[floorName]" style="position:relative; border-radius:0.5rem; overflow:hidden; border:1px solid #fde68a;">
+                            <div v-if="floorPlans[floorName]" style="position:relative; border-radius:0.5rem; overflow:hidden; border:1px solid #fff3b8;">
                               <img :src="'../../' + floorPlans[floorName].image_path" alt="" style="width:100%; display:block;">
                               <button v-for="n in nodes" :key="n.id" type="button" @click="linkAcrossFloors(n.id)"
                                       :style="{ position: 'absolute', left: n.x + '%', top: n.y + '%', transform: 'translate(-50%, -50%)' }"
@@ -704,30 +753,13 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
               </div>
             </teleport>
 
-            <div style="margin-top: 2.5rem;">
-              <h3 class="section-title">Registered Buildings ({{ buildings.length }})</h3>
-              <div class="card stagger-in">
-                <div v-if="buildings.length === 0" class="empty-state">None yet — add one above.</div>
-                <div v-for="b in buildings" :key="b.id" class="list-row">
-                  <div class="avatar" style="background: var(--green-600);">{{ b.name.charAt(0) }}</div>
-                  <div style="flex:1; min-width:0;">
-                    <div style="font-weight:600; font-size:0.875rem;" class="truncate">{{ b.name }}
-                      <span v-if="b._pending" style="margin-left:0.4rem; font-size:0.625rem; font-weight:700; color:#92400e; background:#fef3c7; border:1px solid #fde68a; border-radius:999px; padding:0.05rem 0.45rem; vertical-align:1px;">Not synced</span>
-                    </div>
-                    <div style="font-family:'JetBrains Mono',monospace; font-size:0.6875rem; color:#9aa79f;">{{ b.lat }}, {{ b.lng }} &middot; {{ b.floor_count }} floor(s) &middot; {{ b.building_number !== null ? 'Bldg #' + b.building_number : 'no building #' }} &middot; {{ b.room_count }} room(s)</div>
-                  </div>
-                  <button @click="startEdit(b)" class="btn-link" style="font-size:0.75rem; color: var(--muted);">Edit</button>
-                  <button v-if="!b._pending" @click="deleteBuilding(b)" class="btn-link" style="font-size:0.75rem; color: var(--red-600); margin-left:0.75rem;">Delete</button>
-                </div>
-              </div>
-            </div>
           </div>
 
           <transition name="overlay">
             <div v-if="submitting" class="loading-overlay">
               <div class="loading-card">
                 <div class="loading-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  <img src="../../assets/logo.svg" alt="" width="25" height="25" style="display:block">
                 </div>
                 <p>{{ editingId ? 'Saving changes…' : 'Registering building…' }}</p>
               </div>
@@ -752,12 +784,11 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                 <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1.2"/></svg>Assignment</div>
                 <div class="field">
                   <label>Building</label>
-                  <select v-model="form.building_id" @change="form.floor = ''" required>
+                  <select v-model="form.building_id" @change="onBuildingChange" required>
                     <option value="" disabled>Select a building…</option>
                     <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
                   </select>
                 </div>
-
                 <div v-if="buildingBlocksRooms" class="tinted-card warn-card" style="margin-bottom:1rem;">
                   <p style="color:#92400e; font-size:0.8125rem; line-height:1.6; margin:0;">
                     <strong>{{ selectedBuilding.name }}</strong> was registered with no building number, meaning it doesn't have numbered rooms. If this is wrong, add a building number for it on the Add / Edit Building tab first.
@@ -783,8 +814,8 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                              :placeholder="expectedPrefix ? expectedPrefix + '01' : '204'"
                              style="font-family:'JetBrains Mono',monospace;">
                       <input v-else type="text" value="No number" disabled
-                             style="font-family:'JetBrains Mono',monospace; color:#9aa79f; background:#f4f6f4;">
-                      <p v-if="!form.noSignage && !forcesNoNumber && (expectedPrefix || roomNumberError)" style="font-size:0.6875rem; margin:0.3rem 0 0;" :style="{ color: roomNumberError ? '#dc2626' : '#9aa79f' }">
+                             style="font-family:'JetBrains Mono',monospace; color:#9a9ab0; background:#f4f6f4;">
+                      <p v-if="!form.noSignage && !forcesNoNumber && (expectedPrefix || roomNumberError)" style="font-size:0.6875rem; margin:0.3rem 0 0;" :style="{ color: roomNumberError ? '#ff0000' : '#9a9ab0' }">
                         {{ roomNumberError || ('Should start with ' + expectedPrefix + ' — building ' + selectedBuilding.building_number + ', floor ' + floorDigit + '. A section can follow a dash, like ' + expectedPrefix + '01 - A.') }}
                       </p>
                       <p v-if="roomNumberPreview && !roomNumberError" style="font-size:0.6875rem; margin:0.3rem 0 0; color:var(--green-700, #15803d); font-weight:600;">
@@ -808,8 +839,8 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 
                   <div class="field" v-if="form.floor">
                     <label>Location on floor plan (optional)</label>
-                    <p v-if="loadingPlan" style="font-size:0.75rem; color:#9aa79f; margin:0;">Loading plan…</p>
-                    <p v-else-if="!currentFloorPlan" style="font-size:0.75rem; color:#9aa79f; margin:0;">
+                    <p v-if="loadingPlan" style="font-size:0.75rem; color:#9a9ab0; margin:0;">Loading plan…</p>
+                    <p v-else-if="!currentFloorPlan" style="font-size:0.75rem; color:#9a9ab0; margin:0;">
                       <template v-if="planUnavailable">The floor plan isn't available offline. Open this page once while connected to keep a copy. The room can still be saved without a marker.</template>
                       <template v-else-if="planForNewBuilding">This building hasn't synced yet, so it has no floor plan.</template>
                       <template v-else>No plan uploaded for {{ form.floor }} yet — add one on the Add / Edit Building tab to place a marker here.</template>
@@ -845,16 +876,16 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                               <img :src="'../../' + currentFloorPlan.image_path" alt="" style="width:100%; display:block; pointer-events:none;">
                               <div v-for="p in occupiedPins" :key="p.id"
                                    :style="{ position: 'absolute', left: p.map_x + '%', top: p.map_y + '%', transform: 'translate(-50%, -100%)', pointerEvents: 'none' }">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9aa79f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
-                                <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.5625rem; font-weight:700; background:#5b6b63; color:#fff; padding:0.05rem 0.3rem; border-radius:0.25rem; white-space:nowrap;">{{ p.room_number || p.room_name }}</span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9a9ab0" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+                                <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.5625rem; font-weight:700; background:#55556b; color:#fff; padding:0.05rem 0.3rem; border-radius:0.25rem; white-space:nowrap;">{{ p.room_number || p.room_name }}</span>
                               </div>
                               <div v-if="form.map_x !== null && form.map_y !== null"
                                    :style="{ position: 'absolute', left: form.map_x + '%', top: form.map_y + '%', transform: 'translate(-50%, -100%)', pointerEvents: 'none' }">
-                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#1a4fc4" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#2e3192" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
                               </div>
                             </div>
                             <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.6rem;">
-                              <p style="font-size:0.6875rem; color:#9aa79f; margin:0;">Tap the plan to place the marker. <span v-if="occupiedPins.length">Gray pins are already-placed rooms.</span></p>
+                              <p style="font-size:0.6875rem; color:#9a9ab0; margin:0;">Tap the plan to place the marker. <span v-if="occupiedPins.length">Gray pins are already-placed rooms.</span></p>
                               <button v-if="form.map_x !== null" type="button" @click="clearMarker" class="btn-link" style="font-size:0.75rem; color: var(--muted);">Clear marker</button>
                             </div>
                           </div>
@@ -869,19 +900,23 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 
                   <div class="field" v-if="form.category === 'classroom'">
                     <label>Room name</label>
-                    <select v-model="form.room_name" required>
+                    <select v-model="nameChoice" required>
                       <option value="" disabled>Select a type…</option>
-                      <option value="Lecture Room">Lecture Room</option>
-                      <option value="Laboratory Room">Laboratory Room</option>
-                      <option v-if="form.room_name && form.room_name !== 'Lecture Room' && form.room_name !== 'Laboratory Room'" :value="form.room_name">{{ form.room_name }} (existing)</option>
+                      <option v-for="n in classroomTypes" :key="n" :value="n">{{ n }}</option>
+                      <optgroup label="Other">
+                        <option v-for="n in otherRoomTypes" :key="n" :value="n">{{ n }}</option>
+                        <option value="__other__">Something else — type a name…</option>
+                      </optgroup>
                     </select>
+                    <input v-if="nameChoice === '__other__'" v-model="form.room_name" type="text" required maxlength="150"
+                           placeholder="Type the room name, e.g. Prayer Room" style="margin-top:0.5rem;">
                   </div>
                   <div class="field" v-else>
                     <label>Room name</label>
                     <input v-model="form.room_name" type="text" required placeholder="Treasury">
                   </div>
 
-                  <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Hours &amp; Notes</div>
+                  <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Hours &amp; Description</div>
                   <div class="field" v-if="categoryHasHours">
                     <label>Hours</label>
                     <div class="field-row">
@@ -915,24 +950,25 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                     </div>
                     <input v-if="form.hoursDaysPreset === 'Custom'" v-model="form.hoursDaysCustom" type="text" placeholder="e.g. Tue &amp; Thu only" style="margin-top:0.5rem;">
 
-                    <p v-if="composedHours" style="font-size:0.6875rem; color:#9aa79f; margin:0.5rem 0 0;">Saves as: {{ composedHours }}</p>
+                    <p v-if="composedHours" style="font-size:0.6875rem; color:#9a9ab0; margin:0.5rem 0 0;">Saves as: {{ composedHours }}</p>
                   </div>
                   <div v-else class="no-hours-note">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="#9aa79f" stroke-width="1.6" stroke-dasharray="3 3"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="#9a9ab0" stroke-width="1.6" stroke-dasharray="3 3"/></svg>
                     {{ form.category === 'cr' ? 'No fixed hours for a CR.' : 'No fixed hours for classrooms/labs — class scheduling is a separate scope.' }}
                   </div>
 
                   <div class="field">
-                    <label>Notes (optional)</label>
-                    <input v-model="form.notes" type="text" placeholder="e.g. 3rd floor, past the stairwell">
+                    <label>Description (optional)</label>
+                    <input v-model="form.notes" type="text" placeholder="Describe the room or how to find it, e.g. 3rd floor, past the stairwell">
                   </div>
                 </template>
 
-                <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.5rem;">
+                <div class="form-actions">
                   <button type="submit" :disabled="submitting || !!roomNumberError || buildingBlocksRooms" class="btn btn-primary" :class="{ 'is-loading': submitting }">
                     <span v-if="submitting" class="btn-spinner"></span>{{ submitting ? 'Saving…' : (editingId ? 'Save Changes' : 'Add Room') }}
                   </button>
-                  <button v-if="editingId" type="button" @click="cancelEdit" class="btn-link" style="color: var(--muted); font-size:0.8125rem;">Cancel</button>
+                  <button v-if="editingId" type="button" @click="tryCancel" class="btn-link" style="color: var(--muted); font-size:0.8125rem;">Cancel</button>
+                  <span v-if="dirty && !submitting" class="dirty-note"><span class="dirty-dot"></span>Unsaved changes</span>
                 </div>
               </form>
 
@@ -949,17 +985,28 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                   </p>
                 </div>
 
-                <div class="rooms-panel">
-                  <p class="rooms-panel-label">ROOMS {{ form.building_id ? 'IN THIS BUILDING' : '' }} ({{ filteredRooms.length }})</p>
-                  <div v-if="filteredRooms.length === 0" class="empty-state" style="color: rgba(255,255,255,0.4);">None yet.</div>
-                  <div class="stagger-in">
-                  <div v-for="r in filteredRooms" :key="r.id" class="room-row">
-                    <span class="room-num">{{ r.room_number || 'no #' }}</span>
-                    <span class="room-name truncate">{{ r.room_name }}<span v-if="r._pending" title="Saved on this device, not synced yet" style="margin-left:0.35rem; font-size:0.5625rem; font-weight:700; color:#fbbf24;">&bull; Not synced</span></span>
-                    <span class="room-type" :class="r.room_type === 'office' ? 'type-office' : 'type-classroom'">{{ { office: 'Office', classroom: 'Room', cr: 'CR', canteen: 'Canteen' }[r.category] || 'Room' }}</span>
-                    <button @click="startEdit(r)" class="btn-link room-action">Edit</button>
-                    <button v-if="!r._pending" @click="deleteRoom(r)" class="btn-link room-action room-delete">Delete</button>
+                <div class="card room-picker">
+                  <h3 class="room-picker-title">Edit an existing room</h3>
+                  <p class="room-picker-hint">Choose the building, then the room. Its details load into the form on the left.</p>
+                  <div class="field">
+                    <label for="pickBuilding">Building</label>
+                    <select id="pickBuilding" v-model="form.building_id" @change="onBuildingChange">
+                      <option value="" disabled>Select a building…</option>
+                      <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
+                    </select>
                   </div>
+                  <div class="field" style="margin-bottom:0;">
+                    <label for="pickRoom">Room</label>
+                    <select id="pickRoom" :value="editingId === null ? '' : editingId" @change="pickRoom($event.target.value, $event.target)" :disabled="!form.building_id">
+                      <option value="">{{ form.building_id ? (buildingRooms.length ? 'Select a room…' : 'No rooms in this building yet') : 'Select a building first…' }}</option>
+                      <option v-for="r in buildingRooms" :key="r.id" :value="r.id">{{ roomOptionLabel(r) }}</option>
+                    </select>
+                  </div>
+                  <p v-if="form.building_id" class="room-picker-count">{{ buildingRooms.length }} room(s) in this building</p>
+                  <div v-if="editingId !== null" class="room-picker-actions">
+                    <span class="room-picker-editing">Editing now</span>
+                    <button type="button" class="btn btn-secondary" @click="tryCancel">Add a new room instead</button>
+                    <button v-if="editingRoom && !editingRoom._pending" type="button" class="btn btn-secondary room-picker-delete" @click="deleteRoom(editingRoom)">Delete this room</button>
                   </div>
                 </div>
               </div>
@@ -970,7 +1017,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
             <div v-if="submitting" class="loading-overlay">
               <div class="loading-card">
                 <div class="loading-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  <img src="../../assets/logo.svg" alt="" width="25" height="25" style="display:block">
                 </div>
                 <p>{{ editingId ? 'Saving changes…' : 'Adding room…' }}</p>
               </div>

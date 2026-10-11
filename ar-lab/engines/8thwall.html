@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>AR Lab - 8th Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  /* !important: the engine's three.js renderer writes inline pixel sizes onto the canvas (300x150 at first),
+     which would otherwise leave the camera picture in a small box in the corner */
+  #xr{position:fixed;inset:0;width:100%!important;height:100%!important;z-index:1}
+</style>
+<!-- 8th Wall's hosted platform closed on 28 Feb 2026. The engine now ships as a self-hosted binary (@8thwall/engine-binary,
+     limited-use licence, no app key). It expects a global THREE, so this page uses three r149's classic build. -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script async crossorigin="anonymous" data-preload-chunks="slam" src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js"></script>
+</head>
+<body>
+<canvas id="xr"></canvas>
+
+<script src="../shared/geo.js"></script>
+<script src="../shared/campus.js"></script>
+<script src="../shared/path.js"></script>
+<script src="../shared/sensors.js"></script>
+<script src="../shared/hud.js"></script>
+<script src="../shared/nav.js"></script>
+<script>
+/* Engine 3: 8th Wall engine (SLAM world tracking). Like WebXR it tracks in its own space and knows nothing about
+   GPS, so the path is laid into that space once from a GPS fix + compass heading, and can be re-aligned.
+   The engine starts the camera at (0, eyeHeight, 0) facing -Z; we align from the camera's CURRENT pose so it
+   does not matter how far the phone has turned since tracking started. */
+
+let route = ARLab.route.get();
+// follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
+const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
+const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
+let navResolve; const navReady = new Promise((r) => { navResolve = r; });
+let hud, nav, compass, path, xrScene, fix = null, alignFix = null, pendingAlign = false;
+const filt = S.gpsFilter();
+
+const xrReady = new Promise((res) => { window.XR8 ? res() : window.addEventListener('xrloaded', res, { once: true }); });
+
+ARLab.gate({
+  title: '8th Wall engine',
+  lead: 'SLAM camera tracking from the self-hosted 8th Wall engine, with the path aligned once from GPS + compass.',
+  warn: 'Licence: the engine binary is free for commercial and non-commercial use but under a limited-use licence with attribution rules. Check it before shipping.',
+  onStart: start
+});
+
+async function start() {
+  await routeReady;
+  if ((await S.requestMotion()) !== 'granted') throw new Error('Motion and compass permission was denied. Allow it in the browser settings and try again.');
+  await Promise.race([xrReady, new Promise((_, rej) => setTimeout(() => rej(new Error('The 8th Wall engine did not load. Check your connection (cdn.jsdelivr.net).')), 15000))]);
+  if (typeof XR8.loadChunk === 'function') await XR8.loadChunk('slam');
+
+  hud = ARLab.hud.create({ route, engine: '8th Wall', tagline: 'SLAM tracking + one GPS/compass alignment' });
+  if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
+  compass = S.compass(); compass.start();
+  hud.addAction('Re-align here', () => { alignFix = fix || alignFix; pendingAlign = true; hud.setStatus('Re-aligning...'); });
+  hud.addAction('Heading -5°', () => { compass.nudge(-5); alignFix = fix || alignFix; pendingAlign = true; });
+  hud.addAction('Heading +5°', () => { compass.nudge(+5); alignFix = fix || alignFix; pendingAlign = true; });
+
+  const canvas = document.getElementById('xr');
+  { const r = Math.min(devicePixelRatio || 1, 2); canvas.width = Math.round(innerWidth * r); canvas.height = Math.round(innerHeight * r); }   // full-window drawing buffer BEFORE the engine reads it
+
+  try { XR8.XrController.configure({ scale: 'absolute' }); } catch (e) { /* older build: falls back to responsive scale */ }
+  XR8.addCameraPipelineModules([
+    XR8.GlTextureRenderer.pipelineModule(),
+    XR8.Threejs.pipelineModule(),
+    XR8.XrController.pipelineModule(),
+    fullWindowCanvas(),
+    {
+      name: 'arlab-path',
+      onStart: () => {
+        xrScene = XR8.Threejs.xrScene();
+        const { scene, camera } = xrScene;
+        camera.position.set(0, cfg.eyeHeight, 0);                          // ground = y 0
+        XR8.XrController.updateCameraProjectionMatrix({ origin: camera.position, facing: camera.quaternion });
+        navReady.then(() => nav.begin());                                 // builds the first leg (hidden until aligned)
+        hud.setStatus('Move the phone slowly so it can see the ground. Finding where you are...');
+      },
+      onCameraStatusChange: ({ status, reason }) => { if (status === 'failed') hud.error('8th Wall camera: ' + (reason || 'failed to open')); },
+      onException: (err) => hud.error('8th Wall: ' + (err && err.message ? err.message : err))
+    }
+  ]);
+  setTimeout(() => { if (!xrScene) hud.error('8th Wall has not started tracking. Check the camera permission, and that this is a phone on HTTPS.'); }, 12000);
+  window.addEventListener('realityerror', (e) => hud.error('8th Wall: ' + (e.detail && e.detail.message || 'reality error')));
+  XR8.run({ canvas, verbose: true });   // verbose: engine logs go to the console, useful when a phone refuses to start
+
+  S.watchGps((f) => { hud.setGps(f); fix = filt(f); if (nav) nav.update(fix); }, (m) => hud.error(m));
+  // The path is planned from a fresh GPS fix (where the person stands now), then laid into SLAM space from that same fix.
+  S.bestFix(12000, 8).then(async (f) => {
+    if (route.live !== false) { route = await S.rebase(route, f); hud.setRoute(route); }
+    if (route.fallback) hud.setStatus(route.fallback, 'err');
+    nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
+    hud.addAction('Next point', () => nav.next());
+    if (fix) nav.update(fix);                          // start with the position we already have
+    alignFix = f;
+    navResolve();
+  }).catch((e) => hud.error(e.message));
+  requestAnimationFrame(loop);
+}
+
+// Keeps the drawing surface at the window's size (what 8th Wall's XRExtras.FullWindowCanvas module does).
+function fullWindowCanvas() {
+  let canvas = null;
+  const fit = () => {
+    if (!canvas) return; const r = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(innerWidth * r); canvas.height = Math.round(innerHeight * r);
+  };
+  addEventListener('resize', fit);
+  return { name: 'arlab-fullwindow', onStart: (a) => { canvas = a.canvas; fit(); }, onDeviceOrientationChange: fit, onVideoSizeChange: fit };
+}
+
+// Only the current leg exists in the scene. Each leg is laid into SLAM space from the GPS fix + compass heading
+// at the moment it appears, relative to where the camera is then.
+function showLeg(leg, idx, total, others) {
+  path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
+  path.items().forEach((it) => { it.obj.visible = false; xrScene.scene.add(it.obj); });
+  if (idx > 0) alignFix = fix || alignFix;
+  if (idx > 0 || alignFix) pendingAlign = true;
+}
+function clearLeg() {
+  if (!path) return;
+  path.items().forEach((it) => xrScene.scene.remove(it.obj)); path.dispose(); path = null;
+}
+
+const dir = new THREE.Vector3(), pos = new THREE.Vector3();
+function align() {
+  if (!path) return;                                  // the leg is not built yet: stay pending and try next frame
+  if (!alignFix || !xrScene) return;
+  if (!compass.ready) { hud.setStatus('No compass data yet. Turn the phone a little.', 'err'); return; }
+  const cam = xrScene.camera;
+  cam.updateMatrixWorld(true); cam.getWorldDirection(dir); pos.setFromMatrixPosition(cam.matrixWorld);
+  const phi = geo.deg(Math.atan2(dir.x, -dir.z)), H = compass.heading;
+  path.items().forEach((it) => {
+    const v = geo.enuToView(geo.enu(alignFix, it), H, phi);
+    it.obj.position.set(pos.x + v.x, 0, pos.z + v.z); it.obj.visible = true;
+    if (it.bearing !== undefined) path.orient(it, it.bearing - H + phi);
+  });
+  pendingAlign = false;
+  hud.setStatus('Aligned. Follow the arrow. Use Re-align if it looks off.', 'ok'); setTimeout(() => hud.setStatus(''), 4000);
+}
+
+let lastLbl = 0;
+function loop(ms) {
+  requestAnimationFrame(loop);
+  if (pendingAlign) align();
+  if (path) {
+    path.animate(ms / 1000);
+    if (fix && nav && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(fix)); }
+  }
+  hud.setHeading(compass.heading, compass.label());
+  hud.frame();
+}
+</script>
+</body>
+</html>

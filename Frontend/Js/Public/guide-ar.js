@@ -2,16 +2,28 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v13 (lower path)';
+const AR_BUILD = 'AR build: v18 (building outlines)';
 
 // Movement comes from your STEPS, not raw GPS: GPS jumps 5-20 m on its own (worst near walls
 // and indoors), which moved you even while standing still. Each detected step moves you this
 // far in the direction you face, kept on the drawn path; standing still = not moving.
-const STEP_LENGTH_M = 0.7;
-const STEP_SNAP_M = 8;            // after a step, stay on a drawn path if one is this close
+const STEP_LENGTH_M = 0.75;       // starting guess; learned from GPS while you walk (learnStride)
+const STRIDE_MIN_M = 0.5, STRIDE_MAX_M = 1.1;
+const STRIDE_LEARN_MAX_ACC_M = 15; // only learn from fixes at least this accurate
+const STRIDE_LEARN_MIN_M = 15;     // ...and over at least this much walking
+const STEP_SNAP_M = 8;            // a step follows a drawn path only if one is this close
+const ROUTE_HEADING_TOL_DEG = 75;  // facing within this of the route = walk along the route
+const GRAPH_HEADING_TOL_DEG = 70;  // same, for any drawn walkway
+const CORNER_TURN_DEG = 55;        // a heading change this big while walking = you took a corner
+const CORNER_SNAP_M = 12;          // ...and you are put on a corner/junction node this close
+const CORNER_COOLDOWN_STEPS = 8;
+const CONSIST_FIXES = 5;           // GPS must disagree the same way this many fixes in a row...
+const CONSIST_MIN_M = 4;           // ...by at least this much (average)...
+const CONSIST_ACC_M = 20;          // ...using only fixes at least this accurate
+const CONSIST_PULL = 0.5;          // then you are moved this fraction of the way to it
 // GPS is then only a safety net for big drift: ignored while it agrees within this distance...
-const GPS_TRUST_MIN_M = 10;
-const GPS_PULL = 0.2;             // ...otherwise you are pulled this fraction of the way toward it per fix
+const GPS_TRUST_MIN_M = 8;
+const GPS_PULL = 0.25;            // ...otherwise you are pulled this fraction of the way toward it per fix
 
 // How far below the phone the ground is, in meters (phone held up in front of you while
 // walking ~1.4; default set a little lower, 1.6, so it never looks like it floats). The path is laid exactly this far below the camera. If it looks like it
@@ -28,6 +40,9 @@ function ribbonEntityY(camY) { return camY - EYE_HEIGHT_M - ArRibbon.GROUND_Y; }
 // Top-down mini-map (north up) — lets you check, anywhere, that the drawn paths and your
 // position/heading are what the AR scene is using. Tap it to zoom out/in.
 const MINIMAP_RADII_M = [40, 120];
+const MAP_BG_MAX_SIDE = 2400;     // largest side (px) the campus map picture is drawn at under the mini-map
+const MAP_FIT_MAX_ERR_M = 40;     // skip the picture if the entrance pins fit it worse than this
+const MINIMAP_EASE = 0.3;        // fraction of the gap the drawn dot closes each redraw (smooth gliding)
 
 // The 3D camera must see the same slice of the world as the phone camera, or the paths slide
 // against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
@@ -96,6 +111,7 @@ const ARRIVED_METERS = 8;
 const FAR_BOOST_FROM = 100;        // from here the destination marker is enlarged...
 const FAR_BOOST_TO = 300;          // ...reaching its largest at this distance
 const FAR_BOOST_MAX = 1.9;         // ...which is this many times the normal size
+const ARROW_TIP_Y = 0.2;           // the destination arrow's tip stays this high above the building's spot, however far away you are
 const OFF_PATH_METERS = 60;        // farther from any walkway than this -> no ribbon
 // Raw phone GPS while walking is typically only accurate to 3-10m, worse
 // near buildings, and jitters between fixes — this can't be eliminated
@@ -302,6 +318,7 @@ createApp({
         this.campusAnchor = (data.success && data.anchors.length) ? data.anchors[0] : null;
       } catch (e) { this.campusAnchor = null; }
 
+      this.loadFootprints(); // building outlines + roads under the mini-map; never blocks starting AR
       this.checking = false;
       this.proceedToAr();
     },
@@ -649,12 +666,144 @@ createApp({
     // you are close to one.
     displayPos() {
       if (!this.myPos) return null;
+      // With a route active, stay on the route itself so a parallel walkway can't steal the dot.
+      if (this.target && this._routePts && this._routePts.length > 1) {
+        const rs = this.snapToPolyline(this.myPos, this._routePts);
+        if (rs && rs.dist <= SNAP_TO_PATH_M) { this._snapDist = rs.dist; return { lat: rs.lat, lng: rs.lng }; }
+      }
       if (this.campusGraph.edges.length) {
         const snap = CampusRoute.snapToGraph(this.myPos, this.campusGraph.nodes, this.campusGraph.edges);
         if (snap && snap.dist <= SNAP_TO_PATH_M) { this._snapDist = snap.dist; return { lat: snap.lat, lng: snap.lng }; }
       }
       this._snapDist = null;
       return this.myPos;
+    },
+    // Building outlines and road lines (imported from the campus map export, already in GPS
+    // coordinates). Kept in localStorage so the mini-map still has them offline. If none exist, the
+    // uploaded map picture is fitted under the mini-map instead (loadMapBackdrop).
+    async loadFootprints() {
+      let list = null;
+      try {
+        const res = await fetch('../../../Backend/api/campus-footprints.php', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) {
+          list = data.footprints;
+          try { localStorage.setItem('lampara_footprints', JSON.stringify(list)); } catch (e) { /* storage full or blocked */ }
+        }
+      } catch (e) {
+        try { list = JSON.parse(localStorage.getItem('lampara_footprints') || 'null'); } catch (err) { list = null; }
+      }
+      if (list && list.length) {
+        // Precompute each shape's bounding box so the mini-map can skip far-away ones.
+        this._footprints = list.map((f) => {
+          const la = f.points.map((p) => p[0]), lo = f.points.map((p) => p[1]);
+          return { ...f, minLat: Math.min(...la), maxLat: Math.max(...la), minLng: Math.min(...lo), maxLng: Math.max(...lo) };
+        });
+      } else {
+        this._footprints = [];
+        this.loadMapBackdrop();
+      }
+    },
+    // Puts the uploaded campus map (Campus Map admin page) under the mini-map. The map has no GPS
+    // data, so it is lined up using the entrance pins: each pin sits at a known spot on the picture
+    // and its building has a known GPS entrance. A least-squares rotate+scale+shift fits them.
+    async loadMapBackdrop() {
+      if (this._footprints && this._footprints.length) return; // real outlines are better than a fitted picture
+      try {
+        const [mr, kr] = await Promise.all([
+          fetch('../../../Backend/api/static-maps.php').then((r) => r.json()),
+          fetch('../../../Backend/api/static-map-markers.php?kind=2d').then((r) => r.json()),
+        ]);
+        const map = mr.success && mr.maps && mr.maps['2d'];
+        if (!map || !kr.success) return;
+        const nodeById = new Map(this.campusGraph.nodes.map((n) => [n.id, n]));
+        const pairs = [];
+        kr.markers.forEach((m) => {
+          if (m.marker_type !== 'entrance') return;
+          const b = this.buildings.find((x) => x.id === m.building_id);
+          if (!b) return;
+          const en = b.entrance_node_id != null && nodeById.get(b.entrance_node_id);
+          pairs.push({ lat: en ? en.lat : b.lat, lng: en ? en.lng : b.lng, px: m.x, py: m.y });
+        });
+        if (pairs.length < 3) return; // need at least 3 known points to line the map up
+        const canvas = await this.renderMapImage(map);
+        if (!canvas) return;
+        const W = canvas.width, H = canvas.height;
+        const ref = { lat: pairs.reduce((a, p) => a + p.lat, 0) / pairs.length, lng: pairs.reduce((a, p) => a + p.lng, 0) / pairs.length };
+        const kx = PROJ_M_PER_DEG * Math.cos(ref.lat * Math.PI / 180);
+        // z = meters (east, north) from ref; w = picture pixels (x right, y up). Fit w = a*z + b (complex).
+        const Z = pairs.map((p) => ({ x: (p.lng - ref.lng) * kx, y: (p.lat - ref.lat) * PROJ_M_PER_DEG }));
+        const Wp = pairs.map((p) => ({ x: p.px / 100 * W, y: -(p.py / 100 * H) }));
+        const mean = (arr, k) => arr.reduce((a, v) => a + v[k], 0) / arr.length;
+        const zc = { x: mean(Z, 'x'), y: mean(Z, 'y') }, wc = { x: mean(Wp, 'x'), y: mean(Wp, 'y') };
+        const num = { x: 0, y: 0 };
+        let den = 0;
+        Z.forEach((z, i) => {
+          const zx = z.x - zc.x, zy = z.y - zc.y, wx = Wp[i].x - wc.x, wy = Wp[i].y - wc.y;
+          num.x += zx * wx + zy * wy; num.y += zx * wy - zy * wx; den += zx * zx + zy * zy; // conj(z)*w
+        });
+        if (!den) return;
+        const a = { x: num.x / den, y: num.y / den };
+        const b = { x: wc.x - (a.x * zc.x - a.y * zc.y), y: wc.y - (a.x * zc.y + a.y * zc.x) };
+        // Residual: how far (m) the fitted map puts each pin from its real spot. Too big = don't trust it.
+        const a2 = a.x * a.x + a.y * a.y;
+        const inv = { x: a.x / a2, y: -a.y / a2 }; // 1/a
+        let worst = 0;
+        Z.forEach((z, i) => {
+          const wx = Wp[i].x - b.x, wy = Wp[i].y - b.y;
+          const ex = inv.x * wx - inv.y * wy, ey = inv.x * wy + inv.y * wx;
+          worst = Math.max(worst, Math.hypot(ex - z.x, ey - z.y));
+        });
+        if (worst > MAP_FIT_MAX_ERR_M) { console.warn('Campus map backdrop skipped: pins fit only to ' + worst.toFixed(0) + ' m'); return; }
+        this._mapBg = { canvas, ref, kx, inv, b, fitErr: worst };
+      } catch (e) { /* no map, offline, or no pdf.js: the mini-map just stays plain */ }
+    },
+    // The uploaded map as a canvas: pictures directly, PDFs via pdf.js (loaded only when needed).
+    async renderMapImage(map) {
+      const url = '../../' + map.image_path + '?v=' + encodeURIComponent(map.updated_at || '');
+      const fmt = (map.format || '').toLowerCase();
+      const canvas = document.createElement('canvas');
+      if (fmt === 'pdf') {
+        const base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+        if (!window.pdfjsLib) {
+          await new Promise((resolve, reject) => {
+            const el = document.createElement('script');
+            el.src = base + 'pdf.min.js'; el.crossOrigin = 'anonymous';
+            el.onload = resolve; el.onerror = reject; document.head.appendChild(el);
+          });
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+        }
+        const buf = await (await fetch(url)).arrayBuffer();
+        const doc = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+        const page = await doc.getPage(1);
+        const b0 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: MAP_BG_MAX_SIDE / Math.max(b0.width, b0.height) });
+        canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        return canvas;
+      }
+      if (fmt === 'obj') return null;
+      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
+      const sc = Math.min(1, MAP_BG_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+      canvas.width = Math.round(img.naturalWidth * sc); canvas.height = Math.round(img.naturalHeight * sc);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas;
+    },
+    // Closest point on a lat/lng polyline: { lat, lng, dist }.
+    snapToPolyline(pos, pts) {
+      let best = null;
+      for (let i = 1; i < pts.length; i++) {
+        const A = CampusRoute.toXY(pts[i - 1], pos), B = CampusRoute.toXY(pts[i], pos);
+        const dx = B.x - A.x, dy = B.y - A.y, len2 = dx * dx + dy * dy;
+        const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(A.x * dx + A.y * dy) / len2));
+        const dist = Math.hypot(A.x + t * dx, A.y + t * dy);
+        if (!best || dist < best.dist) best = { lat: pts[i - 1].lat + t * (pts[i].lat - pts[i - 1].lat), lng: pts[i - 1].lng + t * (pts[i].lng - pts[i - 1].lng), dist };
+      }
+      return best;
     },
     // We place the camera ourselves instead of letting AR.js put it at raw GPS. A tick component
     // (see proceedToAr) glides it to _camTarget every frame, overriding AR.js's own writes.
@@ -906,7 +1055,7 @@ createApp({
       this.updateRoute(true);
       if (!entry) return;
 
-      setLabelColor(entry, '#10b981', 1);
+      setLabelColor(entry, '#ffd100', 1);
 
       // A genuine 3D arrow (cylinder shaft + cone head), not a flat
       // billboard — has real depth/volume so it reads as an actual arrow
@@ -950,7 +1099,7 @@ createApp({
       // the building, without fighting the parent's Y-spin animation.
       head.setAttribute('rotation', '180 0 0');
       head.setAttribute('position', '0 -0.22 0');
-      head.setAttribute('material', 'color: #10b981; emissive: #10b981; emissiveIntensity: 0.5; shader: standard; metalness: 0.1; roughness: 0.3');
+      head.setAttribute('material', 'color: #ffd100; emissive: #ffd100; emissiveIntensity: 0.5; shader: standard; metalness: 0.1; roughness: 0.3');
       head.classList.add('ar-clickable');
       arrow.appendChild(head);
 
@@ -979,6 +1128,13 @@ createApp({
       if (entry.arrow) {
         const arrowScale = Math.max(1.2, Math.round(d * 0.1 * boost * 10) / 10);
         entry.arrow.setAttribute('scale', `${arrowScale} ${arrowScale} ${arrowScale}`);
+        // The arrow's parts are offset from its origin in LOCAL units, so changing its scale used to slide its
+        // tip up (as you got closer) or down (as you walked away): it looked like it was slowly flying.
+        // Instead the TIP is pinned at a fixed spot and the arrow, then the label, grow upward from it.
+        const ARROW_TIP_LOCAL = 0.495, ARROW_TOP_LOCAL = 0.595, LABEL_GAP_LOCAL = 0.9;
+        const originY = ARROW_TIP_Y + ARROW_TIP_LOCAL * arrowScale;
+        entry.arrow.setAttribute('position', `0 ${originY} 0`);
+        entry.label.setAttribute('position', `0 ${originY + ARROW_TOP_LOCAL * arrowScale + LABEL_GAP_LOCAL * labelScale} 0`);
       }
     },
     updateTargetDistance() {
@@ -1000,6 +1156,7 @@ createApp({
         return;
       }
       const route = CampusRoute.findRoute(this.campusGraph, this.myPos, this.target.entrance_node_id);
+      this._routePts = route && route.snapDist <= OFF_PATH_METERS ? route.points : null; // steps follow this
       if (!route) { this.clearRoute(); return; }
 
       if (route.snapDist > OFF_PATH_METERS) {
@@ -1026,7 +1183,7 @@ createApp({
     startMiniMap() {
       if (this._miniMapTimer) return;
       this._miniMapZoom = 0;
-      this._miniMapTimer = setInterval(() => this.drawMiniMap(), 200);
+      this._miniMapTimer = setInterval(() => this.drawMiniMap(), 100);
     },
     toggleMiniMapZoom() {
       this._miniMapZoom = (this._miniMapZoom + 1) % MINIMAP_RADII_M.length;
@@ -1048,15 +1205,54 @@ createApp({
       ctx.save();
       ctx.beginPath(); ctx.arc(S / 2, S / 2, S / 2 - 1, 0, Math.PI * 2); ctx.clip();
 
-      const me = this.displayPos ? this.displayPos() : this.myPos;
+      // Glide toward the real position (steps and corner snaps would otherwise jump the dot).
+      const target = this.displayPos ? this.displayPos() : this.myPos;
+      let me = target;
+      if (target) {
+        const cur = this._mmPos;
+        if (!cur || haversineMeters(cur, target) > 30) this._mmPos = { lat: target.lat, lng: target.lng };
+        else this._mmPos = { lat: cur.lat + (target.lat - cur.lat) * MINIMAP_EASE, lng: cur.lng + (target.lng - cur.lng) * MINIMAP_EASE };
+        me = this._mmPos;
+      }
       const radius = MINIMAP_RADII_M[this._miniMapZoom || 0];
       if (me) {
         const k = (S / 2) / radius;
         const kx = PROJ_M_PER_DEG * Math.cos(me.lat * Math.PI / 180);
         const P = (p) => ({ x: S / 2 + (p.lng - me.lng) * kx * k, y: S / 2 - (p.lat - me.lat) * PROJ_M_PER_DEG * k });
         const byId = new Map(this.campusGraph.nodes.map((n) => [String(n.id), n]));
+        const fps = this._footprints;
+        if (fps && fps.length) {
+          const mLat = radius * 1.5 / PROJ_M_PER_DEG, mLng = radius * 1.5 / kx;
+          const targetId = this.target ? this.target.id : null;
+          ctx.lineJoin = 'round';
+          fps.forEach((f) => {
+            if (f.maxLat < me.lat - mLat || f.minLat > me.lat + mLat || f.maxLng < me.lng - mLng || f.minLng > me.lng + mLng) return;
+            ctx.beginPath();
+            f.points.forEach((pt, i) => { const Q = P({ lat: pt[0], lng: pt[1] }); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); });
+            if (f.kind === 'road') {
+              ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1; ctx.stroke();
+            } else {
+              const isTarget = targetId != null && f.building_id === targetId;
+              ctx.closePath();
+              ctx.fillStyle = isTarget ? 'rgba(250,204,21,0.55)' : 'rgba(148,163,184,0.35)'; ctx.fill();
+              ctx.strokeStyle = isTarget ? '#facc15' : 'rgba(203,213,225,0.7)'; ctx.lineWidth = isTarget ? 2 : 1; ctx.stroke();
+            }
+          });
+        }
+        const bg = this._mapBg;
+        if (bg) {
+          // Map pixel (X,Y) -> meters from ref: e = cr*X + ci*Y + e0, n = ci*X - cr*Y + n0; then to the canvas.
+          const cr = bg.inv.x, ci = bg.inv.y;
+          const e0 = -cr * bg.b.x + ci * bg.b.y, n0 = -ci * bg.b.x - cr * bg.b.y;
+          const em = (me.lng - bg.ref.lng) * bg.kx, nm = (me.lat - bg.ref.lat) * PROJ_M_PER_DEG;
+          ctx.save();
+          ctx.transform(k * cr, -k * ci, k * ci, k * cr, S / 2 + k * (e0 - em), S / 2 - k * (n0 - nm));
+          ctx.globalAlpha = 0.9;
+          ctx.drawImage(bg.canvas, 0, 0);
+          ctx.restore();
+        }
         ctx.lineCap = 'round';
-        ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2;
+        ctx.strokeStyle = bg ? 'rgba(30,64,175,0.9)' : 'rgba(255,255,255,0.75)'; ctx.lineWidth = bg ? 3 : 2;
         this.campusGraph.edges.forEach((e) => {
           const a = byId.get(String(e.node_a_id)), b = byId.get(String(e.node_b_id));
           if (!a || !b) return;
@@ -1064,7 +1260,7 @@ createApp({
           ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
         });
         if (this.target && this._routePts && this._routePts.length > 1) {
-          ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4;
+          ctx.strokeStyle = '#ffd100'; ctx.lineWidth = 4;
           ctx.beginPath();
           this._routePts.forEach((p, i) => { const Q = P(p); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); });
           ctx.stroke();
@@ -1080,7 +1276,9 @@ createApp({
         // You + the direction you face in the real world (AR camera heading minus the correction).
         const cam = this.cameraHeadingDeg(0.05);
         if (cam !== null) {
-          const h = (cam - (this._alignOffsetDeg || 0)) * Math.PI / 180;
+          const rawH = cam - (this._alignOffsetDeg || 0);
+          this._mmHdg = this._mmHdg == null ? rawH : (this._mmHdg + relativeAngle(this._mmHdg, rawH) * 0.25 + 360) % 360;
+          const h = this._mmHdg * Math.PI / 180;
           ctx.fillStyle = 'rgba(96,165,250,0.35)';
           ctx.beginPath(); ctx.moveTo(S / 2, S / 2);
           ctx.arc(S / 2, S / 2, S * 0.3, h - Math.PI / 2 - 0.45, h - Math.PI / 2 + 0.45); ctx.closePath(); ctx.fill();
@@ -1228,7 +1426,10 @@ createApp({
           } else if (this._stepsActive) {
             // Steps move you; GPS only pulls you back when it disagrees by more than its own
             // noise, so standing still never drifts.
+            this.learnStride(fix, acc);
             const off = haversineMeters(this.myPos, fix);
+            if (off <= Math.max(GPS_TRUST_MIN_M, acc || 0)) this.checkConsistentGps(fix, acc);
+            else this._gpsDiffs = [];
             if (off > Math.max(GPS_TRUST_MIN_M, acc || 0)) {
               this.myPos = {
                 lat: this.myPos.lat + (fix.lat - this.myPos.lat) * GPS_PULL,
@@ -1279,19 +1480,154 @@ createApp({
       const cam = this.cameraHeadingDeg(0.05);
       if (cam !== null) this._walkHeading = cam - (this._alignOffsetDeg || 0);
       if (this._walkHeading == null) return;
-      const h = this._walkHeading * Math.PI / 180;
-      const kx = PROJ_M_PER_DEG * Math.cos(this.myPos.lat * Math.PI / 180);
-      let next = {
-        lat: this.myPos.lat + STEP_LENGTH_M * Math.cos(h) / PROJ_M_PER_DEG,
-        lng: this.myPos.lng + STEP_LENGTH_M * Math.sin(h) / kx,
-      };
-      if (this.campusGraph.edges.length) {
-        const snap = CampusRoute.snapToGraph(next, this.campusGraph.nodes, this.campusGraph.edges);
-        if (snap && snap.dist <= STEP_SNAP_M) next = { lat: snap.lat, lng: snap.lng };
+      const stride = this._stride || STEP_LENGTH_M;
+      // 1) On the route to the chosen building and facing roughly along it: slide along the route.
+      // The compass only decides forward/back, so its error can't push you sideways off the path.
+      let next = this.stepAlongPath(this._routePts, stride, this._walkHeading, ROUTE_HEADING_TOL_DEG);
+      // 2) Otherwise, on any drawn walkway: follow that edge (and onward through junctions).
+      if (!next && this.campusGraph.edges.length) next = this.stepAlongGraph(stride, this._walkHeading);
+      // 3) Off every path: plain dead reckoning.
+      if (!next) {
+        const h = this._walkHeading * Math.PI / 180;
+        const kx = PROJ_M_PER_DEG * Math.cos(this.myPos.lat * Math.PI / 180);
+        next = {
+          lat: this.myPos.lat + stride * Math.cos(h) / PROJ_M_PER_DEG,
+          lng: this.myPos.lng + stride * Math.sin(h) / kx,
+        };
       }
       this.myPos = next;
       this.stepCount = (this.stepCount || 0) + 1;
+      this._strideSteps = (this._strideSteps || 0) + 1;
+      this.checkCorner();
       this.afterMove();
+    },
+    // Moves `dist` meters along a lat/lng polyline starting at your position, but only if your
+    // heading is within `tol` degrees of the polyline's first segment.
+    stepAlongPath(pts, dist, headingDeg, tol) {
+      if (!pts || pts.length < 2) return null;
+      const here = this.myPos;
+      if (haversineMeters(here, pts[0]) > STEP_SNAP_M) return null;
+      let i = 1;
+      while (i < pts.length - 1 && haversineMeters(pts[i - 1], pts[i]) < 0.3) i++;
+      if (Math.abs(relativeAngle(headingDeg, bearingDeg(pts[0], pts[i]))) > tol) return null;
+      let cur = pts[0], left = dist;
+      for (; i < pts.length; i++) {
+        const seg = haversineMeters(cur, pts[i]);
+        if (seg >= left) {
+          const t = seg === 0 ? 0 : left / seg;
+          return { lat: cur.lat + (pts[i].lat - cur.lat) * t, lng: cur.lng + (pts[i].lng - cur.lng) * t };
+        }
+        left -= seg;
+        cur = pts[i];
+      }
+      return { lat: cur.lat, lng: cur.lng }; // reached the end of the route
+    },
+    // Walks `dist` meters along the drawn walkways in the direction you face. At each junction it
+    // takes the branch that best matches your heading; stops if nothing is within the tolerance.
+    stepAlongGraph(dist, headingDeg) {
+      const { nodes, edges } = this.campusGraph;
+      const snap = CampusRoute.snapToGraph(this.myPos, nodes, edges);
+      if (!snap || snap.dist > STEP_SNAP_M) return null;
+      const fwd = bearingDeg(snap.nodeA, snap.nodeB);
+      const toB = Math.abs(relativeAngle(headingDeg, fwd)) <= Math.abs(relativeAngle(headingDeg, (fwd + 180) % 360));
+      let from = toB ? snap.nodeA : snap.nodeB, to = toB ? snap.nodeB : snap.nodeA;
+      if (Math.abs(relativeAngle(headingDeg, bearingDeg(from, to))) > GRAPH_HEADING_TOL_DEG) return { lat: snap.lat, lng: snap.lng };
+      let cur = { lat: snap.lat, lng: snap.lng }, left = dist;
+      for (let hops = 0; hops < 6; hops++) {
+        const seg = haversineMeters(cur, to);
+        if (seg >= left) {
+          const t = seg === 0 ? 0 : left / seg;
+          return { lat: cur.lat + (to.lat - cur.lat) * t, lng: cur.lng + (to.lng - cur.lng) * t };
+        }
+        left -= seg;
+        cur = { lat: to.lat, lng: to.lng };
+        // Junction: pick the onward edge closest to the current travel direction.
+        const travel = bearingDeg(from, to);
+        let best = null, bestAng = GRAPH_HEADING_TOL_DEG;
+        edges.forEach((e) => {
+          const other = e.node_a_id === to.id ? e.node_b_id : e.node_b_id === to.id ? e.node_a_id : null;
+          if (other === null || other === from.id) return;
+          const n = nodes.find((x) => x.id === other);
+          if (!n) return;
+          const ang = Math.abs(relativeAngle(headingDeg, bearingDeg(to, n)));
+          const turn = Math.abs(relativeAngle(travel, bearingDeg(to, n)));
+          if (ang < bestAng && turn < 100) { best = n; bestAng = ang; }
+        });
+        if (!best) return cur; // dead end or no branch you are facing
+        from = to; to = best;
+      }
+      return cur;
+    },
+    // GPS is noisy, but noise averages out: when the last few good fixes ALL put you in about the
+    // same direction from the dot, the dot is wrong (steps drifted), so move it part of the way.
+    checkConsistentGps(fix, acc) {
+      if (acc == null || acc > CONSIST_ACC_M) return;
+      const d = CampusRoute.toXY(fix, this.myPos);
+      const buf = this._gpsDiffs = (this._gpsDiffs || []).concat({ x: d.x, y: d.y }).slice(-CONSIST_FIXES);
+      if (buf.length < CONSIST_FIXES) return;
+      const mx = buf.reduce((a, b) => a + b.x, 0) / buf.length, my = buf.reduce((a, b) => a + b.y, 0) / buf.length;
+      const mag = Math.hypot(mx, my);
+      if (mag < CONSIST_MIN_M) return;
+      // Every fix must lean the same way as the average and not be wildly different in size.
+      const same = buf.every((b) => (b.x * mx + b.y * my) / (Math.hypot(b.x, b.y) * mag || 1) > 0.5 && Math.hypot(b.x - mx, b.y - my) < Math.max(4, mag * 0.7));
+      if (!same) return;
+      this._gpsDiffs = [];
+      const kx = PROJ_M_PER_DEG * Math.cos(this.myPos.lat * Math.PI / 180);
+      this.myPos = {
+        lat: this.myPos.lat + (my * CONSIST_PULL) / PROJ_M_PER_DEG,
+        lng: this.myPos.lng + (mx * CONSIST_PULL) / kx,
+      };
+    },
+    // Detects a corner from your walking heading and, when you are near a corner/junction on the
+    // drawn paths, puts you exactly on it. Clears the distance error built up on the straight part.
+    checkCorner() {
+      const hist = this._hdgHist = (this._hdgHist || []).concat(this._walkHeading).slice(-10);
+      if (hist.length < 8 || (this.stepCount || 0) - (this._lastCornerStep || -99) < CORNER_COOLDOWN_STEPS) return;
+      const avg = (arr) => {
+        const x = arr.reduce((a, h) => a + Math.sin(h * Math.PI / 180), 0), y = arr.reduce((a, h) => a + Math.cos(h * Math.PI / 180), 0);
+        return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+      };
+      const turn = Math.abs(relativeAngle(avg(hist.slice(0, 4)), avg(hist.slice(-3))));
+      if (turn < CORNER_TURN_DEG || !this.campusGraph.edges.length) return;
+      const { nodes, edges } = this.campusGraph;
+      const nbrs = new Map();
+      edges.forEach((e) => {
+        (nbrs.get(e.node_a_id) || nbrs.set(e.node_a_id, []).get(e.node_a_id)).push(e.node_b_id);
+        (nbrs.get(e.node_b_id) || nbrs.set(e.node_b_id, []).get(e.node_b_id)).push(e.node_a_id);
+      });
+      const byId = new Map(nodes.map((n) => [n.id, n]));
+      let best = null, bestD = CORNER_SNAP_M;
+      nodes.forEach((n) => {
+        const list = nbrs.get(n.id) || [];
+        if (list.length < 2) return; // ends of a path are not corners
+        // A bend (two edges not in line) or a fork (3+ edges) counts.
+        let corner = list.length >= 3;
+        if (!corner) {
+          const a = byId.get(list[0]), b = byId.get(list[1]);
+          corner = a && b && Math.abs(relativeAngle(bearingDeg(n, a), (bearingDeg(n, b) + 180) % 360)) >= 30;
+        }
+        const d = haversineMeters(this.myPos, n);
+        if (corner && d < bestD) { best = n; bestD = d; }
+      });
+      if (!best) return;
+      this.myPos = { lat: best.lat, lng: best.lng };
+      this._lastCornerStep = this.stepCount || 0;
+      this._hdgHist = [];
+    },
+    // Learns your real stride from GPS: over a long enough good-GPS stretch, stride = GPS distance / steps.
+    // Averaged in slowly and clamped, so one bad fix can't wreck it.
+    learnStride(fix, acc) {
+      if (acc == null || acc > STRIDE_LEARN_MAX_ACC_M) { this._strideRef = null; this._strideSteps = 0; return; }
+      const ref = this._strideRef;
+      if (!ref) { this._strideRef = { lat: fix.lat, lng: fix.lng }; this._strideSteps = 0; return; }
+      const d = haversineMeters(ref, fix);
+      if (d < STRIDE_LEARN_MIN_M) return;
+      if (this._strideSteps >= 12) {
+        const measured = Math.max(STRIDE_MIN_M, Math.min(STRIDE_MAX_M, d / this._strideSteps));
+        this._stride = (this._stride || STEP_LENGTH_M) * 0.7 + measured * 0.3;
+      }
+      this._strideRef = { lat: fix.lat, lng: fix.lng };
+      this._strideSteps = 0;
     },
     // Independent compass watch (same technique as guide.php's own) purely
     // for the "turn left/right" off-screen indicator — deliberately NOT

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>AR Lab - AR.js</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  /* Same fixes the main Lampara AR guide needed (see Frontend/Css/Public/guide-ar.css). AR.js sets a stale
+     inline margin-left on body and on its video; both must be overridden or the picture is shifted sideways. */
+  /* the black goes on <html> only: AR.js puts its camera <video> at a negative z-index, and an opaque <body> would cover it */
+  html{background:#000}
+  html,body{margin:0!important;height:100%;height:100dvh;overflow:hidden}
+  body{background:transparent}
+  a-scene{position:fixed;inset:0;z-index:0}
+  #arjs-video{position:fixed!important;top:0!important;left:0!important;width:100dvw!important;height:100dvh!important;object-fit:cover!important;transform:none!important;margin:0!important}
+  .a-canvas{width:100dvw!important;height:100dvh!important}
+</style>
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<script src="../vendor/arjs/threex-device-orientation-controls.js"></script>
+<script src="../vendor/arjs/aframe-ar.js"></script>
+</head>
+<body>
+<script src="../shared/geo.js"></script>
+<script src="../shared/campus.js"></script>
+<script src="../shared/path.js"></script>
+<script src="../shared/sensors.js"></script>
+<script src="../shared/hud.js"></script>
+<script src="../shared/nav.js"></script>
+<script>
+/* Engine 1: AR.js + A-Frame, location-based (gps-new-camera / gps-new-entity-place). AR.js reads GPS and
+   compass itself and treats the first fix as the scene origin (initialPositionAsOrigin). Known behaviour from
+   the main app: gps-new-entity-place computes an entity's position once, so every entity is nudged with
+   update() whenever AR.js reports a new camera position. */
+
+let route = ARLab.route.get();
+// follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
+const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
+const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
+let hud, nav, compass, scene, camEl, path, wrappers = [], lastFix = null;
+const filt = S.gpsFilter();
+
+ARLab.gate({
+  title: 'AR.js',
+  lead: 'A-Frame with the location-based AR.js camera. The same engine family the main Lampara guide uses today.',
+  onStart: start
+});
+
+async function start() {
+  await routeReady;
+  if ((await S.requestMotion()) !== 'granted') throw new Error('Motion and compass permission was denied. Allow it in the browser settings and try again.');
+  hud = ARLab.hud.create({ route, engine: 'AR.js', tagline: 'A-Frame gps-new-camera' });
+  route = await ARLab.sensors.startFromHere(route, hud);          // plan from where the person actually stands now
+  if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
+  hud.setStatus('Starting camera...');
+
+  document.body.insertAdjacentHTML('afterbegin',
+    '<a-scene embedded vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false;" renderer="antialias: true; alpha: true">' +
+    '<a-camera gps-new-camera="gpsMinDistance: 2; initialPositionAsOrigin: true;" rotation-reader></a-camera></a-scene>');
+  scene = document.querySelector('a-scene');
+  await new Promise((res) => scene.hasLoaded ? res() : scene.addEventListener('loaded', res, { once: true }));
+  camEl = scene.querySelector('[gps-new-camera]');
+
+  setFov(); addEventListener('resize', setFov);
+
+  compass = S.compass(); compass.start();             // only for the HUD heading readout; AR.js has its own
+  hud.addAction('Reposition path', () => nudgeAll());
+  nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
+  hud.addAction('Next point', () => nav.next());
+  S.watchGps((f) => { hud.setGps(f); lastFix = f; nav.update(filt(f)); }, (m) => hud.error(m));
+  // gps-new-entity-place throws if it is created before AR.js has its origin fix, so the path is only
+  // built once the camera reports its first position, and nudged on every later one.
+  camEl.addEventListener('gps-camera-update-position', () => {
+    if (!started) { started = true; nav.begin(); hud.setStatus('GPS locked. Follow the arrow.', 'ok'); setTimeout(() => hud.setStatus(''), 3000); }
+    else nudgeAll();
+  });
+  hud.setStatus('Waiting for AR.js to take its first GPS fix...');
+  requestAnimationFrame(loop);
+}
+
+function setFov() {                                  // vertical FOV from the phone camera's long-side FOV
+  const w = innerWidth, h = innerHeight, aspect = w / h;
+  const v = h >= w ? cfg.longFov : geo.deg(2 * Math.atan(Math.tan(geo.rad(cfg.longFov) / 2) / aspect));
+  camEl.setAttribute('camera', 'fov', v);
+}
+
+let started = false;
+// Only the current leg exists in the scene.
+function showLeg(leg, idx, total, others) {
+  const THREE = AFRAME.THREE;
+  path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
+  path.items().forEach((it) => {
+    const wrap = document.createElement('a-entity');
+    wrap.setAttribute('gps-new-entity-place', 'latitude: ' + it.lat + '; longitude: ' + it.lng + ';');
+    const inner = document.createElement('a-entity');
+    wrap.appendChild(inner); scene.appendChild(wrap);
+    inner.setObject3D('mesh', it.obj);               // the THREE group from the shared path builder
+    wrappers.push({ wrap, inner });
+  });
+}
+
+function clearLeg() {
+  wrappers.forEach(({ wrap, inner }) => { inner.removeObject3D('mesh'); if (wrap.parentNode) wrap.parentNode.removeChild(wrap); });
+  wrappers = [];
+  if (path) { path.dispose(); path = null; }
+}
+
+function nudgeAll() {
+  wrappers.forEach(({ wrap }) => { const c = wrap.components && wrap.components['gps-new-entity-place']; if (c) c.update(); });
+}
+
+let lastLbl = 0;
+function loop(ms) {
+  requestAnimationFrame(loop);
+  // keep the ground a fixed distance under the camera, whatever height AR.js gives the camera
+  const camY = camEl ? camEl.object3D.position.y : 0;
+  wrappers.forEach(({ inner }) => { inner.object3D.position.y = camY - cfg.eyeHeight; });
+  if (path) {
+    path.animate(ms / 1000);
+    if (lastFix && nav && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(lastFix)); }
+  }
+  hud.setHeading(compass.heading, compass.source);
+  hud.frame();
+}
+</script>
+</body>
+</html>

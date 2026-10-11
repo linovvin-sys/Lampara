@@ -12,18 +12,24 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Scan Signage</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#09090b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Student/scan.css?v=<?= $pageCssVer ?>">
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 </head>
 <body style="background:#09090b;">
+<script>LamparaSkeleton.show('guide')</script>
 
 <!-- overflow:hidden is only actually needed for Stage 1's fullscreen fixed
      camera view — Stage 2 (result screen) is real scrollable content that
@@ -190,8 +196,8 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
                  isn't the only landmark on an otherwise-blank plan. -->
             <div v-for="r in roomsOnFloor(room.floor)" :key="r.id"
                  :style="{ position: 'absolute', left: r.map_x + '%', top: r.map_y + '%', transform: 'translate(-50%, -100%)' }">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9aa79f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
-              <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.375rem; font-weight:600; background:#9aa79f; color:#fff; padding:0.03rem 0.2rem; border-radius:0.15rem; white-space:nowrap; line-height:1.4;">{{ r.room_number || r.room_name }}</span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9a9ab0" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+              <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.375rem; font-weight:600; background:#9a9ab0; color:#fff; padding:0.03rem 0.2rem; border-radius:0.15rem; white-space:nowrap; line-height:1.4;">{{ r.room_number || r.room_name }}</span>
             </div>
             <!-- Actual walkable route, drawn from the walkable-path graph
                  (Register Building) — quietly absent whenever either room
@@ -201,8 +207,8 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
               <polyline :points="routePath.map(p => p.x + ',' + p.y).join(' ')" fill="none" stroke="#16a34a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,2" vector-effect="non-scaling-stroke" />
             </svg>
             <div :style="{ position: 'absolute', left: room.map_x + '%', top: room.map_y + '%', transform: 'translate(-50%, -100%)' }">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#14251c" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
-              <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.4375rem; font-weight:700; background:#14251c; color:#fff; padding:0.05rem 0.25rem; border-radius:0.2rem; white-space:nowrap; line-height:1.4;">{{ planningMode ? 'Start' : 'You' }}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#0d0e33" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+              <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.4375rem; font-weight:700; background:#0d0e33; color:#fff; padding:0.05rem 0.25rem; border-radius:0.2rem; white-space:nowrap; line-height:1.4;">{{ planningMode ? 'Start' : 'You' }}</span>
             </div>
             <div :style="{ position: 'absolute', left: destination.map_x + '%', top: destination.map_y + '%', transform: 'translate(-50%, -100%)' }">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#16a34a" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
@@ -225,16 +231,16 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
               <img :src="segmentImage(currentSegment)" alt="" style="width:100%; display:block;">
               <div v-for="r in roomsOnFloor(segmentFloorLabel(currentSegment))" :key="r.id"
                    :style="{ position: 'absolute', left: r.map_x + '%', top: r.map_y + '%', transform: 'translate(-50%, -100%)' }">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9aa79f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
-                <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.375rem; font-weight:600; background:#9aa79f; color:#fff; padding:0.03rem 0.2rem; border-radius:0.15rem; white-space:nowrap; line-height:1.4;">{{ r.room_number || r.room_name }}</span>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#9a9ab0" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+                <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.375rem; font-weight:600; background:#9a9ab0; color:#fff; padding:0.03rem 0.2rem; border-radius:0.15rem; white-space:nowrap; line-height:1.4;">{{ r.room_number || r.room_name }}</span>
               </div>
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;">
                 <polyline :points="currentSegment.points.map(p => p.x + ',' + p.y).join(' ')" fill="none" stroke="#16a34a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,2" vector-effect="non-scaling-stroke" />
               </svg>
               <!-- Start pin — only on the first page, at the room's own dot -->
               <div v-if="currentSegmentIndex === 0" :style="{ position: 'absolute', left: currentSegment.points[0].x + '%', top: currentSegment.points[0].y + '%', transform: 'translate(-50%, -100%)' }">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#14251c" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
-                <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.4375rem; font-weight:700; background:#14251c; color:#fff; padding:0.05rem 0.25rem; border-radius:0.2rem; white-space:nowrap; line-height:1.4;">{{ planningMode ? 'Start' : 'You' }}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#0d0e33" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
+                <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.4375rem; font-weight:700; background:#0d0e33; color:#fff; padding:0.05rem 0.25rem; border-radius:0.2rem; white-space:nowrap; line-height:1.4;">{{ planningMode ? 'Start' : 'You' }}</span>
               </div>
               <!-- Destination pin — only on the last page -->
               <div v-if="currentSegmentIndex === routeSegments.length - 1" :style="{ position: 'absolute', left: currentSegment.points[currentSegment.points.length - 1].x + '%', top: currentSegment.points[currentSegment.points.length - 1].y + '%', transform: 'translate(-50%, -100%)' }">

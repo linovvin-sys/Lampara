@@ -26,7 +26,7 @@
 // student data fresh is done by Js/Include/student-offline.js.
 
 // Bump this whenever phones must drop their saved copies (old versions' caches are deleted on activate).
-const VERSION = 'lampara-sw-v3';
+const VERSION = 'lampara-sw-v13';
 const CACHE_PAGES = VERSION + '-pages';           // admin pages (private)
 const CACHE_API = VERSION + '-api';               // admin-only API reads (private)
 const CACHE_STUDENT_PAGES = VERSION + '-student-pages'; // public
@@ -112,7 +112,7 @@ const isGoodResponse = (r) => r.ok && !r.redirected && r.type === 'basic';
 
 const offlinePage = () => new Response(
   '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-  '<title>Offline</title><body style="font-family:system-ui,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1.25rem;color:#14251c">' +
+  '<title>Offline</title><body style="font-family:system-ui,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1.25rem;color:#0d0e33">' +
   '<h1 style="font-size:1.4rem">You\'re offline</h1>' +
   '<p>This page wasn\'t saved on this device yet. Open it once while connected and it will be available offline next time. (Admin pages: open them once while signed in.)</p>' +
   '<p><a href="javascript:history.back()">Go back</a></p></body>',
@@ -175,7 +175,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Everything else on this site that's a plain file (scripts, styles, icons, floor plan images).
-  if (path.includes('/Frontend/') && /\.(js|css|png|jpe?g|webp|svg|json|ico|woff2?)$/i.test(path)) {
+  if (path.includes('/Frontend/') && /\.(js|css|png|jpe?g|webp|svg|json|ico|woff2?|pdf|obj)$/i.test(path)) {
     event.respondWith(networkFirst(request, CACHE_STATIC, { cacheable: isGoodResponse }));
   }
 });

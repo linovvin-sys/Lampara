@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>AR Lab - LocAR.js</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  /* LocAR puts its camera <video> at z-index:-100 on the body. An opaque body background would paint over it,
+     so only the root element gets the black. */
+  html{background:#000}
+  html,body{overflow:hidden}
+  body{background:transparent}
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
+</head>
+<body>
+<script src="../shared/geo.js"></script>
+<script src="../shared/campus.js"></script>
+<script src="../shared/path.js"></script>
+<script src="../shared/sensors.js"></script>
+<script src="../shared/hud.js"></script>
+<script src="../shared/nav.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import * as LocAR from 'https://cdn.jsdelivr.net/npm/locar@0.2.12/dist/locar.es.js';
+
+/* Engine 2: LocAR.js 0.2.12 (the location-based half of AR.js, on three.js). The library owns the webcam,
+   the device-orientation camera and the GPS-to-world mapping. We only add the shared path objects.
+   Its default projection is spherical mercator, which stretches metres by 1/cos(latitude) (about 3% here),
+   so a plain local-metres projection is passed in to keep chevron spacing honest. */
+
+let route = ARLab.route.get();
+// follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
+const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
+const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
+let hud, nav, app, locar, path, added = false, lastFix = null;
+const filt = S.gpsFilter();
+
+ARLab.gate({
+  title: 'LocAR.js',
+  lead: 'The AR.js location-based engine rebuilt on three.js. It reads GPS and compass itself.',
+  onStart: start
+});
+
+// Local tangent-plane projection in true metres around the start point (east, north). Built in start(), after the
+// start point has been re-read from GPS.
+let projection = null;
+function makeProjection(a) {
+  const lat0 = a.lat, lng0 = a.lng, R = 6371008.8;
+  return {
+    project: (lon, lat) => [geo.rad(lon - lng0) * R * Math.cos(geo.rad(lat0)), geo.rad(lat - lat0) * R],
+    unproject: (x, y) => [lng0 + geo.deg(x / (R * Math.cos(geo.rad(lat0)))), lat0 + geo.deg(y / R)],
+    getID: () => 'arlab-local-metres'
+  };
+}
+
+async function start() {
+  await routeReady;
+  if ((await S.requestMotion()) !== 'granted') throw new Error('Motion and compass permission was denied. Allow it in the browser settings and try again.');
+  hud = ARLab.hud.create({ route, engine: 'LocAR.js', tagline: 'three.js location-based AR 0.2.12' });
+  route = await ARLab.sensors.startFromHere(route, hud);          // plan from where the person actually stands now
+  if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
+  projection = makeProjection(route.a);
+  hud.setStatus('Starting camera...');
+
+  app = new LocAR.App({
+    cameraOptions: { hFov: cfg.longFov, near: 0.1, far: 4000 },
+    gpsOptions: { gpsMinDistance: 0, gpsMinAccuracy: 50 },
+    // we already asked for motion permission inside the tap, so skip LocAR's own dialog
+    deviceOrientationOptions: { enabled: true, enablePermissionDialog: false, smoothingFactor: 0.2 },
+    projection
+  });
+  locar = await app.start();
+
+  hud.setStatus('Waiting for a GPS fix better than 50 m...');
+  nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
+  hud.addAction('Next point', () => nav.next());
+  locar.on('gpsupdate', () => { if (!added) { added = true; nav.begin(); hud.setStatus('Path placed. Follow the arrow.', 'ok'); setTimeout(() => hud.setStatus(''), 3000); } });
+  locar.on('gpserror', (e) => hud.error('GPS: ' + ((e && (e.message || ['', 'location permission denied', 'position unavailable', 'timed out'][e.code])) || e)));
+  await locar.startGps();
+  S.watchGps((f) => { hud.setGps(f); lastFix = f; nav.update(filt(f)); }, () => {});   // the same raw readings, only for the HUD numbers
+  requestAnimationFrame(loop);
+}
+
+// Only the current leg exists in the scene.
+function showLeg(leg, idx, total, others) {
+  path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
+  const y = -cfg.eyeHeight;                          // camera sits at y = 0 in LocAR, so the ground is this far below
+  path.items().forEach((it) => locar.add(it.obj, it.lng, it.lat, y));
+}
+function clearLeg() {
+  if (!path) return;
+  path.items().forEach((it) => app.scene.remove(it.obj)); path.dispose(); path = null;
+}
+
+let lastLbl = 0;
+function loop(ms) {
+  requestAnimationFrame(loop);
+  if (path) {
+    path.animate(ms / 1000);
+    if (lastFix && nav && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(lastFix)); }
+  }
+  try { hud.setHeading(app.deviceOrientationControls.getCorrectedHeading(), 'LocAR'); } catch (e) { /* not ready */ }
+  hud.frame();
+}
+</script>
+</body>
+</html>

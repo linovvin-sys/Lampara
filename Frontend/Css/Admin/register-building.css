@@ -7,5 +7,43 @@
 .dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; display:inline-block; }
 .dot-green { background: var(--green-500); }
 .dot-amber { background: #d97706; }
-.warn-card { border-color: #fde68a; background: #fffbeb; margin-top: 0.75rem; }
+.warn-card { border-color: #fff3b8; background: #fffbeb; margin-top: 0.75rem; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- pin-on-a-map picker ---- */
+.pick-hint { color: var(--muted); font-size: 0.8125rem; line-height: 1.6; margin: 0 0 0.6rem; }
+.pick-map-wrap { border: 1px solid var(--line, #e3e3f0); border-radius: 0.8rem; overflow: hidden; }
+.pick-map { height: 340px; width: 100%; background: #e5e9f2; cursor: crosshair; }
+@media (max-width: 600px) { .pick-map { height: 300px; } }
+.pick-status { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; margin: 0.5rem 0 1rem; color: var(--muted); }
+.pick-status.is-set { color: var(--green-700, #15803d); }
+.pick-pin { background: none; border: 0; }
+.pick-pin span { display: block; width: 26px; height: 26px; margin: 2px 2px 0; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--blue-600, #2e3192); border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45); cursor: grab; }
+.pick-pin span::after { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #fff; }
+
+/* ---- remove-pin button ---- */
+.pick-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; }
+.pick-bar .pick-status { margin: 0; }
+.pick-remove { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--line, #e3e3f0); background: #fff; color: var(--red-600, #ff0000); font: inherit; font-size: 0.75rem; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 999px; cursor: pointer; transition: background-color 140ms ease-out, border-color 140ms ease-out; }
+.pick-remove:hover { background: var(--red-50, #fff0f0); border-color: #ffc7c7; }
+.pick-remove:focus-visible { outline: 2px solid var(--red-600, #ff0000); outline-offset: 2px; }
+
+/* ---- quick building navigation (right column) ---- */
+.quick-list { padding: 0.35rem; max-height: 26rem; overflow: auto; }
+.quick-row { display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.65rem; border-radius: 0.7rem; cursor: pointer; border: 1px solid transparent; transition: background-color 140ms ease-out, border-color 140ms ease-out; }
+.quick-row:hover { background: var(--blue-50, #f1f1fb); }
+.quick-row:focus-visible { outline: 2px solid var(--blue-600, #2e3192); outline-offset: -2px; }
+.quick-row.is-current { background: var(--blue-50, #f1f1fb); border-color: var(--blue-100, #dcddf4); }
+.quick-avatar { width: 2rem; height: 2rem; border-radius: 0.55rem; background: var(--blue-600, #2e3192); color: #fff; font-size: 0.8125rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.quick-text { flex: 1; min-width: 0; }
+.quick-name { font-weight: 600; font-size: 0.8125rem; }
+.quick-meta { font-size: 0.6875rem; color: var(--muted, #55556b); margin-top: 0.1rem; }
+.quick-act { font-size: 0.75rem; color: var(--muted, #55556b); }
+.quick-del { color: var(--red-600, #ff0000); }
+.quick-editing { font-size: 0.625rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-700, #23267a); }
+.quick-pending { margin-left: 0.4rem; font-size: 0.5625rem; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #fff3b8; border-radius: 999px; padding: 0.05rem 0.4rem; vertical-align: 1px; }
+
+/* ---- sticky save bar + unsaved-changes hint (both forms) ---- */
+.form-actions { position: sticky; bottom: 0; z-index: 4; display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin: 1.25rem -1.25rem -1.25rem; padding: 0.85rem 1.25rem; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(8px); border-top: 1px solid var(--line); border-radius: 0 0 var(--radius, 1rem) var(--radius, 1rem); }
+.dirty-note { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: auto; font-size: 0.75rem; font-weight: 600; color: var(--yellow-700); }
+.dirty-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--secondary); box-shadow: 0 0 0 3px rgba(255, 209, 0, 0.3); }

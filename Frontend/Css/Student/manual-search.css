@@ -73,7 +73,7 @@ body {
   border-radius: 1rem;
   padding: 0.75rem 1rem;
 }
-.search-box svg { flex-shrink: 0; color: #9aa79f; }
+.search-box svg { flex-shrink: 0; color: #9a9ab0; }
 .search-box input {
   flex: 1;
   border: none;
@@ -105,7 +105,7 @@ body {
 .filter-pill.is-active { background: var(--green-600); color: #ffffff; }
 
 .room-list { padding: 0 1.1rem 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
-.empty-state { text-align: center; color: #9aa79f; font-size: 0.875rem; padding: 2.5rem 0; }
+.empty-state { text-align: center; color: #9a9ab0; font-size: 0.875rem; padding: 2.5rem 0; }
 
 .room-row {
   display: flex;

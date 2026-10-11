@@ -31,6 +31,8 @@ window.LamparaRoomApp = createApp({
         hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false,
         map_x: null, map_y: null
       },
+      snap: '',           // the form as last saved / loaded (unsaved-changes detection)
+      prevBuilding: '',   // building before the last dropdown change, so a cancelled switch can go back
       baseBuildings: [],  // last data from the server
       baseRooms: [],
       buildings: [],      // server data + changes made offline (shown on the page)
@@ -44,10 +46,26 @@ window.LamparaRoomApp = createApp({
       currentFloorPlan: null,
       loadingPlan: false,
       planUnavailable: false, // couldn't load the plan (offline and never opened online)
-      planForNewBuilding: false // the picked building was made offline and has no plans yet
+      planForNewBuilding: false, // the picked building was made offline and has no plans yet
+      nameOther: false,          // "Something else — type a name" picked in the Room name dropdown
+      classroomTypes: ['Lecture Room', 'Laboratory Room'],
+      otherRoomTypes: ['Kubo', 'Cubicle', 'Church']   // ready-made choices for rooms that are not a lecture room or lab
     };
   },
   computed: {
+    // What the Room name dropdown shows. A saved name that is not one of the ready-made choices (typed by hand
+    // earlier, or an older room) shows as "Something else" with its name in the box beside it.
+    nameChoice: {
+      get() {
+        const n = this.form.room_name;
+        if (this.classroomTypes.includes(n) || this.otherRoomTypes.includes(n)) return n;
+        return (this.nameOther || n) ? '__other__' : '';
+      },
+      set(v) {
+        if (v === '__other__') { this.nameOther = true; this.form.room_name = ''; }
+        else { this.nameOther = false; this.form.room_name = v; }
+      }
+    },
     filteredRooms() {
       if (!this.form.building_id) return this.rooms;
       return this.rooms.filter(r => r.building_id == this.form.building_id);
@@ -64,6 +82,19 @@ window.LamparaRoomApp = createApp({
         r.id !== this.editingId &&
         r.map_x !== null && r.map_y !== null
       );
+    },
+    // The building choice itself is not an edit: switching buildings is guarded separately.
+    dirtyView() { return { ...this.form, building_id: null }; },
+    dirty() { return JSON.stringify(this.dirtyView) !== this.snap; },
+    editingRoom() { return this.editingId === null ? null : (this.rooms.find((r) => r.id === this.editingId) || null); },
+    // Rooms of the selected building for the Room dropdown, by floor then room number.
+    buildingRooms() {
+      if (!this.form.building_id) return [];
+      const floorNo = (f) => { const n = parseInt(f, 10); return isFinite(n) ? n : 99; };
+      return this.rooms
+        .filter((r) => r.building_id == this.form.building_id)
+        .slice()
+        .sort((a, b) => floorNo(a.floor) - floorNo(b.floor) || String(a.room_number || '~').localeCompare(String(b.room_number || '~'), undefined, { numeric: true }));
     },
     floorOptions() {
       const b = this.buildings.find(x => x.id == this.form.building_id);
@@ -166,15 +197,33 @@ window.LamparaRoomApp = createApp({
     }
   },
   async mounted() {
+    this.markClean();
+    window.addEventListener('beforeunload', (e) => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
     AdminOffline.onSynced(() => this.loadAll());
     AdminOffline.onChange(() => this.applyPending());
     await this.loadAll();
   },
   watch: {
+    form() { this.nameOther = false; },   // a new form (edit, reset, other building) starts without a half-picked "something else"
     'form.building_id'() { this.loadFloorPlanForCurrentSelection(); },
     'form.floor'() { this.loadFloorPlanForCurrentSelection(); }
   },
   methods: {
+    // True when it is OK to throw away what is on the form (nothing changed, or the admin agreed).
+    async confirmDiscard() {
+      if (!this.dirty) return true;
+      const r = await Swal.fire({
+        icon: 'warning', title: 'Discard your changes?', text: 'You have unsaved changes on this form.',
+        showCancelButton: true, confirmButtonText: 'Discard', cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#ff0000', cancelButtonColor: '#55556b', reverseButtons: true
+      });
+      return r.isConfirmed;
+    },
+    markClean() { this.snap = JSON.stringify(this.dirtyView); },
+    async tryCancel() {
+      if (!(await this.confirmDiscard())) return;
+      this.cancelEdit();
+    },
     async loadFloorPlanForCurrentSelection() {
       // Switching building/floor invalidates whatever marker position was
       // showing — it belonged to the previous floor's image, not this one.
@@ -288,6 +337,8 @@ window.LamparaRoomApp = createApp({
         notes: r.notes || '', noSignage: !r.room_number,
         map_x: r.map_x, map_y: r.map_y
       };
+      this.prevBuilding = this.form.building_id;
+      this.markClean();
       this.loadFloorPlanForCurrentSelection();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
@@ -306,6 +357,28 @@ window.LamparaRoomApp = createApp({
     cancelEdit() {
       this.editingId = null;
       this.form = this.blankForm({ building_id: this.form.building_id });
+      this.prevBuilding = this.form.building_id;
+      this.markClean();
+    },
+    // "1101 · Computer Lab · 1st Floor" (rooms without a number, like CRs, just show their name).
+    roomOptionLabel(r) {
+      return (r.room_number ? r.room_number + ' · ' : '') + (r.room_name || 'Unnamed') + (r.floor ? ' · ' + r.floor : '');
+    },
+    // Building dropdown: moving to another building leaves any edit and starts a fresh room there.
+    async onBuildingChange() {
+      const building_id = this.form.building_id;
+      if (!(await this.confirmDiscard())) { this.form.building_id = this.prevBuilding; return; }
+      this.editingId = null;
+      this.form = this.blankForm({ building_id });
+      this.prevBuilding = building_id;
+      this.markClean();
+    },
+    // Room dropdown: a room loads it for editing; the first option goes back to adding a new one.
+    async pickRoom(value, el) {
+      if (!(await this.confirmDiscard())) { if (el) el.value = this.editingId === null ? '' : this.editingId; return; }
+      if (value === '') { this.cancelEdit(); return; }
+      const r = this.rooms.find((x) => String(x.id) === String(value));
+      if (r) this.startEdit(r);
     },
     // Saves to the server when it's reachable; otherwise keeps the change on this
     // device (AdminOffline) to be synced later with the admin's approval.
@@ -348,9 +421,9 @@ window.LamparaRoomApp = createApp({
             showCancelButton: true,
             confirmButtonText: 'Yes, add another',
             cancelButtonText: 'Done',
-            confirmButtonColor: '#16a34a'
+            confirmButtonColor: '#2e3192'
           });
-          if (result.isConfirmed) this.form = this.blankForm(justAdded);
+          if (result.isConfirmed) { this.form = this.blankForm(justAdded); this.markClean(); }
         } else if (out.queued) {
           AdminOffline.toast("Saved on this device. You'll be asked to sync when you're back online.", 'info');
         }
@@ -368,7 +441,7 @@ window.LamparaRoomApp = createApp({
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Delete',
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ff0000',
         cancelButtonColor: '#6b7280'
       });
       if (!result.isConfirmed) return;

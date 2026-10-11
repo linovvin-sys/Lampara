@@ -1,4 +1,4 @@
-.warn-card { border-color: #fde68a; background: #fffbeb; }
+.warn-card { border-color: #fff3b8; background: #fffbeb; }
 .form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
 @media (min-width: 800px) { .form-grid { grid-template-columns: 1.3fr 1fr; align-items: start; } }
 .form-grid > * { min-width: 0; }   /* let long option text shrink instead of widening the page on a phone */
@@ -6,7 +6,7 @@
 .no-hours-note {
   display: flex; align-items: center; gap: 0.5rem;
   background: var(--green-50); border-radius: 0.65rem;
-  padding: 0.7rem 0.85rem; font-size: 0.75rem; color: #9aa79f;
+  padding: 0.7rem 0.85rem; font-size: 0.75rem; color: #9a9ab0;
   margin-bottom: 1rem;
 }
 .dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; display:inline-block; }

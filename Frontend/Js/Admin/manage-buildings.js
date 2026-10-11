@@ -1,9 +1,9 @@
 (function () {
 const { createApp } = Vue;
-const COLORS = ['#22c55e', '#16a34a', '#15803d', '#86efac', '#65a30d', '#14532d'];
+const COLORS = ['#2e3192', '#ffd100', '#ff0000', '#6a6dd0', '#ffe066', '#9b9ce6'];
 
 window.LamparaListApp = createApp({
-  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [] }; },
+  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [], loaded: false }; },
   computed: {
     filtered() {
       if (!this.q.trim()) return this.buildings;
@@ -23,10 +23,10 @@ window.LamparaListApp = createApp({
     colorFor(id) { return COLORS[(Number(id) || 0) % COLORS.length]; },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
-      this.map = L.map(this.$refs.mapArea).setView([14.3283, 120.9372], 17);
+      this.map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView([14.3283, 120.9372], 17);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
+        bounds: CampusBounds.BOUNDS, maxZoom: 19
       }).addTo(this.map);
     },
     renderMarkers() {
@@ -53,6 +53,7 @@ window.LamparaListApp = createApp({
         if (data.success) this.baseBuildings = data.buildings;
       } catch (e) { /* offline with no saved copy — pending buildings still show */ }
       this.buildings = AdminOffline.overlayBuildings(this.baseBuildings);
+      this.loaded = true;
       this.renderMarkers();
     },
     async deleteBuilding(b) {
@@ -63,7 +64,7 @@ window.LamparaListApp = createApp({
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Delete',
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ff0000',
         cancelButtonColor: '#6b7280'
       });
       if (!result.isConfirmed) return;

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>AR Lab - WebXR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lab.css">
+<style>
+  html,body{background:#111;overflow:hidden}
+  #gl{position:fixed;inset:0;width:100%;height:100%}
+  #xrroot{position:fixed;inset:0;pointer-events:none;z-index:10000}
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="xrroot"></div>
+
+<script src="../shared/geo.js"></script>
+<script src="../shared/campus.js"></script>
+<script src="../shared/path.js"></script>
+<script src="../shared/sensors.js"></script>
+<script src="../shared/hud.js"></script>
+<script src="../shared/nav.js"></script>
+<script type="module">
+import * as THREE from 'three';
+
+/* Engine 4: WebXR immersive-ar (ARCore through Chrome on Android) with three.js. The browser does the camera
+   and the SLAM tracking in its own coordinate space; it knows nothing about GPS. So the path is laid into that
+   space ONCE: take a GPS fix and a compass heading, read which way the viewer is facing in XR space, and
+   rotate/offset the GPS-derived path to match. "Re-align" repeats it from where you stand now.
+   Not available on iOS Safari (no WebXR AR). */
+
+let route = ARLab.route.get();
+// follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
+const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
+const geo = ARLab.geo, S = ARLab.sensors;
+let hud, nav, compass, renderer, scene, camera, path, session;
+let fix = null, alignFix = null, pendingAlign = false, aligned = false;
+const filt = S.gpsFilter();
+const anchor = new THREE.Group();
+
+ARLab.gate({
+  title: 'WebXR + three.js',
+  lead: 'The browser\'s own AR session (ARCore). Needs Chrome on an Android phone with Google Play Services for AR.',
+  warn: 'iPhone and iPad: Safari has no WebXR AR, so this engine cannot run there. Use the other four.',
+  onStart: start
+});
+
+async function start() {
+  await routeReady;
+  if (!navigator.xr || !(await navigator.xr.isSessionSupported('immersive-ar'))) {
+    throw new Error('WebXR AR is not available here. It needs Chrome on an ARCore-capable Android phone, over HTTPS.');
+  }
+  const root = document.getElementById('xrroot');
+  root.style.pointerEvents = 'none';
+  // must be requested straight from the tap, before any slow await
+  session = await navigator.xr.requestSession('immersive-ar', {
+    requiredFeatures: ['local-floor'], optionalFeatures: ['dom-overlay'], domOverlay: { root }
+  });
+  session.addEventListener('end', () => location.reload());
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
+  await renderer.xr.setSession(session);
+  scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(); scene.add(anchor);
+
+  hud = ARLab.hud.create({ route, engine: 'WebXR', tagline: 'ARCore tracking + one GPS/compass alignment', parent: root });
+  if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
+  compass = S.compass(); compass.start();
+  hud.addAction('Re-align here', () => { alignFix = fix; pendingAlign = true; hud.setStatus('Re-aligning...'); });
+  // a nudge re-aligns from where you stand now, so the correction is measured against the current pose
+  hud.addAction('Heading -5°', () => { compass.nudge(-5); alignFix = fix || alignFix; pendingAlign = true; });
+  hud.addAction('Heading +5°', () => { compass.nudge(+5); alignFix = fix || alignFix; pendingAlign = true; });
+
+  anchor.visible = false;
+  hud.setStatus('Move the phone slowly so it can see the ground. Finding where you are...');
+  S.watchGps((f) => { hud.setGps(f); fix = filt(f); if (nav) nav.update(fix); }, (m) => hud.error(m));
+  // The path is planned from a fresh GPS fix (where the person stands now), then laid into XR space from that same fix.
+  S.bestFix(12000, 8).then(async (f) => {
+    if (route.live !== false) { route = await S.rebase(route, f); hud.setRoute(route); }
+    if (route.fallback) hud.setStatus(route.fallback, 'err');
+    nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
+    hud.addAction('Next point', () => nav.next());
+    if (fix) nav.update(fix);                          // start with the position we already have
+    alignFix = f;
+    nav.begin();
+    if (!route.fallback) hud.setStatus('Got GPS ±' + Math.round(f.acc) + ' m. Aligning...');
+  }).catch((e) => hud.error(e.message));
+
+  renderer.setAnimationLoop(frame);
+}
+
+// Only the current leg exists in the scene. A new leg is laid into XR space the same way as the first:
+// from the GPS fix and compass heading now, relative to where the viewer is now.
+function showLeg(leg, idx, total, others) {
+  path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
+  path.items().forEach((it) => anchor.add(it.obj));
+  if (idx > 0) alignFix = fix || alignFix;
+  if (alignFix) { pendingAlign = true; anchor.visible = false; }
+}
+function clearLeg() {
+  if (!path) return;
+  path.items().forEach((it) => anchor.remove(it.obj)); path.dispose(); path = null;
+}
+
+const dir = new THREE.Vector3(), pos = new THREE.Vector3();
+function align() {
+  if (!path) return;                                  // the leg is not built yet: stay pending and try next frame
+  if (!alignFix) return;
+  if (!compass.ready) { hud.setStatus('No compass data yet. Turn the phone a little.', 'err'); return; }
+  const cam = renderer.xr.getCamera();
+  cam.getWorldDirection(dir); pos.setFromMatrixPosition(cam.matrixWorld);
+  if (!isFinite(dir.x) || (dir.x === 0 && dir.z === 0)) return;           // pose not ready yet
+  const phi = geo.deg(Math.atan2(dir.x, -dir.z));                         // viewer yaw in XR space
+  const H = compass.heading;                                              // viewer yaw on the compass
+  path.items().forEach((it) => {
+    const v = geo.enuToView(geo.enu(alignFix, it), H, phi);
+    it.obj.position.set(pos.x + v.x, 0, pos.z + v.z);
+    if (it.bearing !== undefined) path.orient(it, it.bearing - H + phi);
+  });
+  anchor.visible = true; aligned = true; pendingAlign = false;
+  hud.setStatus('Aligned. Follow the arrow. Use Re-align if it looks off.', 'ok'); setTimeout(() => hud.setStatus(''), 4000);
+}
+
+let lastLbl = 0;
+function frame(ms) {
+  if (pendingAlign) align();
+  if (path) {
+    path.animate(ms / 1000);
+    if (fix && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(fix)); }
+  }
+  hud.setHeading(compass.heading, compass.label());
+  renderer.render(scene, camera); hud.frame();
+}
+</script>
+</body>
+</html>

@@ -17,7 +17,9 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Admin/login.css');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin Login</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,7 +39,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Admin/login.css');
 
     <div class="card-about">
       <div class="logo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <img src="../../assets/logo.svg" alt="" width="27" height="27" style="display:block">
       </div>
       <h1>Admin Login</h1>
       <p>Sign in to manage the campus directory that powers every student's guide.</p>
@@ -82,7 +84,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Admin/login.css');
       <div v-if="loading" class="loading-overlay">
         <div class="loading-card">
           <div class="loading-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3h6l1.5 6.5a4.5 4.5 0 0 1-9 0L9 3Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4M11 18v3M13 18v3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <img src="../../assets/logo.svg" alt="" width="25" height="25" style="display:block">
           </div>
           <p>Signing in…</p>
         </div>

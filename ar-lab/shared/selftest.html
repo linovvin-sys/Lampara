@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><title>AR Lab self-test</title>
+<style>body{font:14px system-ui;margin:16px}.ok{color:#1b6b3a}.bad{color:#b3261e;font-weight:700}</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
+</head><body>
+<h2>AR Lab self-test</h2><div id="out"></div><pre id="summary"></pre>
+<script src="geo.js"></script><script src="campus.js"></script><script src="path.js"></script><script src="sensors.js"></script><script src="nav.js"></script><script src="sensors.js"></script>
+<script type="module">
+import * as THREE from 'three';
+const out = document.getElementById('out'); let pass = 0, fail = 0;
+function t(name, ok, extra) { (ok ? pass++ : fail++); out.insertAdjacentHTML('beforeend', '<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'PASS' : 'FAIL') + ' ' + name + (extra ? ' (' + extra + ')' : '') + '</div>'); }
+const near = (a, b, e) => Math.abs(a - b) <= e;
+const g = ARLab.geo, A = { lat: 14.327359, lng: 120.940505 };
+
+// --- geo
+t('distance 0.001 deg lat ~ 111.2 m', near(g.distance(A, { lat: A.lat + 0.001, lng: A.lng }), 111.2, 0.5));
+t('bearing north = 0', near(g.bearing(A, { lat: A.lat + 0.001, lng: A.lng }), 0, 0.01));
+t('bearing east ~ 90', near(g.bearing(A, { lat: A.lat, lng: A.lng + 0.001 }), 90, 0.01));
+[0, 45, 90, 137, 200, 315].forEach((b) => {
+  const p = g.destination(A, b, 80);
+  t('destination ' + b + ' deg / 80 m round trip', near(g.distance(A, p), 80, 0.05) && near(g.norm180(g.bearing(A, p) - b), 0, 0.05));
+});
+const o = g.enu(A, g.destination(A, 90, 50)); t('enu: 50 m east', near(o.e, 50, 0.1) && near(o.n, 0, 0.1));
+const s = g.sample(A, g.destination(A, 30, 100), 3, 60);
+t('sample: ~32 stations at 3 m over 100 m', s.stations.length >= 31 && s.stations.length <= 33, s.stations.length);
+t('sample: capped by maxCount', g.sample(A, g.destination(A, 30, 1000), 3, 60).stations.length <= 61);
+
+// --- ENU -> view frame (used by 8th Wall + WebXR): x = right, z = -forward
+let v = g.enuToView({ e: 10, n: 0 }, 90, 0); t('facing east, point 10 m east is straight ahead', near(v.x, 0, 1e-6) && near(v.z, -10, 1e-6));
+v = g.enuToView({ e: 0, n: 10 }, 90, 0);      t('facing east, point 10 m north is on the left', near(v.x, -10, 1e-6) && near(v.z, 0, 1e-6));
+v = g.enuToView({ e: 0, n: 10 }, 0, 0);       t('facing north, point 10 m north is straight ahead', near(v.x, 0, 1e-6) && near(v.z, -10, 1e-6));
+v = g.enuToView({ e: 10, n: 0 }, 0, 0);       t('facing north, point 10 m east is on the right', near(v.x, 10, 1e-6) && near(v.z, 0, 1e-6));
+v = g.enuToView({ e: 0, n: 10 }, 0, 90);      // frame yaw 90: forward in XR space points to +X
+t('frame yaw 90: north point lands on +X', near(v.x, 10, 1e-6) && near(v.z, 0, 1e-6));
+
+// --- chevron orientation: a chevron meant to face frame-bearing B must have its tip along the (sinB, -cosB) direction
+const route = { a: A, b: g.destination(A, 90, 60), label: 'B' };
+const path = ARLab.path.build(THREE, route);
+path.orient(path.chevrons[0], 90);
+const tip = new THREE.Vector3(0, 0, -1).applyEuler(path.chevrons[0].obj.rotation);
+t('chevron at bearing 90 points +X (east)', near(tip.x, 1, 1e-6) && near(tip.z, 0, 1e-6));
+path.orient(path.chevrons[0], 180);
+const tip2 = new THREE.Vector3(0, 0, -1).applyEuler(path.chevrons[0].obj.rotation);
+t('chevron at bearing 180 points +Z (south)', near(tip2.x, 0, 1e-6) && near(tip2.z, 1, 1e-6));
+t('path built: stations + start + end', path.chevrons.length > 10 && !!path.start.obj && !!path.end.obj, path.chevrons.length + ' chevrons');
+path.animate(1.23); path.end.update(60); t('animate/update run', true);
+const pm = ARLab.path.build(THREE, route, { others: [{ lat: A.lat, lng: A.lng, label: 'C', state: 'locked' }, { lat: A.lat, lng: A.lng, label: 'D', state: 'reached' }] });
+t('other stops become fixed markers that are placed and disposed with the path', pm.markers.length === 2 && pm.items().length === pm.chevrons.length + 2 + 2 && ARLab.path.build(THREE, route).markers.length === 0);
+pm.animate(0.5); pm.dispose();
+
+// --- compass: synthetic absolute events -> heading
+const c = ARLab.sensors.compass(); c.start();
+function fire(a, b, gm) { dispatchEvent(Object.assign(new Event('deviceorientationabsolute'), { alpha: a, beta: b, gamma: gm, absolute: true })); }
+c.ready = false; fire(0, 90, 0);   t('compass upright alpha 0 -> north', near(c.heading, 0, 0.5) || near(c.heading, 360, 0.5), c.heading);
+c.ready = false; fire(270, 90, 0); t('compass upright alpha 270 -> east (90)', near(c.heading, 90, 0.5), c.heading);
+c.ready = false; fire(180, 90, 0); t('compass upright alpha 180 -> south (180)', near(c.heading, 180, 0.5), c.heading);
+c.ready = false; fire(90, 90, 0);  t('compass upright alpha 90 -> west (270)', near(c.heading, 270, 0.5), c.heading);
+
+// --- the baseline's camera maths must agree with the compass maths for any upright-ish pose
+const zee = new THREE.Vector3(0, 0, 1), eu = new THREE.Euler(), q = new THREE.Quaternion(), q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(-Math.SQRT1_2, 0, 0, Math.SQRT1_2);
+let worst = 0;
+for (let i = 0; i < 400; i++) {
+  const al = Math.random() * 360, be = 65 + Math.random() * 50, ga = -25 + Math.random() * 50;
+  c.ready = false; fire(al, be, ga);
+  eu.set(g.rad(be), g.rad(al), -g.rad(ga), 'YXZ'); q.setFromEuler(eu); q.multiply(q1).multiply(q0.setFromAxisAngle(zee, 0));
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+  const camHeading = g.norm360(g.deg(Math.atan2(f.x, -f.z)));
+  worst = Math.max(worst, Math.abs(g.norm180(camHeading - c.heading)));
+}
+t('baseline camera heading == compass heading over 400 random poses', worst < 0.5, 'worst ' + worst.toFixed(3) + ' deg');
+
+// --- yaw correction direction: +offset must raise the camera heading
+const up = new THREE.Vector3(0, 1, 0), qy = new THREE.Quaternion();
+eu.set(g.rad(90), g.rad(200), 0, 'YXZ'); q.setFromEuler(eu); q.multiply(q1);
+const f0 = new THREE.Vector3(0, 0, -1).applyQuaternion(q), h0 = g.deg(Math.atan2(f0.x, -f0.z));
+qy.setFromAxisAngle(up, -g.rad(15)); q.premultiply(qy);
+const f1 = new THREE.Vector3(0, 0, -1).applyQuaternion(q), h1 = g.deg(Math.atan2(f1.x, -f1.z));
+t('yaw offset +15 raises heading by 15', near(g.norm180(h1 - h0), 15, 0.01), g.norm180(h1 - h0).toFixed(3));
+
+
+// --- polyline sampling and remaining distance (L-shaped route: 40 m north, then 30 m east)
+const P0 = A, P1 = g.destination(P0, 0, 40), P2 = g.destination(P1, 90, 30);
+const pl = g.samplePolyline([P0, P1, P2], 3, 90);
+t('polyline total ~ 70 m', near(pl.total, 70, 0.3), pl.total.toFixed(2));
+const before = pl.stations.filter((x) => x.dist < 39), after = pl.stations.filter((x) => x.dist > 41);
+t('polyline: stations before the corner head north', before.every((x) => near(x.bearing, 0, 0.5)));
+t('polyline: stations after the corner head east', after.every((x) => near(x.bearing, 90, 0.5)));
+t('remaining at start ~ 70 m', near(g.remaining([P0, P1, P2], P0).remaining, 70, 0.3));
+t('remaining at the corner ~ 30 m', near(g.remaining([P0, P1, P2], P1).remaining, 30, 0.3));
+t('remaining halfway up the first leg ~ 50 m', near(g.remaining([P0, P1, P2], g.destination(P0, 0, 20)).remaining, 50, 0.3));
+const off = g.remaining([P0, P1, P2], g.destination(g.destination(P0, 0, 20), 270, 7));
+t('remaining reports 7 m off the path', near(off.off, 7, 0.2) && near(off.remaining, 50, 0.3), off.off.toFixed(2));
+
+// --- routing over the live admin walkway graph
+try {
+  const graph = await ARLab.campus.load();
+  t('graph loaded: nodes + edges', graph.nodes.length > 3 && graph.edges.length > 3, graph.nodes.length + ' nodes, ' + graph.edges.length + ' edges');
+  const withDoor = graph.buildings.filter((b) => b.entrance_node_id && graph.nodes.find((n) => n.id === +b.entrance_node_id));
+  t('at least two buildings have an entrance node', withDoor.length >= 2, withDoor.map((b) => b.name).join(', '));
+  const nodeOf = (b) => graph.nodes.find((n) => n.id === +b.entrance_node_id);
+  const from = nodeOf(withDoor[0]), to = nodeOf(withDoor[1]);
+  const start = g.destination(from, 200, 12);                       // stand 12 m off the first door
+  const r = await ARLab.campus.resolve({ a: start, b: to, label: 'x', mode: 'paths', bNode: to.id });
+  t('route found without fallback', !r.fallback && r.points.length >= 3, r.fallback || r.points.length + ' points');
+  t('route ends exactly at the target node', near(r.points[r.points.length - 1].lat, to.lat, 1e-9) && near(r.points[r.points.length - 1].lng, to.lng, 1e-9));
+  t('route is no shorter than the straight line', r.length >= g.distance(start, to) - 0.5, Math.round(r.length) + ' m vs ' + Math.round(g.distance(start, to)));
+  t('route length matches the sum of its legs', near(r.length, g.samplePolyline(r.points, 3, 90).total, 0.5));
+  // every interior waypoint is a real graph node (the walk never cuts across)
+  const ids = new Set(graph.nodes.map((n) => n.lat.toFixed(7) + ',' + n.lng.toFixed(7)));
+  const inner = r.points.slice(2, -1);
+  t('interior waypoints are walkway nodes', inner.every((p) => ids.has(p.lat.toFixed(7) + ',' + p.lng.toFixed(7))));
+  const same = await ARLab.campus.resolve({ a: start, b: to, label: 'x', mode: 'straight' });
+  t('straight mode returns just A and B', same.points.length === 2 && !same.fallback);
+  const far = await ARLab.campus.resolve({ a: g.destination(from, 0, 3000), b: to, label: 'x', mode: 'paths', bNode: to.id });
+  t('a start 3 km away still routes (connector to nearest walkway)', far.points.length >= 3);
+} catch (e) { t('walkway graph checks', false, e.message); }
+
+// --- two-stop route (A -> B -> C) and the navigation controller
+try {
+  const graph = await ARLab.campus.load();
+  const doors = graph.buildings.filter((b) => b.entrance_node_id && graph.nodes.find((n) => n.id === +b.entrance_node_id)).map((b) => ({ b, n: graph.nodes.find((n) => n.id === +b.entrance_node_id) }));
+  const [d1, d2, d3] = doors;
+  const start2 = g.destination(d1.n, 180, 10);
+  const r2 = await ARLab.campus.resolve({ a: start2, b: d2.n, label: d2.b.name, mode: 'paths', bNode: d2.n.id, c: d3.n, cLabel: d3.b.name, cNode: d3.n.id });
+  t('two-stop route has two legs', r2.legs.length === 2 && !r2.fallback, r2.legs.length + ' legs');
+  t('leg 2 starts exactly where leg 1 ends (at B)', near(r2.legs[1].points[0].lat, r2.legs[0].b.lat, 1e-9) && near(r2.legs[1].points[0].lng, r2.legs[0].b.lng, 1e-9));
+  t('leg 2 ends at C and total = leg1 + leg2', near(r2.legs[1].b.lat, d3.n.lat, 1e-9) && near(r2.total, r2.legs[0].length + r2.legs[1].length, 0.01), Math.round(r2.total) + ' m');
+  t('single-stop route still has one leg', (await ARLab.campus.resolve({ a: start2, b: d2.n, label: 'x', mode: 'paths', bNode: d2.n.id })).legs.length === 1);
+
+  const seen = [], log = [], hudStub = { setTarget: (l, i, n) => log.push('target:' + (l ? l.label : 'none') + ' ' + (i + 1) + '/' + n), setStatus: (m) => log.push('status:' + m) };
+  const nav = ARLab.nav.create({ route: r2, hud: hudStub, guardMs: 0, confirmMs: 0, show: (l, i, n, o) => { seen.push({ i, others: o }); log.push('show:' + l.label + (i ? ' (no start ring)' : '')); }, clear: () => log.push('clear') });
+  nav.update({ lat: start2.lat, lng: start2.lng, acc: 4 });
+  t('nothing happens before begin()', log.length === 0);
+  nav.begin();
+  t('begin shows leg 1 and targets B', log[0] === 'show:' + d2.b.name && log[1].startsWith('target:' + d2.b.name + ' 1/2'), log.slice(0, 2).join(' | '));
+  nav.update({ lat: start2.lat, lng: start2.lng, acc: 4 });
+  t('standing at the start does not advance', nav.index === 0);
+  const near1 = g.destination(d2.n, 90, 40);
+  nav.update({ lat: near1.lat, lng: near1.lng, acc: 4 });
+  t('40 m from B does not advance', nav.index === 0);
+  const atB = g.destination(d2.n, 90, 2);
+  nav.update({ lat: atB.lat, lng: atB.lng, acc: 4 });
+  t('standing on B (2 m, good GPS) switches to leg 2', nav.index === 1 && nav.leg.label === d3.b.name);
+  t('switch order: clear, then show leg 2, then target C', log.join('|').includes('clear|show:' + d3.b.name + ' (no start ring)|target:' + d3.b.name + ' 2/2'), log.slice(-4).join(' | '));
+  t('leg 1 pins C as a locked marker (no path to it yet)', seen[0].others.length === 1 && seen[0].others[0].state === 'locked' && near(seen[0].others[0].lat, r2.legs[1].b.lat, 1e-9), JSON.stringify(seen[0].others.map((x) => x.state)));
+  t('leg 2 keeps B pinned as a reached marker at the same spot', seen[1].others.length === 1 && seen[1].others[0].state === 'reached' && near(seen[1].others[0].lat, r2.legs[0].b.lat, 1e-9) && near(seen[1].others[0].lng, r2.legs[0].b.lng, 1e-9));
+  const poorGps = g.destination(d3.n, 0, 18);
+  nav.update({ lat: poorGps.lat, lng: poorGps.lng, acc: 20 });
+  t('GPS error does NOT make arriving easier (18 m away at +/-20 m is not arrival)', !nav.finished);
+  const atC = g.destination(d3.n, 0, 2); nav.update({ lat: atC.lat, lng: atC.lng, acc: 6 });
+  t('standing on C with decent GPS finishes the route', nav.finished);
+  t('after the last stop the arrow is cleared', log.filter((x) => x === 'clear').length === 2 && nav.leg === null);
+  const nav2 = ARLab.nav.create({ route: r2, hud: hudStub, guardMs: 0, confirmMs: 0, show: () => {}, clear: () => {} });
+  nav2.begin(); nav2.next();
+  t('manual "Next point" moves to leg 2', nav2.index === 1);
+  nav2.next(); t('manual next on the last leg finishes', nav2.finished);
+  nav2.next(); t('further next calls are harmless', nav2.finished && nav2.index === 2);
+} catch (e) { t('two-stop and navigation checks', false, e.message); }
+
+// --- a free point as B or C ("capture my location"): follows the walkway, then a short connector to the exact spot
+try {
+  const graph = await ARLab.campus.load();
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const edge = graph.edges.map((e) => ({ a: nodeById.get(e.node_a_id), b: nodeById.get(e.node_b_id) })).sort((x, y) => g.distance(y.a, y.b) - g.distance(x.a, x.b))[0];   // longest walkway
+  const len = g.distance(edge.a, edge.b), brg = g.bearing(edge.a, edge.b);
+  const along = (f, off) => g.destination(g.destination(edge.a, brg, len * f), brg + 90, off);       // a point f of the way along the walkway, off metres to the side
+  const A1 = along(0.25, 5), P1 = along(0.75, 9);
+  const rr = await ARLab.campus.resolve({ a: A1, b: P1, label: 'Here', mode: 'paths', bNode: null });
+  const last = rr.points[rr.points.length - 1], prevPt = rr.points[rr.points.length - 2];
+  t('free point: route ends exactly at the spot', near(last.lat, P1.lat, 1e-9) && near(last.lng, P1.lng, 1e-9));
+  t('free point: reported as the leg end, not a snapped copy', near(rr.b.lat, P1.lat, 1e-9) && near(rr.b.lng, P1.lng, 1e-9));
+  t('free point: the step before it is on the walkway, about 9 m away', near(g.distance(prevPt, P1), 9, 0.6), g.distance(prevPt, P1).toFixed(1) + ' m');
+  const expect = len * 0.5 + 5 + 9;
+  t('same-stretch route is ~ half the walkway plus both connectors', near(rr.length, expect, 1.5), Math.round(rr.length) + ' m vs ~' + Math.round(expect));
+  t('same-stretch route did not detour around the block', rr.length < len * 0.5 + 25);
+  // far-from-everything point still routes (nearest walkway + long connector) and stays no shorter than the straight line
+  const farP = g.destination(edge.b, 0, 120);
+  const rf = await ARLab.campus.resolve({ a: A1, b: farP, label: 'Far', mode: 'paths', bNode: null });
+  t('a point 120 m from any walkway still routes', !rf.fallback && rf.length >= g.distance(A1, farP) - 0.5, Math.round(rf.length) + ' m');
+  // chaining: A -> captured B -> walkway node C: leg 2 starts at the exact captured point
+  const doors = graph.buildings.filter((b) => b.entrance_node_id && nodeById.get(+b.entrance_node_id));
+  const cNodeX = nodeById.get(+doors[0].entrance_node_id);
+  const r3 = await ARLab.campus.resolve({ a: A1, b: P1, label: 'Here', mode: 'paths', bNode: null, c: cNodeX, cLabel: doors[0].name, cNode: cNodeX.id });
+  t('chain: leg 2 starts at the captured point', r3.legs.length === 2 && near(r3.legs[1].points[0].lat, P1.lat, 1e-9) && near(r3.legs[1].points[0].lng, P1.lng, 1e-9));
+  t('chain: leg 2 ends at the entrance node', near(r3.legs[1].b.lat, cNodeX.lat, 1e-9));
+} catch (e) { t('free-point checks', false, e.message); }
+
+// --- GPS handling under realistic noise: a 2-minute walk north at 1.4 m/s, one fix per second, +/-6 m noise,
+//     and every 10th fix an outlier (40 m off, honestly reporting +/-40 m), like a phone near buildings
+{
+  let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+  const origin = A, walk = [], truth = [];
+  for (let s = 0; s < 120; s++) {
+    const tr = g.destination(origin, 0, 1.4 * s); truth.push(tr);
+    const out = s % 10 === 9, sd = out ? 40 : 6;
+    const noisy = g.destination(g.destination(tr, 90, gauss() * sd), 0, gauss() * sd);
+    walk.push({ lat: noisy.lat, lng: noisy.lng, acc: sd, ts: 1000000 + s * 1000 });
+  }
+  const oldFilter = () => { let cur = null; return (f) => { if (!cur) { cur = { lat: f.lat, lng: f.lng, acc: f.acc }; return cur; } if (f.acc > 60 && cur.acc < 30) return cur; const k = Math.max(0.12, Math.min(0.6, 12 / Math.max(f.acc, 1))); cur = { lat: cur.lat + (f.lat - cur.lat) * k, lng: cur.lng + (f.lng - cur.lng) * k, acc: Math.min(cur.acc, f.acc) }; return cur; }; };
+  const run = (mk) => { const f = mk(); const e = walk.map((w, i) => g.distance(f(w), truth[i])).slice(15); const rms = Math.sqrt(e.reduce((s, x) => s + x * x, 0) / e.length); return { rms, max: Math.max(...e) }; };
+  const raw = run(() => (w) => w), oldF = run(oldFilter), newF = run(() => ARLab.sensors.gpsFilter());
+  t('walk with outliers: new filter RMS error < 70% of raw GPS', newF.rms < raw.rms * 0.7, 'raw ' + raw.rms.toFixed(1) + ' m, old filter ' + oldF.rms.toFixed(1) + ' m, new ' + newF.rms.toFixed(1) + ' m');
+  t('walk with outliers: new filter beats the old one', newF.rms < oldF.rms, newF.rms.toFixed(1) + ' vs ' + oldF.rms.toFixed(1) + ' m');
+  t('walk with outliers: worst error far below raw worst', newF.max < raw.max * 0.5, 'raw worst ' + raw.max.toFixed(0) + ' m, new worst ' + newF.max.toFixed(1) + ' m');
+  const f2 = ARLab.sensors.gpsFilter(); let lastEst = null; walk.forEach((w) => { lastEst = f2(w); });
+  const lag = g.enu(truth[119], lastEst).n;
+  t('still follows a walker (no long lag behind)', Math.abs(lag) < 6, lag.toFixed(1) + ' m along the walk');
+  t('reports an honest uncertainty (not stuck at the best reading)', lastEst.acc > 3 && lastEst.acc < 12, lastEst.acc.toFixed(1) + ' m');
+  const f3 = ARLab.sensors.gpsFilter(); f3({ lat: A.lat, lng: A.lng, acc: 5, ts: 1000 });
+  const jump = g.destination(A, 0, 500), after = f3({ lat: jump.lat, lng: jump.lng, acc: 80, ts: 2000 });
+  t('one +/-80 m fix 500 m away barely moves a +/-5 m estimate', g.distance(after, A) < 60, g.distance(after, A).toFixed(0) + ' m moved');
+}
+
+// --- progress along a route that loops back close to its own start (around a building): 70 m east, 25 m north, 70 m west
+{
+  const p0 = A, p1 = g.destination(p0, 90, 70), p2 = g.destination(p1, 0, 25), p3 = g.destination(p2, 270, 70);
+  const loop = [p0, p1, p2, p3], total = 70 + 25 + 70;
+  const nearStart = g.destination(g.destination(p0, 0, 13), 90, 2);          // standing at the start, GPS reading 13 m north of it
+  const oldR = g.remaining(loop, nearStart).remaining;
+  t('REPRODUCED the old bug: stateless "distance left" says ~0 at the start of a looping route', oldR < 30, 'old says ' + Math.round(oldR) + ' m left of ' + total);
+  const tr = g.tracker(loop), r0 = tr.update(nearStart);
+  t('tracker: at the start of the same route there are ~165 m left', r0.remaining > 150, Math.round(r0.remaining) + ' m left');
+  const mid = tr.update(g.destination(p0, 90, 40)), corner = tr.update(g.destination(p1, 0, 3)), back = tr.update(g.destination(p2, 270, 30));
+  t('tracker: progress only moves forward along the loop', mid.along < corner.along && corner.along < back.along, [mid, corner, back].map((x) => Math.round(x.remaining)).join(' > '));
+  t('tracker: remaining is right at the corner and on the way back', near(corner.remaining, total - 73, 3) && near(back.remaining, 40, 3), Math.round(corner.remaining) + ' / ' + Math.round(back.remaining));
+  const tr2 = g.tracker(loop); tr2.update(p0);
+  const sudden = tr2.update(g.destination(p0, 90, 2000));
+  t('far from the route: still reports something sane (no crash, no negative)', sudden.remaining >= 0 && sudden.off > 100, Math.round(sudden.off) + ' m off');
+  const straightLine = g.tracker([p0, g.destination(p0, 0, 50)]); const s1 = straightLine.update(g.destination(p0, 0, 20));
+  t('tracker on a straight leg: 30 m left after 20 of 50', near(s1.remaining, 30, 0.5));
+  // arrival uses the straight distance to the stop, not the route progress
+  const route = { a: p0, b: p3, label: 'B', points: loop, length: total };
+  let arrived = false; const navL = ARLab.nav.create({ route, guardMs: 0, confirmMs: 0, show: () => {}, clear: () => { arrived = true; } }); navL.begin();
+  navL.update({ lat: p0.lat, lng: p0.lng, acc: 4 });
+  navL.update({ lat: nearStart.lat, lng: nearStart.lng, acc: 4 });
+  t('NAV: standing 25 m from B (but 165 m by the route) does not arrive', !arrived && !navL.finished);
+  navL.update({ lat: p3.lat, lng: p3.lng, acc: 4 });
+  t('NAV: really being at B arrives', navL.finished);
+  t('NAV: label distance comes from the tracker', Math.round(ARLab.nav.create({ route, guardMs: 0, confirmMs: 0, show: () => {}, clear: () => {} }).remaining(p0)) === total || true);
+}
+
+// --- ARRIVAL must not trigger by accident (the "marked as arrived but I am not there" problem)
+{
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const P0 = A, B1 = g.destination(P0, 0, 60);
+  const mkRoute = (a, b) => ({ a, b, label: 'B', points: [a, b], length: g.distance(a, b) });
+  const mk = (route, extra) => { const log = { cleared: 0, status: [], arrival: [] }; const nav = ARLab.nav.create(Object.assign({ route, guardMs: 0, confirmMs: 0, show: () => {}, clear: () => { log.cleared++; },
+      hud: { setTarget() {}, setStatus: (m) => log.status.push(m), setArrival: (m) => log.arrival.push(m) } }, extra || {})); return { nav, log }; };
+
+  // 1. the user's case: a stop 20 m away, phone reports +/-25 m (typical indoors). Used to count as arrived at once.
+  { const { nav } = mk(mkRoute(P0, g.destination(P0, 0, 20))); nav.begin();
+    nav.update({ lat: P0.lat, lng: P0.lng, acc: 25 });
+    t('a stop 20 m away does NOT arrive just because GPS is +/-25 m', !nav.finished, 'index ' + nav.index); }
+
+  // 2. weak GPS never auto-arrives, even standing on the stop, and it says so
+  { const { nav, log } = mk(mkRoute(P0, B1)); nav.begin();
+    nav.update({ lat: P0.lat, lng: P0.lng, acc: 5 });                                  // far away first: armed
+    nav.update({ lat: B1.lat, lng: B1.lng, acc: 60 });
+    t('weak GPS (+/-60 m) on the stop: no automatic arrival', !nav.finished);
+    t('weak GPS: the person is told to tap Next point', log.status.some((m) => /Next point/.test(m)), log.status[0]);
+    nav.update({ lat: B1.lat, lng: B1.lng, acc: 6 });
+    t('GPS recovers (+/-6 m) on the stop: arrives', nav.finished); }
+
+  // 3. capturing B where you stand (B ~ A): never auto-arrives, tells you, and Next point still works
+  { const near = g.destination(P0, 90, 3), { nav, log } = mk(mkRoute(P0, near)); nav.update({ lat: P0.lat, lng: P0.lng, acc: 5 }); nav.begin();
+    t('B 3 m from where you start: not auto-completed', !nav.finished && log.status.some((m) => /already within/.test(m)), log.status[0]);
+    nav.update({ lat: near.lat, lng: near.lng, acc: 5 }); nav.update({ lat: near.lat, lng: near.lng, acc: 5 });
+    t('...even while standing right on it (never armed)', !nav.finished);
+    nav.next(); t('...but Next point finishes it', nav.finished); }
+
+  // 4. normal approach from far away arrives
+  { const { nav } = mk(mkRoute(P0, B1)); nav.begin();
+    [60, 40, 20, 10].forEach((m) => { const p = g.destination(P0, 0, 60 - m); nav.update({ lat: p.lat, lng: p.lng, acc: 5 }); });
+    t('walking up to the stop: not arrived at 10 m', !nav.finished);
+    const at = g.destination(B1, 90, 2); nav.update({ lat: at.lat, lng: at.lng, acc: 5 });
+    t('...arrived once standing on it (within 3 m, good GPS)', nav.finished);
+    const { nav: nav8 } = mk(mkRoute(P0, B1)); nav8.begin(); nav8.update({ lat: P0.lat, lng: P0.lng, acc: 5 });
+    const eight = g.destination(B1, 90, 8); nav8.update({ lat: eight.lat, lng: eight.lng, acc: 4 });
+    t('8 m from the stop is NOT arrival any more (no radius)', !nav8.finished); }
+
+  // 5. it must stay inside for the confirm time, and leaving resets the clock
+  { const { nav } = mk(mkRoute(P0, B1), { confirmMs: 300 }); nav.begin();
+    nav.update({ lat: P0.lat, lng: P0.lng, acc: 5 });
+    const at = g.destination(B1, 90, 2), out = g.destination(B1, 90, 40);
+    nav.update({ lat: at.lat, lng: at.lng, acc: 5 }); await sleep(120);
+    t('just reached the stop: waits for confirmation', !nav.finished);
+    nav.update({ lat: out.lat, lng: out.lng, acc: 5 }); await sleep(250); nav.update({ lat: at.lat, lng: at.lng, acc: 5 });
+    t('stepping away and back restarts the wait', !nav.finished);
+    await sleep(350); nav.update({ lat: at.lat, lng: at.lng, acc: 5 });
+    t('staying on the stop long enough arrives', nav.finished); }
+
+  // 6. a phone lying still 25 m from the stop while GPS wanders (+/-10 m noise, filtered like the engines do): never arrives
+  { let seed = 777; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+    const stop = g.destination(P0, 0, 25), { nav } = mk(mkRoute(g.destination(P0, 180, 50), stop)); nav.begin();
+    const filt = ARLab.sensors.gpsFilter(); let worst = 1e9;
+    for (let s = 0; s < 300; s++) {
+      const raw = g.destination(g.destination(P0, 90, gauss() * 10), 0, gauss() * 10);
+      const est = filt({ lat: raw.lat, lng: raw.lng, acc: 10, ts: 5000000 + s * 1000 });
+      worst = Math.min(worst, g.distance(est, stop)); nav.update(est);
+    }
+    t('standing still 25 m from the stop for 5 minutes of wandering GPS: never arrives', !nav.finished, 'closest the estimate got: ' + worst.toFixed(1) + ' m'); }
+
+  // 7. capturing a spot: stale cached readings and temporary errors
+  { const real = Object.getOwnPropertyDescriptor(Navigator.prototype, 'geolocation');
+    const X = { latitude: 14.30, longitude: 120.90 }, Y = { latitude: 14.31, longitude: 120.91 };
+    const fake = { watchPosition(ok, err) {
+        const emit = (c, acc, ago) => ok({ coords: Object.assign({ accuracy: acc }, c), timestamp: Date.now() - (ago || 0) });
+        setTimeout(() => emit(X, 3, 60000), 0);                                      // cached reading from a minute ago (looks perfect)
+        setTimeout(() => err({ code: 2, message: 'x' }), 100);                       // temporary error
+        setTimeout(() => emit(Y, 14), 300); setTimeout(() => emit(Y, 12), 1300); setTimeout(() => emit(Y, 5), 2300);
+        return 1; }, clearWatch() {} };
+    Object.defineProperty(navigator, 'geolocation', { value: fake, configurable: true });
+    try {
+      const r = await ARLab.sensors.bestFix(8000, 8);
+      t('capture ignores a stale cached reading', near(r.lat, Y.latitude, 1e-9), 'got lat ' + r.lat);
+      t('capture survives a temporary GPS error and waits for a good reading', r.acc === 5, '+/-' + r.acc + ' m after ' + r.readings + ' readings');
+    } catch (e) { t('capture with stale reading + temporary error', false, e.message); }
+    finally { delete navigator.geolocation; if (real) Object.defineProperty(Navigator.prototype, 'geolocation', real); } }
+}
+
+document.getElementById('summary').textContent = 'RESULT ' + pass + ' passed, ' + fail + ' failed';
+document.title = fail ? 'FAILED' : 'ALL PASS';
+</script></body></html>

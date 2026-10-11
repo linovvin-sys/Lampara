@@ -45,7 +45,7 @@ body {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 0.5rem;
-  background: var(--yellow-500);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,7 +327,7 @@ h1 {
 
 footer {
   text-align: center;
-  color: #9aa79f;
+  color: #9a9ab0;
   font-size: 0.75rem;
   padding: 1.5rem 1.5rem;
 }

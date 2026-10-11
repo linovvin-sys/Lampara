@@ -461,7 +461,7 @@ createApp({
       cone.setAttribute('height', '0.5');
       cone.setAttribute('segments-radial', '6');
       cone.setAttribute('rotation', '180 0 0');
-      cone.setAttribute('material', 'color: #10b981; emissive: #10b981; emissiveIntensity: 0.5; shader: standard');
+      cone.setAttribute('material', 'color: #ffd100; emissive: #ffd100; emissiveIntensity: 0.5; shader: standard');
       pin.appendChild(cone);
 
       const label = document.createElement('a-text');
@@ -514,7 +514,7 @@ createApp({
         ctx.drawImage(img, 0, 0, 100 * plan.meters_per_unit_x, 100 * plan.meters_per_unit_y);
         ctx.globalAlpha = 1;
       }
-      ctx.strokeStyle = '#34d399';
+      ctx.strokeStyle = '#ffe066';
       ctx.lineWidth = 2.2 / MAP_PX_PER_METER * 2;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -524,7 +524,7 @@ createApp({
 
       // You: a fixed arrow in the centre (the map turns around it).
       ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#059669';
+      ctx.strokeStyle = '#d4ab00';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(W / 2, H / 2 - 16);

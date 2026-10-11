@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lampara AR Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="shared/lab.css">
+<style>
+  .wrap{max-width:62rem;margin:0 auto;padding:20px 16px 64px}
+  header.hero{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:28px 16px 30px}
+  header.hero .wrap{padding-block:0}
+  .eyebrow{font:500 12px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+  h1{font-size:clamp(1.8rem,5vw,2.6rem);margin:.3rem 0 .4rem;letter-spacing:-.02em}
+  header.hero p{margin:0;max-width:44rem;color:rgba(255,255,255,.85)}
+  h2{font-size:1.25rem;margin:34px 0 4px}
+  h2+p.sub{margin:0 0 14px;color:var(--muted)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .steps{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr))}
+  .steps .panel{min-width:0}
+  .panel h3{margin:0 0 8px;font-size:1rem;display:flex;gap:8px;align-items:center}
+  .badge{background:var(--gold);color:var(--navy);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+  button.b,a.b{font:600 14px var(--font);padding:9px 14px;border-radius:999px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+  button.b.alt,a.b.alt{background:#fff;color:var(--navy)}
+  button.b:disabled,a.b.off{opacity:.45;pointer-events:none}
+  .row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+  .row>*{min-width:0}
+  input,select{font:14px var(--font);padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);max-width:100%}
+  input[type=radio]{padding:0}
+  input.num{width:9.2rem}
+  label.f{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+  .readout{font:500 13px 'JetBrains Mono',monospace;color:var(--muted);overflow-wrap:anywhere}
+  #map{height:380px;border-radius:12px;border:1px solid var(--line);margin-top:10px;z-index:0}
+  .summary{margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .chip{background:var(--navy);color:#fff;border-radius:999px;padding:5px 14px;font-weight:700}
+  .chip.gold{background:var(--gold);color:var(--navy)}
+  .engines{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(17.5rem,1fr))}
+  .eng{display:flex;flex-direction:column;gap:8px;min-width:0}
+  .eng h3{margin:0;font-size:1.05rem}
+  .eng .how{font:500 11px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:var(--blue)}
+  .eng p{margin:0;font-size:14px;color:var(--muted)}
+  .eng ul{margin:0;padding-left:1.1rem;font-size:13px;color:var(--ink)}
+  .eng li{margin-bottom:3px}
+  .eng .go{margin-top:auto;padding-top:6px}
+  .tag{display:inline-block;font:600 11px var(--font);padding:2px 9px;border-radius:999px;background:#e9e9f8;color:var(--blue);margin-right:4px}
+  .tag.warn{background:#fff3d6;color:var(--warn)}
+  .tag.ok{background:#e3f4ea;color:var(--ok)}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+  table{border-collapse:collapse;width:100%;min-width:42rem;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg)}
+  .r5{color:var(--ok);font-weight:700}.r3{color:var(--warn);font-weight:700}.r1{color:var(--bad);font-weight:700}
+  ol.test{margin:0;padding-left:1.2rem;font-size:14px}
+  ol.test li{margin-bottom:4px}
+  .note{font-size:13px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body class="lab">
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">Lampara &middot; isolated from the main app</div>
+  <h1>AR Lab</h1>
+  <p>Pick where you stand (A) and where you are going (B). The route follows the walkways the admin drew in Campus Paths. Each engine draws the same chevron path, so you can see which one stays locked to the ground. Nothing here changes the main Lampara pages or database.</p>
+</div></header>
+
+<main class="wrap">
+
+<h2>1. Set the route</h2>
+<p class="sub">Do this on the phone you will test with. The route is saved on that phone and reused by every engine page.</p>
+<div class="steps">
+  <div class="panel">
+    <h3><span class="badge">A</span> Where I am standing</h3>
+    <div class="row"><button class="b" id="btnHere" type="button">Use my current location</button></div>
+    <div class="row">
+      <label class="f">Latitude<input class="num" id="aLat" inputmode="decimal" placeholder="14.12345"></label>
+      <label class="f">Longitude<input class="num" id="aLng" inputmode="decimal" placeholder="121.12345"></label>
+    </div>
+    <label class="note" style="display:flex;gap:6px;align-items:flex-start;margin:6px 0"><input type="checkbox" id="liveStart" checked style="margin-top:3px"> <span><b>Start from where I am when the engine opens</b> (recommended). The path begins at your live GPS position, so an old or wrong A can not misplace it.</span></label>
+    <div class="readout" id="aInfo">Not set</div>
+  </div>
+  <div class="panel">
+    <h3><span class="badge">B</span> Where I am going</h3>
+    <div class="row" role="radiogroup" aria-label="Route type" style="gap:14px">
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="mode" value="paths" checked> Follow campus walkways</label>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="mode" value="straight"> Straight line</label>
+    </div>
+    <div class="row"><label class="f">A building (goes to its entrance)<select id="bldg"><option value="">Loading buildings...</option></select></label></div>
+    <div class="row"><b style="font-size:13px">Or tap the map: B snaps to the nearest walkway</b></div>
+    <div class="row"><button class="b alt" id="btnHereB" type="button">Capture my location as B</button></div>
+    <details class="row" style="display:block"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">Other ways to place B</summary>
+      <div class="row">
+        <label class="f">Metres from A<input class="num" id="dropM" inputmode="numeric" value="40"></label>
+        <label class="f">Direction<select id="dropDir">
+          <option value="0">North</option><option value="45">North-east</option><option value="90">East</option><option value="135">South-east</option>
+          <option value="180">South</option><option value="225">South-west</option><option value="270">West</option><option value="315">North-west</option></select></label>
+        <button class="b alt" id="btnDrop" type="button" style="align-self:flex-end">Place B</button>
+      </div>
+      <div class="row">
+        <label class="f">Latitude<input class="num" id="bLat" inputmode="decimal"></label>
+        <label class="f">Longitude<input class="num" id="bLng" inputmode="decimal"></label>
+        <button class="b alt" id="btnB" type="button" style="align-self:flex-end">Set</button>
+      </div>
+    </details>
+    <div class="readout" id="bInfo">Not set</div>
+  </div>
+  <div class="panel">
+    <h3><span class="badge">C</span> Then going to <span style="font-weight:400;color:var(--muted);font-size:12px">(optional)</span></h3>
+    <p class="note" style="margin:0 0 6px">On reaching B the arrow switches to C. You only ever see the arrow for your next stop.</p>
+    <div class="row"><label class="f">A building (goes to its entrance)<select id="bldgC"><option value="">No second stop</option></select></label></div>
+    <div class="row" role="radiogroup" aria-label="What a map tap sets" style="gap:14px">
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="tap" value="B" checked> Map taps set B</label>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="tap" value="C"> Map taps set C</label>
+    </div>
+    <div class="row"><button class="b alt" id="btnHereC" type="button">Capture my location as C</button><button class="b alt" id="btnClearC" type="button">Remove C</button></div>
+    <div class="readout" id="cInfo">None</div>
+  </div>
+</div>
+<label class="note" style="display:flex;gap:6px;align-items:center;margin:10px 0 0"><input type="checkbox" id="showPts"> Show the admin walkway map (its yellow lines and pins). Hidden by default; nothing is changed on the system</label>
+<div id="map" aria-label="Campus map. Tap near a walkway to set point B."></div>
+<p class="note" id="routeInfo"></p>
+<div class="summary">
+  <span class="chip gold" id="sumDist">No route</span><span class="chip" id="sumBrg">-</span>
+  <button class="b alt" id="btnClear" type="button">Clear route</button>
+  <button class="b alt" id="btnCopy" type="button">Copy phone link</button>
+</div>
+<p class="note" id="copyNote"></p>
+
+<h2>2. Pick an engine and walk the route</h2>
+<p class="sub">Camera, GPS and compass need <b>HTTPS</b>. Over plain <code>http://localhost</code> the pages open but the sensors are blocked on a phone. Use your ngrok URL.</p>
+<div class="engines" id="engines"></div>
+
+<h2>How to test fairly</h2>
+<div class="panel"><ol class="test">
+  <li>Stand <b>outside</b> with open sky. Indoors, GPS and compass are unreliable and every engine will look like it drifts. Wait until GPS shows &plusmn;10 m or better (tap the <b>i</b> button for the numbers).</li>
+  <li>Set A to your position and B to a building entrance or a spot on a walkway (or capture your own location), 40&ndash;80 m away. Optionally add C: at B the arrow switches to C.</li>
+  <li>Open an engine, tap Start, and hold the phone upright as you would when walking.</li>
+  <li>Check: does the first chevron sit on the ground in front of you, and does the line point along the real walkway?</li>
+  <li>Walk toward B for 20 m. Do the chevrons stay on the ground and slide past you at walking pace, or do they swim?</li>
+  <li>Turn 360 degrees slowly. Do the chevrons stay put in the world?</li>
+  <li>Tap <b>Finish &amp; rate</b> and record what you saw. Repeat each engine from the same spot.</li>
+</ol></div>
+
+<h2 id="results">3. Results</h2>
+<p class="sub">Saved on this phone after each run. Compare engines from the same route.</p>
+<div class="row"><button class="b alt" id="btnCopyRes" type="button">Copy as text</button><button class="b alt" id="btnClearRes" type="button">Clear results</button></div>
+<div class="tablewrap"><table>
+  <thead><tr><th>When</th><th>Engine</th><th>Verdict</th><th>GPS avg / worst</th><th>FPS</th><th>First fix</th><th>Heading</th><th>Closest to B</th><th>Errors</th><th>Notes</th></tr></thead>
+  <tbody id="resBody"></tbody>
+</table></div>
+
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="shared/geo.js"></script>
+<script src="shared/campus.js"></script>
+<script src="shared/sensors.js"></script>
+<script>
+(function () {
+  const geo = ARLab.geo, $ = (id) => document.getElementById(id);
+  const ENGINES = [
+    { id: 'arjs', name: 'AR.js', page: 'arjs.html', how: 'GPS + compass, every frame',
+      blurb: 'A-Frame with the location-based <code>gps-new-camera</code> component. The one already used in the main Lampara guide.',
+      pros: ['Mature, big community', 'iOS and Android', 'Already known quantity here'],
+      cons: ['Compass north is wrong on some phones', 'Places each entity once; needs a manual reposition on GPS fixes'],
+      tags: [['iOS + Android', 'ok']] },
+    { id: 'locar', name: 'LocAR.js', page: 'locar.html', how: 'GPS + compass, every frame',
+      blurb: 'The location-based half of AR.js, split out as its own three.js library and actively maintained (0.2.x).',
+      pros: ['No A-Frame needed', 'Newer iOS fixes, smoothing options', 'Small (about 20 KB)'],
+      cons: ['Same sensor limits as AR.js', 'Firefox not supported'],
+      tags: [['iOS + Android', 'ok']] },
+    { id: '8thwall', name: '8th Wall engine', page: '8thwall.html', how: 'SLAM tracking, one GPS + compass alignment',
+      blurb: 'The self-hosted engine binary (hosted platform closed Feb 2026). Best motion tracking; has no GPS of its own, so the path is aligned once at start.',
+      pros: ['Very stable camera tracking', 'Works on iOS Safari and Android'],
+      cons: ['Heading error at start is baked in', 'Limited-use licence, ~1 MB + SLAM chunk'],
+      tags: [['iOS + Android', 'ok'], ['Licence applies', 'warn']] },
+    { id: 'webxr', name: 'WebXR + three.js', page: 'webxr.html', how: 'ARCore SLAM, one GPS + compass alignment',
+      blurb: 'The browser\'s own AR (ARCore through Chrome). Same one-time alignment idea as 8th Wall, with no third-party engine.',
+      pros: ['No library licence', 'Real floor plane from ARCore'],
+      cons: ['Android Chrome only: iOS Safari has no WebXR AR', 'Needs ARCore on the phone'],
+      tags: [['Android only', 'warn']] },
+    { id: 'custom', name: 'Baseline: bare three.js', page: 'custom.html', how: 'GPS + compass, every frame, hand-written',
+      blurb: 'No AR library. Camera video, device orientation and GPS wired directly into three.js. Shows what the libraries add.',
+      pros: ['Full control of filtering', 'iOS and Android'],
+      cons: ['Everything is on us to tune', 'Same raw sensor limits'],
+      tags: [['iOS + Android', 'ok']] }
+  ];
+
+  // ---------- route state
+  let A = null, B = null, label = 'Point B', mode = 'paths', bNode = null, graph = null;
+  let C = null, cLabel = 'Point C', cNode = null, tap = 'B', liveStart = true;
+  const saved = ARLab.route.get();
+  if (saved) { A = saved.a; B = saved.b; label = saved.label || label; mode = saved.mode || 'straight'; bNode = saved.bNode || null; liveStart = saved.live !== false; C = saved.c || null; cLabel = saved.cLabel || cLabel; cNode = saved.cNode || null; ARLab.route.set(saved); }
+  const cur = () => Object.assign({ a: A, b: B, label, mode, bNode, live: liveStart }, C ? { c: C, cLabel, cNode } : {});
+
+  function persist() { if (A && B) ARLab.route.set(cur()); refresh(); }
+  function fmt(p) { return p ? p.lat.toFixed(6) + ', ' + p.lng.toFixed(6) : 'Not set'; }
+  function q() { return A && B ? '?a=' + A.lat.toFixed(6) + ',' + A.lng.toFixed(6) + '&b=' + B.lat.toFixed(6) + ',' + B.lng.toFixed(6) + '&label=' + encodeURIComponent(label) + '&mode=' + mode + (liveStart ? '' : '&live=0') + (bNode ? '&node=' + bNode : '') + (C ? '&c=' + C.lat.toFixed(6) + ',' + C.lng.toFixed(6) + '&cl=' + encodeURIComponent(cLabel) + (cNode ? '&cnode=' + cNode : '') : '') : ''; }
+
+  // ---------- map: same base layers and walkway styling as the admin "Campus Paths" page
+  const map = L.map('map').setView(A ? [A.lat, A.lng] : [14.3279, 120.9408], A ? 18 : 17);
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 21, maxNativeZoom: 19 });
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 21, maxNativeZoom: 19 });
+  sat.addTo(map); L.control.layers({ Satellite: sat, Streets: osm }, null, { position: 'topright' }).addTo(map);
+  const graphLayer = L.layerGroup(), nodeLayer = L.layerGroup(), routeLayer = L.layerGroup().addTo(map), pinLayer = L.layerGroup().addTo(map);
+  const pin = (t, c) => L.divIcon({ className: '', html: '<div style="background:' + c + ';color:#161850;font:800 13px sans-serif;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:2px solid #161850">' + t + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+
+  function drawGraph() {
+    graphLayer.clearLayers(); nodeLayer.clearLayers(); if (!graph) return;
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+    graph.edges.forEach((e) => { const a = byId.get(e.node_a_id), b = byId.get(e.node_b_id); if (a && b) L.polyline([[a.lat, a.lng], [b.lat, b.lng]], { color: '#ffd100', weight: 5, opacity: .9, interactive: false }).addTo(graphLayer); });
+    const entranceOf = new Map(); graph.buildings.forEach((b) => { if (b.entrance_node_id) entranceOf.set(+b.entrance_node_id, b.name); });
+    graph.nodes.forEach((n) => {
+      const door = entranceOf.get(n.id);
+      const m = L.circleMarker([n.lat, n.lng], { radius: door ? 9 : 7, color: '#161850', weight: 2, fillColor: door ? '#ffd100' : '#ffffff', fillOpacity: 1 }).addTo(nodeLayer);
+      m.bindTooltip(door ? door + ' (entrance)' : (n.name || 'Walkway point'), { direction: 'top' });
+      m.on('click', (ev) => { L.DomEvent.stopPropagation(ev); pickNode(n, door); });
+    });
+  }
+  // The admin walkway map (its yellow lines and its pins) is only drawn on request. Hiding it here is display-only: the
+  // walkway data is read-only for this page and stays untouched on the system, and routing still follows the same walkways.
+  // The route you planned (navy/teal line from A to B to C) is always drawn.
+  let showWalk = false; try { showWalk = localStorage.getItem('arlab.showWalkways') === '1'; } catch (e) { /* default off */ }
+  function applyWalk() { [graphLayer, nodeLayer].forEach((l) => { if (showWalk) l.addTo(map); else map.removeLayer(l); }); }
+  $('showPts').checked = showWalk; applyWalk();
+  $('showPts').addEventListener('change', (e) => {
+    showWalk = e.target.checked; applyWalk();
+    try { localStorage.setItem('arlab.showWalkways', showWalk ? '1' : '0'); } catch (err) { /* ignore */ }
+  });
+
+  function pickNode(n, doorName) {
+    if (!A) { $('bInfo').textContent = 'Set A first (use your location).'; return; }
+    mode = 'paths'; setRadio();
+    if (tap === 'C') {
+      if (!B) { $('cInfo').textContent = 'Set B first.'; return; }
+      C = { lat: n.lat, lng: n.lng }; cNode = n.id; cLabel = doorName || n.name || 'Point C'; persist(); return;
+    }
+    B = { lat: n.lat, lng: n.lng }; bNode = n.id; label = doorName || n.name || 'Point B'; persist();
+  }
+  map.on('click', (e) => {
+    if (!A) { $('bInfo').textContent = 'Set A first (use your location).'; return; }
+    if (mode === 'paths' && graph) { const n = ARLab.campus.nearestNode({ lat: e.latlng.lat, lng: e.latlng.lng }, graph); if (n) return pickNode(n.node); }
+    if (tap === 'C') { if (!B) { $('cInfo').textContent = 'Set B first.'; return; } C = { lat: e.latlng.lat, lng: e.latlng.lng }; cNode = null; cLabel = 'Point C'; persist(); return; }
+    B = { lat: e.latlng.lat, lng: e.latlng.lng }; bNode = null; label = 'Point B'; persist();
+  });
+  document.querySelectorAll('input[name=tap]').forEach((r) => r.addEventListener('change', () => { tap = r.value; }));
+
+  let seq = 0;
+  async function refresh() {
+    const my = ++seq;
+    $('aInfo').textContent = fmt(A); $('bInfo').textContent = (B ? label + ': ' : '') + fmt(B);
+    $('cInfo').textContent = C ? cLabel + ': ' + fmt(C) : 'None';
+    if (A) { $('aLat').value = A.lat.toFixed(6); $('aLng').value = A.lng.toFixed(6); }
+    if (B) { $('bLat').value = B.lat.toFixed(6); $('bLng').value = B.lng.toFixed(6); }
+    pinLayer.clearLayers(); routeLayer.clearLayers();
+    if (A) L.marker([A.lat, A.lng], { icon: pin('A', '#ffd100') }).addTo(pinLayer);
+    if (B) L.marker([B.lat, B.lng], { icon: pin('B', '#ffffff') }).addTo(pinLayer);
+    if (C) L.marker([C.lat, C.lng], { icon: pin('C', '#7ee8fa') }).addTo(pinLayer);
+    if (A && B) {
+      const r = await ARLab.campus.resolve(cur()); if (my !== seq) return;
+      const colours = ['#2e3192', '#0a8aa6'];
+      let all = [];
+      r.legs.forEach((leg, i) => {
+        const pts = leg.points.map((p) => [p.lat, p.lng]); all = all.concat(pts);
+        L.polyline(pts, { color: '#ffffff', weight: 10, opacity: .95, interactive: false }).addTo(routeLayer);
+        L.polyline(pts, { color: colours[i % 2], weight: 5, interactive: false }).addTo(routeLayer);
+      });
+      map.fitBounds(L.latLngBounds(all).pad(0.35), { maxZoom: 19 });
+      const along = mode === 'paths' && !r.fallback;
+      $('sumDist').textContent = r.legs.length > 1
+        ? Math.round(r.legs[0].length) + ' m to ' + label + ' + ' + Math.round(r.legs[1].length) + ' m to ' + cLabel + ' = ' + Math.round(r.total) + ' m'
+        : Math.round(r.total) + ' m ' + (along ? 'along walkways' : 'A to B');
+      $('sumBrg').textContent = 'A to B straight line ' + Math.round(geo.distance(A, B)) + ' m \u00b7 heading ' + Math.round(geo.bearing(A, B)) + '\u00b0';
+      let msg = '';
+      if (r.fallback) msg = r.fallback;
+      else if (mode === 'paths') msg = r.snapDist > 25 ? 'You are ' + Math.round(r.snapDist) + ' m from the nearest walkway, so the path starts with a straight connector to it.' : 'Path joins the walkway ' + Math.round(r.snapDist) + ' m from you.';
+      if (r.legs.length > 1) msg += ' The arrow shows B first, then switches to C once you are standing on B (within ' + ARLab.cfg.arrive + ' m, GPS better than 10 m).';
+      $('routeInfo').textContent = msg;
+    } else { $('sumDist').textContent = 'No route'; $('sumBrg').textContent = '-'; $('routeInfo').textContent = ''; if (A) map.setView([A.lat, A.lng], 18); }
+    renderEngines();
+  }
+  $('liveStart').addEventListener('change', (e) => { liveStart = e.target.checked; persist(); });
+  function setRadio() { document.querySelectorAll('input[name=mode]').forEach((r) => { r.checked = r.value === mode; }); }
+  document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', () => { mode = r.value; if (mode === 'straight') bNode = cNode = null; persist(); }));
+
+  // ---------- controls
+  $('btnHere').addEventListener('click', async (ev) => {
+    const b = ev.currentTarget; b.disabled = true; b.textContent = 'Getting a GPS fix...';
+    let acc = null;
+    try {
+      const f = await ARLab.sensors.bestFix(15000, 6, (best) => { $('aInfo').textContent = 'Reading GPS... ±' + Math.round(best.acc) + ' m'; });
+      A = { lat: f.lat, lng: f.lng }; acc = f.acc; persist(); $('aInfo').textContent = fmt(A) + '  (±' + Math.round(acc) + ' m)';
+    } catch (e) { $('aInfo').textContent = e.message + (window.isSecureContext ? '' : ' (page is not HTTPS)'); }
+    b.disabled = false; b.textContent = 'Use my current location';
+  });
+  // "Capture my location" for B or C: takes a fresh GPS fix and uses the exact spot you are standing on. With walkway
+  // routing on, the walk follows the walkways to the nearest point and ends with a short connector to where you stood.
+  async function captureHere(which, btn) {
+    const info = which === 'B' ? $('bInfo') : $('cInfo'), text = btn.textContent;
+    if (!A) { info.textContent = 'Set A first (use your location).'; return; }
+    if (which === 'C' && !B) { info.textContent = 'Set B first.'; return; }
+    btn.disabled = true; btn.textContent = 'Getting a GPS fix...';
+    try {
+      const f = await ARLab.sensors.bestFix(20000, 8, (best, n) => { info.textContent = 'Reading GPS... best ±' + Math.round(best.acc) + ' m (' + n + ' readings)'; });
+      const p = { lat: f.lat, lng: f.lng };
+      const from = which === 'B' ? A : B, away = Math.round(geo.distance(from, p)), name = which === 'B' ? 'A' : 'B';
+      if (which === 'B') { B = p; bNode = null; label = 'My location (B)'; } else { C = p; cNode = null; cLabel = 'My location (C)'; }
+      persist();
+      const notes = [];
+      if (f.stale) notes.push('The phone only gave an OLD position (no fresh GPS reading arrived). Wait a few seconds with open sky and capture again.');
+      if (f.acc > 25) notes.push('GPS is weak (±' + Math.round(f.acc) + ' m): this spot could really be up to that far from where you stand. Capture again outdoors with open sky.');
+      if (away < 15) notes.push('This is only ' + away + ' m from ' + name + '. Walk to the place you mean and tap again. For a meaningful test use 30 m or more (GPS error is 5-20 m).');
+      info.textContent = (which === 'B' ? label : cLabel) + ': ' + fmt(p) + '  (±' + Math.round(f.acc) + ' m, ' + (f.readings || 1) + ' readings)' + (notes.length ? '\n' + notes.join('\n') : '');
+      info.style.whiteSpace = 'pre-line';
+    } catch (e) { info.textContent = e.message + (window.isSecureContext ? '' : ' (page is not HTTPS)'); }
+    btn.disabled = false; btn.textContent = text;
+  }
+  $('btnHereB').addEventListener('click', (ev) => captureHere('B', ev.currentTarget));
+  $('btnHereC').addEventListener('click', (ev) => captureHere('C', ev.currentTarget));
+
+  function readPair(la, ln) { const p = { lat: parseFloat($(la).value), lng: parseFloat($(ln).value) }; return isFinite(p.lat) && isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 ? p : null; }
+  ['aLat', 'aLng'].forEach((id) => $(id).addEventListener('change', () => { const p = readPair('aLat', 'aLng'); if (p) { A = p; persist(); } }));
+  $('btnB').addEventListener('click', () => { const p = readPair('bLat', 'bLng'); if (p) { B = p; bNode = null; label = 'Point B'; persist(); } });
+  $('btnDrop').addEventListener('click', () => {
+    if (!A) { $('bInfo').textContent = 'Set A first.'; return; }
+    const m = Math.max(5, Math.min(2000, parseFloat($('dropM').value) || 40));
+    B = geo.destination(A, parseFloat($('dropDir').value), m); bNode = null; label = 'Point B'; persist();
+    if (m < 25) { $('bInfo').textContent += '\nOnly ' + Math.round(m) + ' m: GPS error is usually 5-20 m, so use 30 m or more to see the arrow working.'; $('bInfo').style.whiteSpace = 'pre-line'; }
+  });
+  $('btnClear').addEventListener('click', () => { A = B = C = null; bNode = cNode = null; ARLab.route.clear(); refresh(); });
+  $('btnClearC').addEventListener('click', () => { C = null; cNode = null; $('bldgC').value = ''; persist(); });
+  $('btnCopy').addEventListener('click', async () => {
+    if (!A || !B) { $('copyNote').textContent = 'Set A and B first.'; return; }
+    const url = location.origin + location.pathname + q();
+    try { await navigator.clipboard.writeText(url); $('copyNote').textContent = 'Copied. Opening this link on another phone loads the same A and B.'; }
+    catch (e) { $('copyNote').textContent = url; }
+  });
+
+  // Walkway graph + buildings from the main app (read-only GETs). Without them the lab still works in straight-line mode.
+  ARLab.campus.load().then((g) => {
+    graph = g; drawGraph();
+    const byId = new Map(g.nodes.map((n) => [n.id, n]));
+    const opts = g.buildings.map((b) => {
+      const n = b.entrance_node_id ? byId.get(+b.entrance_node_id) : null;
+      return '<option value="' + b.id + '">' + String(b.name).replace(/</g, '&lt;') + (n ? '' : ' (no entrance set: straight line)') + '</option>';
+    }).join('');
+    $('bldg').innerHTML = '<option value="">Choose a building...</option>' + opts;
+    $('bldgC').innerHTML = '<option value="">No second stop</option>' + opts;
+    if (!A && g.nodes.length) map.fitBounds(g.nodes.map((n) => [n.lat, n.lng]), { padding: [30, 30], maxZoom: 18 });
+    refresh();
+  }).catch(() => { $('bldg').innerHTML = '<option value="">Walkway data not reachable: straight-line only</option>'; mode = 'straight'; setRadio(); });
+  $('bldg').addEventListener('change', (e) => {
+    const b = graph && graph.buildings.find((x) => String(x.id) === e.target.value); if (!b) return;
+    if (!A) { $('bInfo').textContent = 'Set A first (use your location).'; return; }
+    const n = b.entrance_node_id ? graph.nodes.find((x) => x.id === +b.entrance_node_id) : null;
+    if (n) { mode = 'paths'; setRadio(); B = { lat: n.lat, lng: n.lng }; bNode = n.id; }
+    else { mode = 'straight'; setRadio(); B = { lat: +b.lat, lng: +b.lng }; bNode = null; }
+    label = b.name; persist();
+  });
+  $('bldgC').addEventListener('change', (e) => {
+    if (!e.target.value) { C = null; cNode = null; persist(); return; }
+    const b = graph && graph.buildings.find((x) => String(x.id) === e.target.value); if (!b) return;
+    if (!A || !B) { $('cInfo').textContent = 'Set A and B first.'; e.target.value = ''; return; }
+    const n = b.entrance_node_id ? graph.nodes.find((x) => x.id === +b.entrance_node_id) : null;
+    if (n) { mode = 'paths'; setRadio(); C = { lat: n.lat, lng: n.lng }; cNode = n.id; }
+    else { C = { lat: +b.lat, lng: +b.lng }; cNode = null; }
+    cLabel = b.name; persist();
+  });
+
+  // ---------- engine cards
+  function renderEngines() {
+    const ready = !!(A && B);
+    $('engines').innerHTML = ENGINES.map((e) =>
+      '<div class="panel eng"><div class="how">' + e.how + '</div><h3>' + e.name + '</h3>' +
+      '<div>' + e.tags.map((t) => '<span class="tag ' + t[1] + '">' + t[0] + '</span>').join('') + '</div>' +
+      '<p>' + e.blurb + '</p><ul>' + e.pros.map((x) => '<li>+ ' + x + '</li>').join('') + e.cons.map((x) => '<li>- ' + x + '</li>').join('') + '</ul>' +
+      '<div class="go"><a class="b ' + (ready ? '' : 'off') + '" href="engines/' + e.page + q() + '">' + (ready ? 'Open ' + e.name : 'Set the route first') + '</a></div></div>').join('');
+  }
+
+  // ---------- results
+  function renderResults() {
+    const rs = ARLab.results.get().slice().reverse();
+    $('resBody').innerHTML = rs.length ? rs.map((r) =>
+      '<tr><td>' + new Date(r.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</td><td><b>' + r.engine + '</b></td>' +
+      '<td class="r' + r.rating + '">' + (r.rating === 5 ? 'Locked on' : r.rating === 3 ? 'Drifted' : 'Unusable') + '</td>' +
+      '<td>' + (r.accAvg == null ? '-' : '±' + r.accAvg + ' / ' + r.accMax + ' m') + '</td><td>' + (r.fps || '-') + '</td>' +
+      '<td>' + (r.firstFixMs == null ? '-' : (r.firstFixMs / 1000).toFixed(1) + ' s') + '</td><td>' + (r.headingSrc || '-') + '</td>' +
+      '<td>' + (r.closestToB == null ? '-' : r.closestToB + ' m left of ' + r.routeM) + '</td><td>' + (r.errors || 0) + '</td>' +
+      '<td>' + (r.notes || r.errorText || '').replace(/</g, '&lt;') + '</td></tr>').join('')
+      : '<tr><td colspan="10" style="color:var(--muted)">No runs yet. Open an engine, walk the route and tap Finish &amp; rate.</td></tr>';
+  }
+  $('btnClearRes').addEventListener('click', () => { ARLab.results.clear(); renderResults(); });
+  $('btnCopyRes').addEventListener('click', async () => {
+    const t = ARLab.results.get().map((r) => [r.at, r.engine, r.rating, 'gps ' + r.accAvg + '/' + r.accMax + 'm', 'fps ' + r.fps, r.headingSrc, 'closest ' + r.closestToB + '/' + r.routeM + 'm', r.notes].join(' | ')).join('\n');
+    try { await navigator.clipboard.writeText(t || '(no results)'); } catch (e) { prompt('Copy:', t); }
+  });
+
+  $('liveStart').checked = liveStart;
+  setRadio(); refresh(); renderResults();
+})();
+</script>
+</body>
+</html>

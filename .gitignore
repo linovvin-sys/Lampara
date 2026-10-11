@@ -2,3 +2,5 @@ Backend/secrets.php
 Backend/db.php
 tailwindcss-cli
 .DS_Store
+config/secrets.php
+Frontend/pid

@@ -79,7 +79,7 @@ main {
   height: 3rem;
   margin-bottom: 1.25rem;
   border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.16);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -183,9 +183,9 @@ main {
 .password-toggle:focus-visible { outline: 2px solid var(--green-500); outline-offset: 1px; }
 
 .form-error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: #cc0000;
+  background: #fff0f0;
+  border: 1px solid #ffc7c7;
   border-radius: 0.75rem;
   padding: 0.6rem 0.75rem;
   font-size: 0.8125rem;
@@ -293,11 +293,11 @@ main {
   width: 3rem;
   height: 3rem;
   border-radius: 1rem;
-  background: var(--green-500);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 14px rgba(16, 185, 129, 0.55));
+  filter: drop-shadow(0 0 14px rgba(255,209,0, 0.55));
   animation: loading-breathe 1.4s ease-in-out infinite;
 }
 .loading-icon::before {

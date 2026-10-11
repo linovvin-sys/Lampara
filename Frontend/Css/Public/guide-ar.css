@@ -24,7 +24,7 @@ a-scene { position: fixed; inset: 0; z-index: 0; }
 
 .fade-bg { position: fixed; inset: 0; z-index: 1; pointer-events: none;
   background: linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.05) 45%, rgba(0,0,0,.05) 60%, rgba(0,0,0,.85)); }
-.lamp-glow { filter: drop-shadow(0 0 18px rgba(16, 185, 129, 0.55)); }
+.lamp-glow { filter: drop-shadow(0 0 18px rgba(255,209,0, 0.55)); }
 @keyframes ar-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .ar-bounce { animation: ar-bounce 900ms ease-in-out infinite; }
 .press { transition: transform 160ms ease-out; }
@@ -39,7 +39,7 @@ a-scene { position: fixed; inset: 0; z-index: 0; }
 .typing-dot:nth-child(3) { animation-delay: 300ms; }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
 :root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); }
-@keyframes lamp-breathe { 0%, 100% { filter: drop-shadow(0 0 16px rgba(16,185,129,.5)); transform: scale(1); } 50% { filter: drop-shadow(0 0 26px rgba(16,185,129,.8)); transform: scale(1.05); } }
+@keyframes lamp-breathe { 0%, 100% { filter: drop-shadow(0 0 16px rgba(255,209,0,.5)); transform: scale(1); } 50% { filter: drop-shadow(0 0 26px rgba(255,209,0,.8)); transform: scale(1.05); } }
 .lamp-breathe { animation: lamp-breathe 1.8s var(--ease-in-out) infinite; }
 @keyframes icon-pop { 0% { opacity: 0; transform: scale(0.85) translateY(6px); } 65% { opacity: 1; transform: scale(1.06) translateY(0); } 100% { transform: scale(1); } }
 @keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

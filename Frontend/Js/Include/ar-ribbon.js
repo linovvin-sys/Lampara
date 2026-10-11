@@ -25,7 +25,7 @@ const ArRibbon = (() => {
     const g = c.getContext('2d');
     const grad = g.createLinearGradient(0, 0, 0, 256);
     grad.addColorStop(0, 'rgba(56,189,248,0.55)');
-    grad.addColorStop(1, 'rgba(16,185,129,0.55)');
+    grad.addColorStop(1, 'rgba(255,209,0,0.55)');
     g.fillStyle = grad;
     g.fillRect(0, 0, 128, 256);
     g.strokeStyle = 'rgba(255,255,255,0.95)';

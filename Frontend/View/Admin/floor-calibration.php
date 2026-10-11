@@ -12,12 +12,16 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Admin · Floor Calibration</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
+<script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/floor-calibration.css?v=<?= $pageCssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/editor-tools.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/editor-tools.css') ?>">
@@ -25,6 +29,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
+<script>LamparaSkeleton.show('admin')</script>
 
 <div class="admin-shell">
   <?php include __DIR__ . '/../Include/admin-nav.php'; ?>
@@ -37,6 +42,18 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
           <h1>Floor Calibration</h1>
           <p>Tell the indoor AR guide how big each floor plan is and which way it points, so it can turn plan positions into real steps and directions. Works offline: the compass reading needs no signal, and the result is saved on this device until you sync it.</p>
         </div>
+      </div>
+
+
+      <div class="card howto">
+        <h2>How to calibrate a floor <span class="howto-time">about 2 minutes</span></h2>
+        <ol>
+          <li><b>Pick the floor.</b> Choose the building and the floor you want to set up.</li>
+          <li><b>Mark a hallway.</b> Tap two points on the plan: <b>A</b> at one end of a long, straight hallway and <b>B</b> at the other end. Or press <b>Suggest a hallway</b> and the app picks the longest straight one for you. Use a hallway you can really walk.</li>
+          <li><b>Walk it.</b> On your phone, stand at A with the phone flat and its top edge pointing toward B. Press <b>Start at A</b>, walk to B at a normal pace, then press <b>I'm at B</b>. The distance and compass direction fill in by themselves. No phone? Type them in.</li>
+          <li><b>Save.</b> Check the plan size in the preview, then press <b>Save calibration</b>. Repeat for each floor.</li>
+        </ol>
+        <p class="tip">Calibrate each floor once, and again if you upload a new plan image for it. A longer hallway gives a more accurate result. Until a floor is calibrated, the indoor AR guide stays off for that floor.</p>
       </div>
 
       <div class="card">
@@ -57,7 +74,14 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
           </div>
         </div>
         <p v-if="plansNote" class="hint" style="margin:0.6rem 0 0;">{{ plansNote }}</p>
+        <p v-else-if="plans.length" class="hint" style="margin:0.6rem 0 0;"><b>{{ calibratedCount }} of {{ plans.length }}</b> floors in this building are calibrated.</p>
       </div>
+
+      <ol v-if="plan" class="stepper" aria-label="Progress">
+        <li :class="{ done: pts.length === 2 }"><span>1</span> Hallway marked</li>
+        <li :class="{ done: distance > 0 }"><span>2</span> Distance</li>
+        <li :class="{ done: bearing !== null && bearing !== '' }"><span>3</span> Compass direction</li>
+      </ol>
 
       <div v-if="plan" class="cal-layout">
         <div class="card">
@@ -76,11 +100,15 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
           <div class="plan-wrap" :class="{ 'is-locked-surface': locked }" @click="tapPlan">
             <img ref="img" :src="'../../' + plan.image_path" alt="" @load="onImgLoad" draggable="false">
             <svg v-if="pts.length" class="plan-svg">
-              <line v-if="pts.length === 2" :x1="pts[0].x + '%'" :y1="pts[0].y + '%'" :x2="pts[1].x + '%'" :y2="pts[1].y + '%'" stroke="#f59e0b" stroke-width="3" />
+              <line v-if="pts.length === 2" :x1="pts[0].x + '%'" :y1="pts[0].y + '%'" :x2="pts[1].x + '%'" :y2="pts[1].y + '%'" stroke="#ffd100" stroke-width="3" />
             </svg>
             <div v-for="(p, i) in pts" :key="i" class="pt" :class="{ draggable: !locked }" :style="{ left: p.x + '%', top: p.y + '%' }" @click.stop @pointerdown="startDrag(i, $event)">{{ i ? 'B' : 'A' }}</div>
           </div>
-          <button v-if="pts.length" type="button" class="btn-link" :disabled="locked" @click="clearPoints">Clear points</button>
+          <div class="plan-actions">
+            <button type="button" class="btn btn-secondary" :disabled="locked || suggesting" @click="suggestHallway">{{ suggesting ? 'Looking…' : 'Suggest a hallway' }}</button>
+            <button v-if="pts.length" type="button" class="btn-link" :disabled="locked" @click="clearPoints">Clear points</button>
+          </div>
+          <p v-if="suggestNote" class="hint" style="margin:0.5rem 0 0;">{{ suggestNote }}</p>
         </div>
 
         <div class="card">
@@ -89,7 +117,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
             <button type="button" class="btn-remove-all" :disabled="locked || !pointList.length" @click="clearPoints">Remove all</button>
           </div>
           <div v-if="undoPts" class="undo-bar" role="status">
-            <span>Points removed</span>
+            <span>Points changed</span>
             <button type="button" @click="undoClear">Undo</button>
             <button type="button" class="undo-x" aria-label="Dismiss" @click="undoPts = null">&times;</button>
           </div>
@@ -179,6 +207,11 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/floor-calibration.js');
           <button type="button" class="btn btn-primary" :disabled="!preview || saving" @click="save">
             {{ saving ? 'Saving…' : 'Save calibration' }}
           </button>
+          <p v-if="!preview && missing.length" class="hint" style="margin:0.6rem 0 0;">Still needed: {{ missing.join(', ') }}.</p>
+          <div v-if="justSaved && nextPlan" class="next-floor">
+            <span>Saved. {{ nextPlan.floor }} is not calibrated yet.</span>
+            <button type="button" class="btn btn-secondary" @click="goNext">Calibrate {{ nextPlan.floor }} &rarr;</button>
+          </div>
         </div>
       </div>
 
