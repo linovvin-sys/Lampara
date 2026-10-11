@@ -39,6 +39,8 @@ const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; 
 const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
 let navResolve; const navReady = new Promise((r) => { navResolve = r; });
 let hud, nav, compass, path, xrScene, fix = null, alignFix = null, pendingAlign = false;
+const ALIGN_WINDOW_MS = 1500;                      // settle time: average out compass jitter before locking in a heading
+let alignSamples = null;                           // { sin, cos, n, start } while collecting; null when idle
 const filt = S.gpsFilter();
 
 const xrReady = new Promise((res) => { window.XR8 ? res() : window.addEventListener('xrloaded', res, { once: true }); });
@@ -59,9 +61,9 @@ async function start() {
   hud = ARLab.hud.create({ route, engine: '8th Wall', tagline: 'SLAM tracking + one GPS/compass alignment' });
   if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
   compass = S.compass(); compass.start();
-  hud.addAction('Re-align here', () => { alignFix = fix || alignFix; pendingAlign = true; hud.setStatus('Re-aligning...'); });
-  hud.addAction('Heading -5°', () => { compass.nudge(-5); alignFix = fix || alignFix; pendingAlign = true; });
-  hud.addAction('Heading +5°', () => { compass.nudge(+5); alignFix = fix || alignFix; pendingAlign = true; });
+  hud.addAction('Re-align here', () => { alignFix = fix || alignFix; alignSamples = null; pendingAlign = true; hud.setStatus('Re-aligning...'); });
+  hud.addAction('Heading -5°', () => { compass.nudge(-5); alignFix = fix || alignFix; alignSamples = null; pendingAlign = true; });
+  hud.addAction('Heading +5°', () => { compass.nudge(+5); alignFix = fix || alignFix; alignSamples = null; pendingAlign = true; });
 
   const canvas = document.getElementById('xr');
   { const r = Math.min(devicePixelRatio || 1, 2); canvas.width = Math.round(innerWidth * r); canvas.height = Math.round(innerHeight * r); }   // full-window drawing buffer BEFORE the engine reads it
@@ -121,7 +123,7 @@ function showLeg(leg, idx, total, others) {
   path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
   path.items().forEach((it) => { it.obj.visible = false; xrScene.scene.add(it.obj); });
   if (idx > 0) alignFix = fix || alignFix;
-  if (idx > 0 || alignFix) pendingAlign = true;
+  if (idx > 0 || alignFix) { alignSamples = null; pendingAlign = true; }
 }
 function clearLeg() {
   if (!path) return;
@@ -129,13 +131,21 @@ function clearLeg() {
 }
 
 const dir = new THREE.Vector3(), pos = new THREE.Vector3();
-function align() {
+// Collects compass headings for ALIGN_WINDOW_MS, then aligns once from their circular mean: a single instantaneous
+// reading can be 10-30 deg off (metal, a twitch of the phone), and that error would otherwise rotate the whole path.
+function align(ms) {
   if (!path) return;                                  // the leg is not built yet: stay pending and try next frame
   if (!alignFix || !xrScene) return;
   if (!compass.ready) { hud.setStatus('No compass data yet. Turn the phone a little.', 'err'); return; }
   const cam = xrScene.camera;
   cam.updateMatrixWorld(true); cam.getWorldDirection(dir); pos.setFromMatrixPosition(cam.matrixWorld);
-  const phi = geo.deg(Math.atan2(dir.x, -dir.z)), H = compass.heading;
+  if (!alignSamples) { alignSamples = { sin: 0, cos: 0, n: 0, start: ms }; hud.setStatus('Hold still, calibrating heading...'); }
+  const r = geo.rad(compass.heading);
+  alignSamples.sin += Math.sin(r); alignSamples.cos += Math.cos(r); alignSamples.n++;
+  if (ms - alignSamples.start < ALIGN_WINDOW_MS) return;                 // keep collecting
+  const H = geo.norm360(geo.deg(Math.atan2(alignSamples.sin, alignSamples.cos)));  // circular mean heading
+  alignSamples = null;
+  const phi = geo.deg(Math.atan2(dir.x, -dir.z));
   path.items().forEach((it) => {
     const v = geo.enuToView(geo.enu(alignFix, it), H, phi);
     it.obj.position.set(pos.x + v.x, 0, pos.z + v.z); it.obj.visible = true;
@@ -148,7 +158,7 @@ function align() {
 let lastLbl = 0;
 function loop(ms) {
   requestAnimationFrame(loop);
-  if (pendingAlign) align();
+  if (pendingAlign) align(ms);
   if (path) {
     path.animate(ms / 1000);
     if (fix && nav && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(fix)); }

@@ -24,6 +24,7 @@
 <script src="../shared/sensors.js"></script>
 <script src="../shared/hud.js"></script>
 <script src="../shared/nav.js"></script>
+<script src="../shared/autoheading.js"></script>
 <script type="module">
 import * as THREE from 'three';
 
@@ -36,9 +37,13 @@ import * as THREE from 'three';
 let route = ARLab.route.get();
 // follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
 const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
-const geo = ARLab.geo, S = ARLab.sensors;
-let hud, nav, compass, renderer, scene, camera, path, session;
-let fix = null, alignFix = null, pendingAlign = false, aligned = false;
+const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
+let hud, nav, compass, renderer, scene, camera, path, session, graph = null, ah = null;
+let fix = null, alignFix = null, pendingAlign = false;
+const ALIGN_WINDOW_MS = 1500;                      // settle time: average out compass jitter before locking in a heading
+let alignSamples = null;                           // { sin, cos, start } while collecting; null when idle
+let headingOffsetDeg = 0;                          // learned compass error: corrected heading = compass.heading - this
+let placed = false, trackingLost = false;
 const filt = S.gpsFilter();
 const anchor = new THREE.Group();
 
@@ -61,26 +66,46 @@ async function start() {
     requiredFeatures: ['local-floor'], optionalFeatures: ['dom-overlay'], domOverlay: { root }
   });
   session.addEventListener('end', () => location.reload());
+  // Without the overlay the HUD is simply not composited into the AR view, so the tester would fly blind.
+  // Better to say so than to hand them a blank screen.
+  if (!session.domOverlayState) {
+    try { await session.end(); } catch (e) { /* already gone */ }
+    throw new Error('This browser did not grant the DOM overlay, so the HUD would be invisible inside AR. Use Chrome on Android.');
+  }
 
   renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), alpha: true, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
+  // must be set before the session is attached: ?xrscale=0.7 renders fewer pixels on a phone that struggles
+  if (cfg.xrScale !== 1) renderer.xr.setFramebufferScaleFactor(cfg.xrScale);
   await renderer.xr.setSession(session);
   scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(); scene.add(anchor);
 
   hud = ARLab.hud.create({ route, engine: 'WebXR', tagline: 'ARCore tracking + one GPS/compass alignment', parent: root });
   if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
   compass = S.compass(); compass.start();
-  hud.addAction('Re-align here', () => { alignFix = fix; pendingAlign = true; hud.setStatus('Re-aligning...'); });
+  hud.addAction('Re-align here', () => { alignFix = fix; alignSamples = null; pendingAlign = true; hud.setStatus('Re-aligning...'); });
   // a nudge re-aligns from where you stand now, so the correction is measured against the current pose
-  hud.addAction('Heading -5°', () => { compass.nudge(-5); alignFix = fix || alignFix; pendingAlign = true; });
-  hud.addAction('Heading +5°', () => { compass.nudge(+5); alignFix = fix || alignFix; pendingAlign = true; });
+  hud.addAction('Heading -5°', () => { compass.nudge(-5); alignFix = fix || alignFix; alignSamples = null; pendingAlign = true; });
+  hud.addAction('Heading +5°', () => { compass.nudge(+5); alignFix = fix || alignFix; alignSamples = null; pendingAlign = true; });
 
   anchor.visible = false;
+  // the admin's walkways, used to correct the compass while walking; fetched in the background so GPS starts now
+  ARLab.campus.load().then((g) => { graph = g; ah = ARLab.autoHeading.create(g); }).catch(() => { /* straight-line route: no correction */ });
   hud.setStatus('Move the phone slowly so it can see the ground. Finding where you are...');
-  S.watchGps((f) => { hud.setGps(f); fix = filt(f); if (nav) nav.update(fix); }, (m) => hud.error(m));
+  S.watchGps((f) => {
+    hud.setGps(f); fix = filt(f);
+    if (nav) nav.update(fix);
+    // Walking a known walkway reveals the compass error. Correcting it also re-anchors position from the
+    // current fix, which clears whatever SLAM has drifted since the last alignment.
+    const off = ah ? ah.update(fix, compass.heading) : null;
+    if (off !== null) {
+      headingOffsetDeg = off;
+      if (placed) { alignFix = fix; place(geo.norm360(compass.heading - off)); }
+    }
+  }, (m) => hud.error(m));
   // The path is planned from a fresh GPS fix (where the person stands now), then laid into XR space from that same fix.
-  S.bestFix(12000, 8).then(async (f) => {
+  S.bestFix(12000, 10, (best) => hud.setStatus('Finding where you are... ±' + Math.round(best.acc) + ' m')).then(async (f) => {
     if (route.live !== false) { route = await S.rebase(route, f); hud.setRoute(route); }
     if (route.fallback) hud.setStatus(route.fallback, 'err');
     nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
@@ -100,7 +125,7 @@ function showLeg(leg, idx, total, others) {
   path = ARLab.path.build(THREE, leg, { noStart: idx > 0, others });
   path.items().forEach((it) => anchor.add(it.obj));
   if (idx > 0) alignFix = fix || alignFix;
-  if (alignFix) { pendingAlign = true; anchor.visible = false; }
+  if (alignFix) { alignSamples = null; placed = false; pendingAlign = true; anchor.visible = false; }
 }
 function clearLeg() {
   if (!path) return;
@@ -108,32 +133,59 @@ function clearLeg() {
 }
 
 const dir = new THREE.Vector3(), pos = new THREE.Vector3();
-function align() {
-  if (!path) return;                                  // the leg is not built yet: stay pending and try next frame
-  if (!alignFix) return;
-  if (!compass.ready) { hud.setStatus('No compass data yet. Turn the phone a little.', 'err'); return; }
+// Lays every path item into XR space: `alignFix` says where the viewer is on Earth, `H` which way they are facing
+// (compass degrees), and the camera's own pose says where that is in the session's own coordinates. Both the pose
+// and H must describe the same instant, so the pose is read here rather than passed in.
+function place(H) {
+  if (!path || !alignFix) return false;
   const cam = renderer.xr.getCamera();
   cam.getWorldDirection(dir); pos.setFromMatrixPosition(cam.matrixWorld);
-  if (!isFinite(dir.x) || (dir.x === 0 && dir.z === 0)) return;           // pose not ready yet
+  if (!isFinite(dir.x) || (dir.x === 0 && dir.z === 0)) return false;     // pose not ready yet
   const phi = geo.deg(Math.atan2(dir.x, -dir.z));                         // viewer yaw in XR space
-  const H = compass.heading;                                              // viewer yaw on the compass
   path.items().forEach((it) => {
     const v = geo.enuToView(geo.enu(alignFix, it), H, phi);
-    it.obj.position.set(pos.x + v.x, 0, pos.z + v.z);
+    it.obj.position.set(pos.x + v.x, 0, pos.z + v.z);                     // y 0 = the real floor, from the local-floor space
     if (it.bearing !== undefined) path.orient(it, it.bearing - H + phi);
   });
-  anchor.visible = true; aligned = true; pendingAlign = false;
+  anchor.visible = true; placed = true;
+  return true;
+}
+
+// Collects compass headings for ALIGN_WINDOW_MS, then places once from their circular mean: a single instantaneous
+// reading can be 10-30 deg off (metal, a twitch of the phone), and that error would otherwise rotate the whole path.
+function align(ms) {
+  if (!path) return;                                  // the leg is not built yet: stay pending and try next frame
+  if (!alignFix) return;
+  if (trackingLost) return;                           // a pose read now would be stale
+  if (!compass.ready) { hud.setStatus('No compass data yet. Turn the phone a little.', 'err'); return; }
+  if (!alignSamples) { alignSamples = { sin: 0, cos: 0, start: ms }; hud.setStatus('Hold still, calibrating heading...'); }
+  const r = geo.rad(compass.heading);
+  alignSamples.sin += Math.sin(r); alignSamples.cos += Math.cos(r);
+  if (ms - alignSamples.start < ALIGN_WINDOW_MS) return;                 // keep collecting
+  const mean = geo.norm360(geo.deg(Math.atan2(alignSamples.sin, alignSamples.cos)));
+  if (!place(geo.norm360(mean - headingOffsetDeg))) return;              // pose not ready: keep the samples, try next frame
+  alignSamples = null; pendingAlign = false;
   hud.setStatus('Aligned. Follow the arrow. Use Re-align if it looks off.', 'ok'); setTimeout(() => hud.setStatus(''), 4000);
 }
 
 let lastLbl = 0;
-function frame(ms) {
-  if (pendingAlign) align();
+function frame(ms, xrFrame) {
+  // ARCore drops tracking on blank walls, plain tarmac and sudden motion. While it is lost the pose is stale,
+  // so say so instead of letting the path sit silently in the wrong place.
+  const ref = renderer.xr.getReferenceSpace();
+  const lost = !!(xrFrame && ref && !xrFrame.getViewerPose(ref));
+  if (lost !== trackingLost) {
+    trackingLost = lost;
+    if (lost) hud.setStatus('Tracking lost. Point the camera at something with texture - markings, edges, a building.', 'err');
+    else { hud.setStatus('Tracking back.', 'ok'); setTimeout(() => hud.setStatus(''), 2000); }
+  }
+  if (pendingAlign) align(ms);
   if (path) {
     path.animate(ms / 1000);
     if (fix && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(fix)); }
   }
-  hud.setHeading(compass.heading, compass.label());
+  hud.setHeading(geo.norm360(compass.heading - headingOffsetDeg),
+    compass.label() + (ah && ah.locked ? ' auto ' + (headingOffsetDeg > 0 ? '+' : '') + Math.round(headingOffsetDeg) + '°' : ''));
   renderer.render(scene, camera); hud.frame();
 }
 </script>

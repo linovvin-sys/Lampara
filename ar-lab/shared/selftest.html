@@ -4,7 +4,7 @@
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
 </head><body>
 <h2>AR Lab self-test</h2><div id="out"></div><pre id="summary"></pre>
-<script src="geo.js"></script><script src="campus.js"></script><script src="path.js"></script><script src="sensors.js"></script><script src="nav.js"></script><script src="sensors.js"></script>
+<script src="geo.js"></script><script src="campus.js"></script><script src="path.js"></script><script src="sensors.js"></script><script src="nav.js"></script><script src="autoheading.js"></script>
 <script type="module">
 import * as THREE from 'three';
 const out = document.getElementById('out'); let pass = 0, fail = 0;
@@ -210,6 +210,72 @@ try {
   const f3 = ARLab.sensors.gpsFilter(); f3({ lat: A.lat, lng: A.lng, acc: 5, ts: 1000 });
   const jump = g.destination(A, 0, 500), after = f3({ lat: jump.lat, lng: jump.lng, acc: 80, ts: 2000 });
   t('one +/-80 m fix 500 m away barely moves a +/-5 m estimate', g.distance(after, A) < 60, g.distance(after, A).toFixed(0) + ' m moved');
+
+  // reset(): a scanned anchor is ground truth, so the estimate goes there outright
+  const f4 = ARLab.sensors.gpsFilter(); f4({ lat: A.lat, lng: A.lng, acc: 20, ts: 1000 });
+  const anchor = g.destination(A, 45, 30), r4 = f4.reset({ lat: anchor.lat, lng: anchor.lng, acc: 1, ts: 2000 });
+  t('reset(): snaps straight onto the anchor', g.distance(r4, anchor) < 0.5 && r4.acc <= 1.01, g.distance(r4, anchor).toFixed(2) + ' m off');
+
+  // predict(): between fixes, position must keep moving at the learned walking speed
+  const f5 = ARLab.sensors.gpsFilter();
+  for (let i = 0; i <= 10; i++) { const p = g.destination(A, 0, i * 1.4); f5({ lat: p.lat, lng: p.lng, acc: 4, ts: 1000 + i * 1000 }); }
+  const atFix = f5.predict(11000), ahead = f5.predict(12000);
+  t('predict(): dead-reckons forward between fixes', g.distance(atFix, ahead) > 0.5 && g.distance(atFix, ahead) < 4, g.distance(atFix, ahead).toFixed(2) + ' m in 1 s');
+  t('predict(): uncertainty grows with the gap', ahead.acc > atFix.acc);
+  t('predict(): null before any fix', ARLab.sensors.gpsFilter().predict() === null);
+}
+
+// --- snapping the drawn position onto the route being walked (what keeps the path off a parallel walkway)
+{
+  const line = [A, g.destination(A, 90, 100)];
+  const tr = g.tracker(line);
+  t('pointAt(0) is the start', g.distance(tr.pointAt(0), A) < 0.1);
+  t('pointAt(50) is 50 m along', near(g.distance(tr.pointAt(50), A), 50, 0.2));
+  t('pointAt clamps past the end', g.distance(tr.pointAt(999), line[1]) < 0.1);
+
+  const onRoute = g.destination(A, 90, 30), offRoute = g.destination(onRoute, 0, 4);
+  tr.update(offRoute);
+  const w = tr.project(offRoute, 0, 100);
+  t('project finds the right spot along the route', near(w.along, 30, 0.5), w.along.toFixed(2) + ' m');
+  t('project reports how far off the route we are', near(w.off, 4, 0.2), w.off.toFixed(2) + ' m');
+  t('snapping puts us back on the line', g.distance(tr.pointAt(w.along), onRoute) < 0.5);
+
+  // a drift toward a walkway running parallel must still resolve onto OUR route, never onto the other one
+  const drifted = g.destination(onRoute, 0, 7);
+  const w2 = tr.project(drifted, 20, 60);
+  t('a parallel walkway cannot capture the view', near(g.bearing(A, tr.pointAt(w2.along)), 90, 1));
+  t('being off the route is still reported, not hidden', w2.off > 6, w2.off.toFixed(2) + ' m');
+}
+
+// --- automatic compass correction off a known walkway (no QR, no user action)
+{
+  // one straight walkway heading due east; walking along it with a compass reading 30 deg too high
+  const n1 = { id: 1, lat: A.lat, lng: A.lng }, n2 = { id: 2, lat: g.destination(A, 90, 120).lat, lng: g.destination(A, 90, 120).lng };
+  const graph = { nodes: [n1, n2], edges: [{ node_a_id: 1, node_b_id: 2 }] };
+  const ERR = 30;
+  const ah = ARLab.autoHeading.create(graph);
+  let off = null;
+  for (let i = 0; i <= 10; i++) {                       // walk 8 m east per sample, compass always 30 deg off
+    const p = g.destination(A, 90, i * 8);
+    const got = ah.update({ lat: p.lat, lng: p.lng }, g.norm360(90 + ERR));
+    if (got !== null) off = got;
+  }
+  t('auto heading: locks on while just walking a walkway', ah.locked);
+  t('auto heading: recovers the compass error', off !== null && Math.abs(g.norm180(off - ERR)) < 12, 'found ' + (off === null ? 'null' : off.toFixed(1)) + ' deg, true ' + ERR);
+
+  // walking somewhere with no walkway nearby must NOT produce a correction
+  const far = ARLab.autoHeading.create(graph); let farOff = null;
+  for (let i = 0; i <= 10; i++) {
+    const p = g.destination(g.destination(A, 0, 400), 90, i * 8);
+    const got = far.update({ lat: p.lat, lng: p.lng }, g.norm360(90 + ERR));
+    if (got !== null) farOff = got;
+  }
+  t('auto heading: refuses to correct off-walkway', farOff === null && !far.locked);
+
+  // standing still gives no course, so no correction either
+  const still = ARLab.autoHeading.create(graph); let stillOff = null;
+  for (let i = 0; i <= 10; i++) { const got = still.update({ lat: A.lat, lng: A.lng }, 120); if (got !== null) stillOff = got; }
+  t('auto heading: standing still never corrects', stillOff === null);
 }
 
 // --- progress along a route that loops back close to its own start (around a building): 70 m east, 25 m north, 70 m west

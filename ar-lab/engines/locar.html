@@ -17,12 +17,15 @@
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="../shared/geo.js"></script>
 <script src="../shared/campus.js"></script>
 <script src="../shared/path.js"></script>
 <script src="../shared/sensors.js"></script>
 <script src="../shared/hud.js"></script>
 <script src="../shared/nav.js"></script>
+<script src="../shared/anchor.js"></script>
+<script src="../shared/autoheading.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import * as LocAR from 'https://cdn.jsdelivr.net/npm/locar@0.2.12/dist/locar.es.js';
@@ -36,8 +39,27 @@ let route = ARLab.route.get();
 // follow the admin walkway graph when the route asks for it (resolved while the gate is showing)
 const routeReady = route ? ARLab.campus.resolve(route).then((r) => { route = r; }) : Promise.resolve();
 const cfg = ARLab.cfg, geo = ARLab.geo, S = ARLab.sensors;
-let hud, nav, app, locar, path, added = false, lastFix = null;
+let hud, nav, app, locar, path, added = false, lastFix = null, graph = null, ah = null;
 const filt = S.gpsFilter();
+const SNAP_MAX_M = 15;   // only snap to the walkway when we're plausibly ON it; further than this, trust the raw filtered fix
+
+// LocAR takes yaw from two different places depending on the platform, so a heading correction has to go to the
+// matching one: Android uses alpha + alphaOffset, iOS overwrites yaw with webkitCompassHeading + orientationOffset
+// (and its getCorrectedHeading() already folds that offset back in, which Android's does not).
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+let appliedOffsetDeg = 0;
+function rawHeading() {                       // heading with OUR correction taken back out, so offsets stay absolute
+  let h; try { h = app.deviceOrientationControls.getCorrectedHeading(); } catch (e) { return null; }
+  if (h === null || h === undefined) return null;
+  return isIOS ? geo.norm360(h - appliedOffsetDeg) : h;
+}
+// ponytail: iOS loses this on a device rotation (LocAR's own orientationchange handler rewrites orientationOffset);
+// autoHeading just re-converges after a few more steps, so no extra bookkeeping for it.
+function applyHeadingOffset(deg) {
+  appliedOffsetDeg = deg;
+  const c = app.deviceOrientationControls;
+  if (isIOS) c.orientationOffset = -geo.rad(deg); else c.alphaOffset = geo.rad(deg);
+}
 
 ARLab.gate({
   title: 'LocAR.js',
@@ -63,14 +85,20 @@ async function start() {
   hud = ARLab.hud.create({ route, engine: 'LocAR.js', tagline: 'three.js location-based AR 0.2.12' });
   route = await ARLab.sensors.startFromHere(route, hud);          // plan from where the person actually stands now
   if (route.fallback) { hud.setStatus(route.fallback, 'err'); setTimeout(() => hud.setStatus(route.fallback, 'err'), 4000); }
+  graph = await ARLab.campus.load().catch(() => null);             // the admin's walkway graph, for road-snapping below
+  ah = ARLab.autoHeading.create(graph);                            // and for correcting the compass off the same walkways
   projection = makeProjection(route.a);
   hud.setStatus('Starting camera...');
 
   app = new LocAR.App({
     cameraOptions: { hFov: cfg.longFov, near: 0.1, far: 4000 },
-    gpsOptions: { gpsMinDistance: 0, gpsMinAccuracy: 50 },
+    // minDistance 0: every reading we hand it should move the camera, since OUR filter (not LocAR's raw watch) does the smoothing.
+    // minAccuracy high on purpose: LocAR drops any fix worse than this outright, which would freeze the camera mid-glide once
+    // predict()'s uncertainty grows during a GPS gap. Our own filter already decides what to trust before anything gets here.
+    gpsOptions: { gpsMinDistance: 0, gpsMinAccuracy: 1000 },
     // we already asked for motion permission inside the tap, so skip LocAR's own dialog
-    deviceOrientationOptions: { enabled: true, enablePermissionDialog: false, smoothingFactor: 0.2 },
+    // smoothingFactor was 0.2, meaning 80% of the way to each raw (noisy) reading every frame: barely any filtering.
+    deviceOrientationOptions: { enabled: true, enablePermissionDialog: false, smoothingFactor: cfg.headingSmooth },
     projection
   });
   locar = await app.start();
@@ -78,10 +106,20 @@ async function start() {
   hud.setStatus('Waiting for a GPS fix better than 50 m...');
   nav = ARLab.nav.create({ route, hud, show: showLeg, clear: clearLeg });
   hud.addAction('Next point', () => nav.next());
+  hud.addAction('Scan anchor', scanAnchor);
   locar.on('gpsupdate', () => { if (!added) { added = true; nav.begin(); hud.setStatus('Path placed. Follow the arrow.', 'ok'); setTimeout(() => hud.setStatus(''), 3000); } });
-  locar.on('gpserror', (e) => hud.error('GPS: ' + ((e && (e.message || ['', 'location permission denied', 'position unavailable', 'timed out'][e.code])) || e)));
-  await locar.startGps();
-  S.watchGps((f) => { hud.setGps(f); lastFix = f; nav.update(filt(f)); }, () => {});   // the same raw readings, only for the HUD numbers
+  // LocAR's own raw watchPosition is never started (no startGps()): every fix comes from our Kalman filter via fakeGps,
+  // so a noisy reading gets smoothed before it can move the camera, instead of snapping it straight to raw GPS.
+  // The fix itself only lands here once a second or slower (whatever the GPS chip and browser give us) — it corrects
+  // the filter's estimate, but does NOT move the camera directly; that happens every frame in loop(), below, from
+  // filt.predict(), so position glides continuously instead of jumping once per fix.
+  S.watchGps((f) => {
+    hud.setGps(f); lastFix = f;
+    const ff = filt(f);
+    nav.update(ff);                                    // arrival/remaining math uses the real filtered estimate, never the snap
+    const off = ah.update(ff, rawHeading());           // walking along a known walkway IS the compass calibration
+    if (off !== null) applyHeadingOffset(off);
+  }, (m) => hud.error('GPS: ' + m));
   requestAnimationFrame(loop);
 }
 
@@ -96,14 +134,52 @@ function clearLeg() {
   path.items().forEach((it) => app.scene.remove(it.obj)); path.dispose(); path = null;
 }
 
+// Scans a registered outdoor QR anchor and snaps straight back to ground truth: the Kalman filter's estimate,
+// LocAR's own camera position, and (if the anchor has a stored facing) the compass yaw offset. This is what
+// bounds GPS/compass drift on a long walk instead of letting it accumulate for the whole route.
+let scanning = false;
+function scanAnchor() {
+  if (scanning) return;
+  scanning = true;
+  const video = document.querySelector('video');
+  if (!video) { hud.error('No camera video found to scan with.'); scanning = false; return; }
+  hud.setStatus('Point the camera at the anchor QR...');
+  ARLab.anchor.scan(video, { heading: rawHeading })
+    .then((a) => {
+      scanning = false;
+      filt.reset({ lat: a.lat, lng: a.lng, acc: 1 });
+      locar.fakeGps(a.lng, a.lat, null, 1);
+      if (a.errorDeg != null) applyHeadingOffset(a.errorDeg);
+      hud.setStatus('Anchor "' + (a.label || '') + '" found. Position reset' + (a.errorDeg != null ? ' and heading corrected.' : '.'), 'ok');
+      setTimeout(() => hud.setStatus(''), 4000);
+    })
+    .catch((e) => { scanning = false; hud.error('Scan failed: ' + (e && e.message ? e.message : e)); });
+}
+
 let lastLbl = 0;
 function loop(ms) {
   requestAnimationFrame(loop);
+  // Moves the camera every frame from the filter's dead-reckoned prediction (last fix + learned walking velocity),
+  // not just when a new GPS reading lands. That's what makes walking look like a glide instead of a stutter.
+  const p = filt.predict();   // null until the first real GPS fix has landed; that first call below is what triggers 'gpsupdate'
+  if (p) {
+    let placed = p;
+    // Snap onto the route being walked, not onto any nearby walkway: on a real campus two parallel paths a few
+    // metres apart would otherwise let a noisy fix jump the whole view onto the wrong one. The search is also
+    // kept to a window around how far along we already are, so a route that doubles back cannot teleport us.
+    const leg = nav && nav.leg, t = leg && leg.tracker.last;
+    if (t) {
+      const w = leg.tracker.project(p, Math.max(0, t.along - 10), Math.min(t.total, t.along + 30));
+      if (w && w.off <= SNAP_MAX_M) placed = leg.tracker.pointAt(w.along);
+    }
+    locar.fakeGps(placed.lng, placed.lat, null, p.acc);
+  }
   if (path) {
     path.animate(ms / 1000);
     if (lastFix && nav && ms - lastLbl > 500) { lastLbl = ms; path.end.update(nav.remaining(lastFix)); }
   }
-  try { hud.setHeading(app.deviceOrientationControls.getCorrectedHeading(), 'LocAR'); } catch (e) { /* not ready */ }
+  const raw = rawHeading();
+  if (raw !== null) hud.setHeading(geo.norm360(raw - appliedOffsetDeg), 'LocAR' + (ah && ah.locked ? ' auto ' + (appliedOffsetDeg > 0 ? '+' : '') + Math.round(appliedOffsetDeg) + '°' : ''));
   hud.frame();
 }
 </script>

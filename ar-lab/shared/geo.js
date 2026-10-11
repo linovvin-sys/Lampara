@@ -123,6 +123,18 @@
       along = b.along;
       return (tr.last = { along, remaining: Math.max(0, total - along), off: b.off, total });
     };
+    // Same windowed match as update(), but it remembers nothing: for asking "where on this route is this
+    // position?" more often than the route's own progress should move (a render loop reading a predicted fix).
+    tr.project = project;
+    // The point `a` metres along the route, for drawing a position that has been snapped onto it.
+    tr.pointAt = function (a) {
+      if (!seg.length) return { lat: points[0].lat, lng: points[0].lng };
+      a = Math.max(0, Math.min(total, a));
+      let i = 0; while (i < seg.length - 1 && cum[i + 1] < a) i++;
+      const t = seg[i] ? (a - cum[i]) / seg[i] : 0;
+      return { lat: points[i].lat + t * (points[i + 1].lat - points[i].lat),
+               lng: points[i].lng + t * (points[i + 1].lng - points[i].lng) };
+    };
     return tr;
   }
 
@@ -182,7 +194,9 @@
       eyeHeight: numParam('h', 0.5, 2.5, 1.6),      // phone height above the ground, m
       longFov: numParam('fov', 20, 120, 67),        // phone camera field of view across its long side, deg
       spacing: numParam('gap', 1, 10, 3),           // chevron spacing, m
-      arrive: numParam('arrive', 1, 40, 3)          // how close to a stop counts as reaching it, m: you have to be standing on it
+      arrive: numParam('arrive', 1, 40, 3),         // how close to a stop counts as reaching it, m: you have to be standing on it
+      headingSmooth: numParam('hsmooth', 0.2, 0.98, 0.85),  // device-orientation smoothing: higher = less jitter, more lag
+      xrScale: numParam('xrscale', 0.5, 1.5, 1)             // WebXR framebuffer scale: below 1 renders fewer pixels when a phone struggles
     }
   });
 })();

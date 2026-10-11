@@ -64,7 +64,7 @@
     let est = null;                                    // { lat, lng, v (variance, m^2), t (ms), ve, vn (m/s east, north) }
     const out = () => ({ lat: est.lat, lng: est.lng, acc: Math.sqrt(est.v) });
     const M = 111320;
-    return function (f) {
+    const fn = function (f) {
       const acc = Math.max(f.acc || 25, FLOOR), t = f.ts || Date.now();
       if (!est) { est = { lat: f.lat, lng: f.lng, v: acc * acc, t, ve: 0, vn: 0 }; return out(); }
       const dt = Math.max(0, Math.min(10, (t - est.t) / 1000));
@@ -83,6 +83,19 @@
       est.v *= (1 - k);
       return out();
     };
+    // Snaps the estimate straight to a trusted fix (a scanned QR anchor), zeroing accumulated drift instead of
+    // blending it in like a normal reading would. Velocity is kept: we know where we are, not that we stopped.
+    fn.reset = (f) => { const acc = Math.max(f.acc || 1, 1); est = { lat: f.lat, lng: f.lng, v: acc * acc, t: f.ts || Date.now(), ve: (est && est.ve) || 0, vn: (est && est.vn) || 0 }; return out(); };
+    // Extrapolates to right now from the last fix and the learned walking velocity, with NO new reading: GPS
+    // fixes land once a second or slower, but a caller rendering at 60fps needs a position every frame, or
+    // motion looks like a series of jumps instead of a glide. Does not mutate the filter's own state.
+    fn.predict = (atMs) => {
+      if (!est) return null;
+      const t = atMs || Date.now(), dt = Math.max(0, Math.min(10, (t - est.t) / 1000));
+      const lat = est.lat + est.vn * dt / M, lng = est.lng + est.ve * dt / (M * Math.cos(est.lat * Math.PI / 180));
+      return { lat, lng, acc: Math.sqrt(est.v + dt * WALK * WALK) };
+    };
+    return fn;
   }
 
   // ----- Compass. Gives the direction the REAR CAMERA points, tilt-compensated, in degrees clockwise from north.
