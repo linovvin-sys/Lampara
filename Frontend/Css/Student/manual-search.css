@@ -121,6 +121,17 @@ body {
 }
 .room-row:hover { border-color: var(--green-200); background: var(--green-50); }
 
+/* a result row plus its "show on the campus map" button beside it (two links, never one inside the other) */
+.room-item { display: flex; align-items: stretch; gap: 0.5rem; }
+.room-item > .room-row { flex: 1; min-width: 0; }
+.room-map {
+  flex: none; width: 3rem; display: grid; place-items: center;
+  background: #ffffff; border: 1px solid var(--line); border-radius: 1rem; color: var(--ink);
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+}
+.room-map:hover { border-color: var(--green-200); background: var(--green-50); }
+.room-map:focus-visible, .room-row:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
 .room-icon {
   width: 2.5rem;
   height: 2.5rem;

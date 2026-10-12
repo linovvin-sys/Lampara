@@ -96,6 +96,27 @@ function mapFormat($path) {
     return $ext === 'jpg' ? 'jpeg' : $ext;
 }
 
+// The picture's own width and height. Pins are stored as percent of the picture, so turning them into real positions
+// (the 3D map places the 2D map's gates and landmarks) needs its true shape. PDFs: the page box pdf.js draws
+// (CropBox, else MediaBox); pictures: their pixel size. Null when it can't be read (an SVG, a missing file).
+// ponytail: reads the first page box in the file, which is page 1 for the single-page maps admins upload.
+function mapPageSize($imagePath) {
+    $file = __DIR__ . '/../../Frontend/' . $imagePath;
+    if (!is_file($file)) return null;
+    if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) === 'pdf') {
+        $data = file_get_contents($file);
+        $num = '([\d.\-]+)';
+        if (!preg_match("/\/CropBox\s*\[\s*$num\s+$num\s+$num\s+$num\s*\]/", $data, $m)
+            && !preg_match("/\/MediaBox\s*\[\s*$num\s+$num\s+$num\s+$num\s*\]/", $data, $m)) return null;
+        $w = abs((float) $m[3] - (float) $m[1]);
+        $h = abs((float) $m[4] - (float) $m[2]);
+        if (preg_match('/\/Rotate\s+(90|270)\b/', $data)) [$w, $h] = [$h, $w];
+        return $w > 0 && $h > 0 ? ['width' => round($w, 2), 'height' => round($h, 2)] : null;
+    }
+    $size = @getimagesize($file);
+    return $size ? ['width' => $size[0], 'height' => $size[1]] : null;
+}
+
 function mapRow($row) {
     return $row ? [
         'kind' => $row['kind'],
@@ -103,6 +124,7 @@ function mapRow($row) {
         'format' => mapFormat($row['image_path']),
         'title' => $row['title'],
         'updated_at' => $row['updated_at'],
+        'page' => $row['kind'] === '2d' ? mapPageSize($row['image_path']) : null,
     ] : null;
 }
 

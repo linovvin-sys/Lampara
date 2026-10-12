@@ -5,6 +5,8 @@
 //        body (JSON): { name, lat, lng, directory }
 // PUT    /api/buildings.php?id=1     -> update a building
 //        body (JSON): { name, lat, lng, directory }
+//        or { photo: "data:image/...;base64,..." | null } -> set / remove only the building's photo (online only,
+//        kept out of the offline queue like floor-plan uploads) -> { success, photo_path }
 // DELETE /api/buildings.php?id=1     -> delete a building (cascades to its rooms/flags)
 
 header('Content-Type: application/json');
@@ -17,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../photo_upload.php';
 
 // Reads stay public (students need the directory); writes require an admin session.
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
@@ -28,7 +31,7 @@ $conn = $db->connect();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $result = $conn->query(
-        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, b.building_number, b.directory, b.updated_at,
+        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, b.building_number, b.directory, b.photo_path, b.updated_at,
                 (SELECT COUNT(*) FROM rooms r WHERE r.building_id = b.id) AS room_count,
                 (SELECT COUNT(*) FROM outdated_flags f
                     JOIN rooms r2 ON r2.id = f.room_id
@@ -83,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $id = (int) ($_GET['id'] ?? 0);
     $input = json_decode(file_get_contents('php://input'), true);
+    if (is_array($input) && array_key_exists('photo', $input)) photoPut($conn, 'buildings', $id, $input['photo']);
 
     $name = trim($input['name'] ?? '');
     $lat = $input['lat'] ?? null;
@@ -118,11 +122,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         exit;
     }
 
+    // Photo files of the building and of its rooms: the rows go with the delete below, the files would not.
+    $photos = [];
+    $stmt = $conn->prepare("SELECT photo_path FROM buildings WHERE id = ? UNION ALL SELECT photo_path FROM rooms WHERE building_id = ?");
+    $stmt->bind_param('ii', $id, $id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($p = $res->fetch_row()) if ($p[0]) $photos[] = $p[0];
+    $stmt->close();
+
     // Rooms and their flags cascade automatically (FOREIGN KEY ... ON DELETE CASCADE in schema.sql)
     $stmt = $conn->prepare("DELETE FROM buildings WHERE id = ?");
     $stmt->bind_param('i', $id);
 
     if ($stmt->execute()) {
+        foreach ($photos as $p) photoDelete($p);
         echo json_encode(['success' => true]);
     } else {
         http_response_code(500);

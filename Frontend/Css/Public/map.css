@@ -78,6 +78,38 @@ body {
 .pins-sheet li small { display: block; font-weight: 500; color: var(--muted, #55556b); font-size: 0.75rem; }
 .pins-empty { padding: 1rem; color: var(--muted, #55556b); font-size: 0.875rem; }
 
+/* building details (3D map): same sheet as the pins list, rooms link to their own room page */
+.bld-head-text { min-width: 0; display: flex; flex-direction: column; }
+.bld-head-text span { font-size: 0.75rem; color: var(--muted, #55556b); margin-top: 0.1rem; }
+.bld-dir { margin: 0 1rem 0.5rem; font-size: 0.8125rem; line-height: 1.5; color: var(--muted, #55556b); white-space: pre-line; }
+.bld-dir[hidden] { display: none; }
+.bld-sheet li { padding: 0; }
+.bld-sheet li .room-btn { flex: 1; display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.6rem; color: inherit; text-align: left; font: inherit; background: none; border: 0; border-radius: 0.8rem; cursor: pointer; }
+.bld-sheet li .room-btn:focus-visible { outline: 2px solid var(--blue-600, #2e3192); outline-offset: -2px; }
+.bld-sheet li .num { flex: none; min-width: 3.2rem; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8125rem; color: var(--blue-700, #23267a); }
+.bld-sheet li .go { margin-left: auto; color: var(--muted, #55556b); }
+.bld-sheet li.is-target .room-btn { background: var(--yellow-50, #fffbe3); box-shadow: inset 3px 0 0 var(--yellow-500, #ffd100); }
+.bld-photo { display: block; width: 100%; height: 9rem; object-fit: cover; border-radius: 1.2rem 1.2rem 0 0; background: var(--blue-50, #f1f1fb); }
+.bld-photo[hidden] { display: none; }
+.bld-sheet li .thumb { flex: none; width: 2.6rem; height: 2.6rem; border-radius: 0.6rem; object-fit: cover; background: var(--blue-50, #f1f1fb); }
+.bld-sheet li .thumb.ph { display: grid; place-items: center; color: var(--blue-500, #4a4eb0); }
+
+/* room details, opened from a room in the building panel (native <dialog>: Esc, focus and backdrop for free) */
+.room-dlg { width: min(92vw, 26rem); padding: 0; border: 0; border-radius: 1.2rem; background: #fff; color: var(--ink, #0d0e33); box-shadow: 0 24px 60px -20px rgba(11, 37, 89, 0.6); overflow: hidden; }
+.room-dlg::backdrop { background: rgba(13, 15, 43, 0.45); }
+.room-dlg-photo { aspect-ratio: 16 / 10; background: var(--blue-50, #f1f1fb); }
+.room-dlg-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.room-dlg-photo .ph { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; color: var(--blue-500, #4a4eb0); font-size: 0.8125rem; }
+.room-dlg-photo .ph span { color: var(--muted, #55556b); }
+.room-dlg-body { padding: 1rem 1.15rem 1.15rem; }
+.room-dlg-body h2 { margin: 0; font-size: 1.125rem; line-height: 1.3; }
+.room-dlg-meta { margin: 0.25rem 0 0; font-size: 0.8125rem; color: var(--muted, #55556b); }
+.room-dlg-line { margin: 0.6rem 0 0; font-size: 0.875rem; line-height: 1.5; }
+.room-dlg-line[hidden] { display: none; }
+.room-dlg-actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
+.room-dlg-close { flex: 1; padding: 0.75rem 1.1rem; border-radius: 0.85rem; border: 1px solid var(--line, #e3e3f0); background: #fff; color: var(--blue-700, #23267a); font: inherit; font-weight: 600; cursor: pointer; }
+.room-dlg-close:focus-visible { outline: 2px solid var(--yellow-500, #ffd100); outline-offset: 2px; }
+
 
 .state {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem;

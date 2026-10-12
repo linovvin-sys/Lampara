@@ -86,7 +86,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
   <div class="room-list">
     <div v-if="loading" class="empty-state">Loading…</div>
     <div v-else-if="filtered.length === 0" class="empty-state">No rooms match.</div>
-    <a v-for="r in filtered" :key="r.id" :href="'scan.php?room=' + r.id" class="room-row">
+    <div v-for="r in filtered" :key="r.id" class="room-item">
+    <a :href="'scan.php?room=' + r.id" class="room-row">
       <div class="room-icon" :class="r.room_type === 'office' ? 'type-office' : 'type-classroom'">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/></svg>
       </div>
@@ -102,6 +103,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       </span>
       <svg class="room-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
+    <a :href="'../Public/map.php?room=' + r.id" class="room-map" :aria-label="'Show ' + r.room_name + ' on the campus map'" title="Show on campus map">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z"/><path d="M9 4v13M15 7v13"/></svg>
+    </a>
+    </div>
   </div>
 
   <div class="offline-note">

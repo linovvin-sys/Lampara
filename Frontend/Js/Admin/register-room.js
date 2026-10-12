@@ -38,6 +38,7 @@ window.LamparaRoomApp = createApp({
       buildings: [],      // server data + changes made offline (shown on the page)
       rooms: [],
       submitting: false,
+      photoBusy: false,   // room photo uploading / removing
       editingId: null,
       // The uploaded plan image for whichever building+floor is currently
       // selected — null whenever that floor has none, which just hides the
@@ -87,6 +88,11 @@ window.LamparaRoomApp = createApp({
     dirtyView() { return { ...this.form, building_id: null }; },
     dirty() { return JSON.stringify(this.dirtyView) !== this.snap; },
     editingRoom() { return this.editingId === null ? null : (this.rooms.find((r) => r.id === this.editingId) || null); },
+    // The photo of the room being edited (server copy), or null.
+    editingPhoto() {
+      const r = this.editingId === null ? null : this.baseRooms.find((x) => String(x.id) === String(this.editingId));
+      return r ? r.photo_path || null : null;
+    },
     // Rooms of the selected building for the Room dropdown, by floor then room number.
     buildingRooms() {
       if (!this.form.building_id) return [];
@@ -290,6 +296,48 @@ window.LamparaRoomApp = createApp({
         if (data.success) this.baseBuildings = data.buildings;
       } catch (e) { /* offline with no saved copy — pending changes still show */ }
       this.applyPending();
+    },
+    // The room's photo, shown on its room page and in the 3D campus map. Online only and only for a saved room, like
+    // floor plans: a photo is far too big for the offline queue kept on this device.
+    async uploadRoomPhoto(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';                 // picking the same file again still triggers change
+      if (!file) return;
+      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Uploading a photo'); return; }
+      const roomId = this.editingId;           // fixed now, so switching rooms mid-upload can't misfile it
+      if (roomId === null || AdminOffline.isTemp(roomId) || (this.editingRoom && this.editingRoom._pending)) {
+        AdminOffline.toast('Save the room first, then add its photo.', 'info');
+        return;
+      }
+      this.photoBusy = true;
+      try {
+        await this.saveRoomPhoto(roomId, await LamparaPhoto.read(file));
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Upload failed', text: e.message || 'unknown' });
+      } finally {
+        this.photoBusy = false;
+      }
+    },
+    async removeRoomPhoto() {
+      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Removing a photo'); return; }
+      const result = await Swal.fire({ title: 'Remove this photo?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000', cancelButtonColor: '#6b7280' });
+      if (!result.isConfirmed) return;
+      this.photoBusy = true;
+      try {
+        await this.saveRoomPhoto(this.editingId, null);
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Could not remove it', text: e.message || 'unknown' });
+      } finally {
+        this.photoBusy = false;
+      }
+    },
+    async saveRoomPhoto(id, photo) {
+      const res = await fetch('../../../Backend/api/rooms.php?id=' + id, {
+        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'unknown');
+      await this.loadRooms();                  // the row's updated_at changed too: keep offline edits from seeing a stale copy
     },
     async loadRooms() {
       try {

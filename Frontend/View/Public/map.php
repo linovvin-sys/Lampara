@@ -1,7 +1,8 @@
 <?php
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../Css/Public/map.css');
-$jsVer = filemtime(__DIR__ . '/../../Js/Public/map.js');
+// one version for map.js and the 3D viewer it imports, so a change to either reaches phones together
+$jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ . '/../../Js/Public/map-3d.js'));
 ?>
 <!doctype html>
 <html lang="en">
@@ -88,6 +89,29 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/map.js');
       <div class="pins-head"><strong>Entrances &amp; gates</strong><button type="button" id="pinsClose" aria-label="Close">&times;</button></div>
       <ul id="pinsList"></ul>
     </div>
+
+    <section class="pins-sheet bld-sheet" id="bldSheet" aria-labelledby="bldName" hidden>
+      <img class="bld-photo" id="bldPhoto" alt="" hidden>
+      <div class="pins-head">
+        <div class="bld-head-text"><strong id="bldName"></strong><span id="bldMeta"></span></div>
+        <button type="button" id="bldClose" aria-label="Close building details">&times;</button>
+      </div>
+      <p class="bld-dir" id="bldDir" hidden></p>
+      <ul id="bldRooms" aria-label="Rooms in this building"></ul>
+    </section>
+
+    <dialog class="room-dlg" id="roomDialog" aria-labelledby="roomDlgTitle">
+      <div class="room-dlg-photo" id="roomDlgPhoto"></div>
+      <div class="room-dlg-body">
+        <h2 id="roomDlgTitle"></h2>
+        <p class="room-dlg-meta" id="roomDlgMeta"></p>
+        <p class="room-dlg-line" id="roomDlgHours" hidden></p>
+        <p class="room-dlg-line" id="roomDlgNotes" hidden></p>
+        <div class="room-dlg-actions">
+          <button type="button" class="room-dlg-close" id="roomDlgClose">Close</button>
+        </div>
+      </div>
+    </dialog>
 
     <div class="controls" id="controls" hidden>
       <button type="button" id="pinsBtn" aria-label="Entrances and gates" hidden>

@@ -9,6 +9,20 @@
   const LS_TAB = 'lampara_static_map_tab';
   const MK_API = '../../../Backend/api/static-map-markers.php';
   const LS_MARKERS = 'lampara_static_map_markers';
+  const FP_API = '../../../Backend/api/campus-footprints.php';
+  const LS_FOOTPRINTS = 'lampara_campus_footprints';
+  const BUILDINGS_API = '../../../Backend/api/buildings.php';
+  const ROOMS_API = '../../../Backend/api/rooms.php';
+  const GRAPH_API = '../../../Backend/api/campus-graph.php';
+  // Opened from the room search: map.php?room=<id> (or ?building=<id>) opens the 3D map on that building, panel open,
+  // with the room picked out in its list.
+  const TARGET = (() => {
+    const p = new URLSearchParams(location.search), room = +p.get('room'), building = +p.get('building');
+    return room > 0 ? { room } : (building > 0 ? { building } : null);
+  })();
+  let targetDone = false;
+  // map.php versions this file; the 3D viewer is imported with the same version so a stale cached copy can't pair up
+  const VER = (() => { try { return new URL(document.currentScript.src).searchParams.get('v') || ''; } catch (e) { return ''; } })();
   const PDFJS_SOURCES = ['../../assets/vendor/pdfjs/', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/'];
   const PDF_SIZES = [3200, 2200, 1400];   // picture sizes tried in turn; a phone that can't build the big one gets a smaller one
 
@@ -17,6 +31,11 @@
   const keyPlaces = $('keyPlaces'), mkLayer = $('mkLayer'), mkCard = $('mkCard'), pinsSheet = $('pinsSheet'), pinsList = $('pinsList'), pinsBtn = $('pinsBtn');
   const loading = $('loading'), loadingText = $('loadingText'), empty = $('empty'), controls = $('controls'), hint = $('hint'), caption = $('caption');
   const pager = $('pager'), pageNum = $('pageNum');
+  const bldSheet = $('bldSheet'), bldName = $('bldName'), bldMeta = $('bldMeta'), bldDir = $('bldDir'), bldRooms = $('bldRooms');
+  const bldPhoto = $('bldPhoto');
+  const roomDialog = $('roomDialog');
+  // a photo whose file is gone (or offline and never cached) disappears instead of showing a broken-image icon
+  bldPhoto.addEventListener('error', () => { bldPhoto.hidden = true; });
   const tabs = { '2d': $('tab-2d'), '3d': $('tab-3d') };
 
   const getLS = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -76,6 +95,7 @@
     keyPlaces.hidden = true;
     pinsSheet.hidden = true;
     pinsBtn.hidden = true;
+    bldSheet.hidden = true;
     selectedMarker = null;
     controls.hidden = true;
     hint.hidden = true;
@@ -254,21 +274,241 @@
     mode = '3d-model';
     try {
       showLoading('Loading 3D model…');
-      const { createViewer } = await import('../../Js/Public/map-3d.js');
+      const [mod, footprints, pins2d, buildings, graph] = await Promise.all([
+        import('../../Js/Public/map-3d.js' + (VER ? '?v=' + VER : '')), fetchFootprints(), fetchMarkers('2d'),
+        LamparaCache.loadBuildings(BUILDINGS_API), LamparaCache.loadCampusGraph(GRAPH_API)]);
+      if (buildings && buildings.length) buildingList = buildings;
+      const pins3d = build3dPins(mod.georefPicture, pins2d || [], buildings || [], graph || {}, maps['2d'] && maps['2d'].page);
       viewport.hidden = true;
       stage3d.hidden = false;
-      const v = await createViewer(stage3d, urlOf(map), {
-        onProgress: (p) => { if (mine === token) loadingText.textContent = 'Loading 3D model… ' + Math.round(p * 100) + '%'; }
+      const v = await mod.createViewer(stage3d, urlOf(map), {
+        onProgress: (p) => { if (mine === token) loadingText.textContent = 'Loading 3D model… ' + Math.round(p * 100) + '%'; },
+        footprints,
+        markers: pins3d,
+        onSelect: (id) => showBuilding(id),
+        onMarker: (id) => selectMarker(id == null ? null : markers.find((m) => m.id === id) || null)
       });
       if (mine !== token) { v.dispose(); return; }
       viewer3d = v;
+      // only the pins the viewer could place go into the list and the key-place chips
+      markers = v.anchor ? pins3d : [];
+      pinsBtn.hidden = !markers.length;
+      renderKeyPlaces();
+      renderPinsList();
       hideLoading();
       controls.hidden = false;
-      showHint('Drag to rotate · pinch or scroll to zoom · two fingers to move');
+      if (TARGET && !targetDone) { targetDone = true; goToTarget(); return; }
+      showHint(v.anchor && v.anchor.buildings
+        ? 'Tap a building or a pin for details · drag to rotate · pinch to zoom'
+        : 'Drag to rotate · pinch or scroll to zoom · two fingers to move');
     } catch (e) {
       if (mine === token) showEmpty('Couldn\'t open the 3D model', 'Your device may not support 3D graphics, or the model couldn\'t be downloaded. Check your connection and try again.');
     }
   }
+
+  // ---------- 3D: tappable buildings ----------
+  // Building outlines (real GPS) let the viewer work out which shape in the model is which registered building.
+  // Kept in localStorage like the pins, so the buildings stay tappable with no signal.
+  async function fetchFootprints() {
+    try {
+      const res = await fetch(FP_API, { cache: 'no-store' });
+      const data = await res.json();
+      if (!data.success) throw new Error('bad response');
+      const list = data.footprints.filter((f) => f.kind === 'building');
+      setLS(LS_FOOTPRINTS, JSON.stringify(list));
+      return list;
+    } catch (e) {
+      try { return JSON.parse(getLS(LS_FOOTPRINTS) || '[]'); } catch (err) { return []; }
+    }
+  }
+
+  // The 3D map's pins, from data that already exists — nothing extra to set up in the admin:
+  //   entrances: each building's entrance point from Campus Paths, at its exact GPS position;
+  //   gates and key places: the 2D map's pins, placed through the entrance pins that are on both maps (approximate —
+  //   only as good as where the pins were dropped on the 2D picture, so the card says so).
+  function build3dPins(georefPicture, pins2d, buildings, graph, page) {
+    const nodes = new Map((graph.nodes || []).map((n) => [+n.id, n]));
+    const entrancePin = new Map(pins2d.filter((m) => m.marker_type === 'entrance' && m.building_id != null).map((m) => [+m.building_id, m]));
+    const out = [], pairs = [];
+    buildings.forEach((b) => {
+      const n = nodes.get(+b.entrance_node_id);
+      if (!n) return;
+      const p2 = entrancePin.get(+b.id);
+      out.push({ id: 'entrance-' + b.id, marker_type: 'entrance', building_id: +b.id, name: p2 ? p2.name : b.name + ' – Entrance', lat: +n.lat, lng: +n.lng });
+      if (p2) pairs.push({ x: +p2.x, y: +p2.y, lat: +n.lat, lng: +n.lng });
+    });
+    const fit = georefPicture(pairs, page);
+    if (fit) {
+      pins2d.filter((m) => m.marker_type !== 'entrance').forEach((m) => {
+        out.push(Object.assign({}, m, { id: 'pin-' + m.id, approx: true }, fit.toLatLng(+m.x, +m.y)));
+      });
+    }
+    return out;
+  }
+
+  const CATEGORY = { office: 'Office', classroom: 'Classroom', cr: 'Comfort room', canteen: 'Canteen' };
+  let buildingList = null;
+  const roomsByBuilding = new Map();
+  let bldToken = 0;                    // a slow answer for an earlier tap must not overwrite the current building
+
+  async function showBuilding(id, focusRoomId) {
+    const mine = ++bldToken;
+    if (id == null) { bldSheet.hidden = true; if (viewer3d) viewer3d.setBottomInset(0); return; }
+    pinsSheet.hidden = true;
+    if (!buildingList) {
+      const list = await LamparaCache.loadBuildings(BUILDINGS_API);
+      if (list && list.length) buildingList = list;    // a failed load is retried on the next tap, not remembered
+    }
+    if (mine !== bldToken || mode !== '3d-model') return;   // tapped again, or left the 3D map meanwhile
+    const b = (buildingList || []).find((x) => +x.id === +id);
+    shownBuilding = b || null;
+    bldName.textContent = b ? b.name : 'Building';
+    const floors = b ? +b.floor_count : 0;
+    bldMeta.textContent = floors ? floors + (floors === 1 ? ' floor' : ' floors') : '';
+    const dir = b && b.directory ? String(b.directory).trim() : '';
+    bldDir.textContent = dir;
+    bldDir.hidden = !dir;
+    if (b && b.photo_path) { bldPhoto.src = '../../' + b.photo_path; bldPhoto.alt = 'Photo of ' + b.name; bldPhoto.hidden = false; }
+    else { bldPhoto.hidden = true; bldPhoto.removeAttribute('src'); }
+    setRoomsMessage('Loading rooms…');
+    bldSheet.hidden = false;
+    hint.hidden = true;
+    if (viewer3d) viewer3d.setBottomInset(bldSheet.offsetHeight);
+    const rooms = await roomsOf(+id);
+    if (mine === bldToken && mode === '3d-model') {
+      renderRooms(rooms, focusRoomId);
+      if (viewer3d) viewer3d.setBottomInset(bldSheet.offsetHeight);   // the sheet grew to fit the rooms
+      const target = bldRooms.querySelector('li.is-target');
+      if (target) target.scrollIntoView({ block: 'center' });
+    }
+  }
+
+  // The search result this page was opened for: fly to its building, open the panel, pick out the room.
+  async function goToTarget() {
+    let bid = TARGET.building;
+    if (TARGET.room) {
+      let room = (LamparaCache.getRooms() || []).find((r) => +r.id === TARGET.room);
+      if (!room) {
+        try { const data = await (await fetch(ROOMS_API)).json(); if (data.success) room = data.rooms.find((r) => +r.id === TARGET.room); } catch (e) { /* offline */ }
+      }
+      if (!room) { showHint('That room couldn\'t be found. Showing the whole campus.'); return; }
+      bid = +room.building_id;
+    }
+    if (!viewer3d) return;
+    viewer3d.selectBuilding(bid);       // false when the building has no shape on this model: the panel still opens
+    showBuilding(bid, TARGET.room);
+  }
+
+  async function roomsOf(id) {
+    if (roomsByBuilding.has(id)) return roomsByBuilding.get(id);
+    let rooms = null;
+    try {
+      const res = await fetch(ROOMS_API + '?building_id=' + id);
+      const data = await res.json();
+      if (data.success) rooms = data.rooms;
+    } catch (e) { /* no signal: try the synced directory below */ }
+    if (!rooms) {
+      const cached = LamparaCache.getRooms();
+      if (cached && cached.length) rooms = cached.filter((r) => +r.building_id === id);
+    }
+    if (rooms) roomsByBuilding.set(id, rooms);
+    return rooms;
+  }
+
+  function setRoomsMessage(text) {
+    bldRooms.innerHTML = '';
+    const li = document.createElement('li');
+    li.className = 'pins-empty';
+    li.textContent = text;
+    bldRooms.appendChild(li);
+  }
+
+  // ---------- room details (dialog) ----------
+  // Tapping a room opens a preview of it here on the map: photo (or a placeholder) and its details.
+  let shownBuilding = null;
+  function photoPlaceholder() {
+    const d = document.createElement('div');
+    d.className = 'ph';
+    d.innerHTML = ROOM_ICON.replace('width="18" height="18"', 'width="34" height="34"');
+    const t = document.createElement('span');
+    t.textContent = 'No photo yet';
+    d.appendChild(t);
+    return d;
+  }
+  function openRoom(r) {
+    const ph = $('roomDlgPhoto');
+    ph.replaceChildren();
+    if (r.photo_path) {
+      const img = new Image();
+      img.alt = 'Photo of ' + (r.room_name || 'this room');
+      img.src = '../../' + r.photo_path;
+      img.addEventListener('error', () => ph.replaceChildren(photoPlaceholder()));
+      ph.appendChild(img);
+    } else {
+      ph.appendChild(photoPlaceholder());
+    }
+    $('roomDlgTitle').textContent = (r.room_number ? r.room_number + ' — ' : '') + (r.room_name || CATEGORY[r.category] || 'Room');
+    $('roomDlgMeta').textContent = [r.floor, CATEGORY[r.category], shownBuilding && shownBuilding.name].filter(Boolean).join(' · ');
+    const hours = $('roomDlgHours'), notes = $('roomDlgNotes');
+    hours.textContent = r.hours ? 'Open ' + r.hours : '';
+    hours.hidden = !r.hours;
+    notes.textContent = r.notes || '';
+    notes.hidden = !r.notes;
+    roomDialog.showModal();
+  }
+  $('roomDlgClose').addEventListener('click', () => roomDialog.close());
+  roomDialog.addEventListener('click', (e) => { if (e.target === roomDialog) roomDialog.close(); });   // tap on the dimmed backdrop
+
+  const ROOM_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/></svg>';
+  function roomThumb(r) {
+    const ph = () => { const s = document.createElement('span'); s.className = 'thumb ph'; s.innerHTML = ROOM_ICON; return s; };
+    if (!r.photo_path) return ph();
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.alt = '';                          // decorative: the row already names the room
+    img.loading = 'lazy';
+    img.src = '../../' + r.photo_path;
+    img.addEventListener('error', () => img.replaceWith(ph()));
+    return img;
+  }
+
+  function renderRooms(rooms, focusRoomId) {
+    if (rooms === null) { setRoomsMessage('Rooms couldn\'t be loaded. Check your connection and tap the building again.'); return; }
+    if (!rooms.length) { setRoomsMessage('No rooms registered yet.'); return; }
+    bldRooms.innerHTML = '';
+    // Thumbnails only once this building has at least one room photo; then rooms without one get a placeholder so
+    // the column lines up. With no photos at all (most buildings for now) the list stays as it was.
+    const withThumbs = rooms.some((r) => r.photo_path);
+    rooms.slice()
+      .sort((a, b) => String(a.floor).localeCompare(String(b.floor), undefined, { numeric: true })
+        || String(a.room_number || '').localeCompare(String(b.room_number || ''), undefined, { numeric: true }))
+      .forEach((r) => {
+        const li = document.createElement('li');
+        const a = document.createElement('button');    // opens the preview; the map page has no directions
+        a.type = 'button';
+        a.className = 'room-btn';
+        a.addEventListener('click', () => openRoom(r));
+        const num = document.createElement('span');
+        num.className = 'num';
+        num.textContent = r.room_number || '—';
+        const text = document.createElement('span');
+        text.textContent = r.room_name || CATEGORY[r.category] || 'Room';
+        const sub = document.createElement('small');
+        sub.textContent = [r.floor, CATEGORY[r.category]].filter(Boolean).join(' · ');
+        text.appendChild(sub);
+        const go = document.createElement('span');
+        go.className = 'go';
+        go.setAttribute('aria-hidden', 'true');
+        go.textContent = '›';
+        if (withThumbs) a.append(roomThumb(r));
+        a.append(num, text, go);
+        if (focusRoomId != null && +r.id === +focusRoomId) { li.className = 'is-target'; a.setAttribute('aria-current', 'true'); }
+        li.appendChild(a);
+        bldRooms.appendChild(li);
+      });
+  }
+
+  $('bldClose').addEventListener('click', () => { if (viewer3d) viewer3d.selectBuilding(null); showBuilding(null); });
 
   // ---------- entrance / gate pins ----------
   async function fetchMarkers(k) {
@@ -341,7 +581,8 @@
     });
   }
 
-  const typeLabel = (m) => (m.marker_type === 'gate' ? 'Campus gate' : (m.marker_type === 'landmark' ? 'Key place' : 'Building entrance'));
+  const typeLabel = (m) => (m.marker_type === 'gate' ? 'Campus gate' : (m.marker_type === 'landmark' ? 'Key place' : 'Building entrance'))
+    + (m.approx ? ' · approximate location' : '');
 
   function selectMarker(m) {
     selectedMarker = m;
@@ -359,6 +600,12 @@
 
   // zoom in on a pin and select it
   function focusMarker(m) {
+    if (mode === '3d-model') {
+      if (viewer3d) viewer3d.selectMarker(m.id);
+      showBuilding(null);
+      selectMarker(m);
+      return;
+    }
     const px = view.iw * m.x / 100, py = view.ih * m.y / 100;
     const target = Math.min(view.max, Math.max(view.scale, view.fit * 3));
     view.scale = target;
@@ -368,7 +615,10 @@
     selectMarker(m);
   }
 
-  $('mkCardClose').addEventListener('click', () => selectMarker(null));
+  $('mkCardClose').addEventListener('click', () => {
+    if (mode === '3d-model' && viewer3d) viewer3d.selectMarker(null, { fly: false });
+    selectMarker(null);
+  });
   pinsBtn.addEventListener('click', () => { pinsSheet.hidden = !pinsSheet.hidden; });
   $('pinsClose').addEventListener('click', () => { pinsSheet.hidden = true; });
 
@@ -552,7 +802,9 @@
   (async () => {
     const ok = await loadMaps();
     if (!ok) { updateTabs(); showEmpty('Couldn\'t load the map', 'You appear to be offline and the map isn\'t saved on this device yet. Open this page once with a connection.'); return; }
-    const want = new URLSearchParams(location.search).get('type') || getLS(LS_TAB);
+    // a search result to show needs the 3D model (that is where buildings can be highlighted)
+    const want = (TARGET && maps['3d'] && formatOf(maps['3d']) === 'obj') ? '3d'
+      : new URLSearchParams(location.search).get('type') || getLS(LS_TAB);
     const first = (want === '2d' || want === '3d') && maps[want] ? want : (maps['2d'] ? '2d' : (maps['3d'] ? '3d' : null));
     if (!first) { kind = '2d'; updateTabs(); showEmpty('No map yet', 'The campus map hasn\'t been uploaded yet. Please check back soon.'); return; }
     select(first);

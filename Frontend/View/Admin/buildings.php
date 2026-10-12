@@ -209,6 +209,12 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
   }
   #building-app .list-row:hover { border-color: var(--line, #e3e3f0); background: rgba(240, 245, 254, 0.4); }
   #building-app .list-row:last-child { border-bottom: 1px solid transparent !important; }
+  /* building / room photo cards */
+  .photo-card { display: flex; flex-direction: column; gap: 0.6rem; }
+  .photo-preview { width: 100%; max-height: 12rem; object-fit: cover; border-radius: 0.6rem; border: 1px solid var(--border, #e5e7eb); }
+  .photo-empty { display: grid; place-items: center; height: 6rem; border-radius: 0.6rem; border: 1px dashed var(--border, #e5e7eb); color: var(--muted); font-size: 0.8125rem; }
+  .photo-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .photo-hint { color: var(--muted); font-size: 0.75rem; line-height: 1.5; margin: 0; }
 
   /* ================= Path editor: calmer surface, clearer active point ================= */
   .lock-bar { border-radius: 1rem; }
@@ -552,6 +558,23 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                       </div>
                       <svg class="modal-trigger-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                     </div>
+                  </div>
+                </div>
+
+                <div v-if="editingId && !editingIsLocalOnly">
+                  <h3 class="section-title">Building Photo</h3>
+                  <div class="card photo-card">
+                    <img v-if="editingPhoto" :src="'../../' + editingPhoto" alt="Current photo of this building" class="photo-preview">
+                    <div v-else class="photo-empty">No photo yet</div>
+                    <div class="photo-actions">
+                      <label class="btn btn-secondary" :class="{ 'is-loading': photoBusy }" style="font-size:0.75rem; cursor:pointer;">
+                        <span v-if="photoBusy" class="btn-spinner"></span>
+                        {{ photoBusy ? 'Working…' : (editingPhoto ? 'Replace photo' : 'Upload photo') }}
+                        <input type="file" accept="image/*" style="display:none;" :disabled="photoBusy" @change="uploadBuildingPhoto">
+                      </label>
+                      <button v-if="editingPhoto" type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" :disabled="photoBusy" @click="removeBuildingPhoto">Remove</button>
+                    </div>
+                    <p class="photo-hint">Shown when students tap this building on the 3D campus map. Optional.</p>
                   </div>
                 </div>
               </div>
@@ -1009,6 +1032,21 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
                     <button v-if="editingRoom && !editingRoom._pending" type="button" class="btn btn-secondary room-picker-delete" @click="deleteRoom(editingRoom)">Delete this room</button>
                   </div>
                 </div>
+
+                <div v-if="editingId !== null && editingRoom && !editingRoom._pending" class="card photo-card">
+                  <h3 class="room-picker-title">Room photo</h3>
+                  <img v-if="editingPhoto" :src="'../../' + editingPhoto" alt="Current photo of this room" class="photo-preview">
+                  <div v-else class="photo-empty">No photo yet</div>
+                  <div class="photo-actions">
+                    <label class="btn btn-secondary" :class="{ 'is-loading': photoBusy }" style="font-size:0.75rem; cursor:pointer;">
+                      <span v-if="photoBusy" class="btn-spinner"></span>
+                      {{ photoBusy ? 'Working…' : (editingPhoto ? 'Replace photo' : 'Upload photo') }}
+                      <input type="file" accept="image/*" style="display:none;" :disabled="photoBusy" @change="uploadRoomPhoto">
+                    </label>
+                    <button v-if="editingPhoto" type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" :disabled="photoBusy" @click="removeRoomPhoto">Remove</button>
+                  </div>
+                  <p class="photo-hint">Shown on this room's page and on the 3D campus map. Optional.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1034,6 +1072,7 @@ if (isset($_GET['edit']) && $initialTab === 'all') $initialTab = 'add-building';
 <script src="../../Js/Include/editor-lock.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/editor-lock.js') ?>"></script>
 <script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
 <script src="../../Js/Admin/manage-buildings.js?v=<?= $listJsVer ?>"></script>
+<script src="../../Js/Include/photo-pick.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/photo-pick.js') ?>"></script>
 <script src="../../Js/Admin/register-building.js?v=<?= $buildingJsVer ?>"></script>
 <script src="../../Js/Admin/register-room.js?v=<?= $roomJsVer ?>"></script>
 

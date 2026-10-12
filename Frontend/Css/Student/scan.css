@@ -63,6 +63,12 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
   background: #ffffff; border: 1px solid var(--line); border-radius: 1rem;
   padding: 1rem 1.1rem; margin: 0 1.1rem 1rem; box-shadow: 0 1px 2px rgba(20,37,28,0.04);
 }
+/* the destination room's photo (when an admin added one), edge to edge across the top of its card */
+.dest-photo {
+  display: block; width: calc(100% + 2.2rem); max-width: none; height: 10rem; object-fit: cover;
+  margin: -1rem -1.1rem 0.85rem; border-radius: 1rem 1rem 0 0; background: var(--green-50);
+}
+.dest-meta { font-size: 0.75rem; color: var(--muted); margin: 0 0 0.3rem; }
 .hours-badge {
   display: inline-flex; align-items: center; gap: 0.4rem;
   background: var(--green-50); color: var(--green-700);

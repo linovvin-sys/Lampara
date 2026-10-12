@@ -91,6 +91,14 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <h1>Where are you now?</h1>
           <p>Going to {{ destination.room_number ? destination.room_number + ' — ' : '' }}{{ destination.room_name }} — search your current room to see the way there.</p>
         </div>
+        <!-- What the destination looks like, on the first screen too (this is what tapping a room in the 3D map or
+             the search opens). Only when there is something to show: no photo and no hours means no extra card. -->
+        <div v-if="destination.photo_path || destination.hours" class="info-card dest-preview" style="margin-top:0.25rem;">
+          <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="dest-photo" @error="$event.target.hidden = true">
+          <p class="dest-meta" style="margin:0;">
+            {{ [({ office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' })[destination.category], destination.hours, destination.notes].filter(Boolean).join(' · ') }}
+          </p>
+        </div>
         <div class="info-card" style="margin-top:0.25rem;">
           <input v-model="originQuery" @input="searchOrigin" type="text"
                  placeholder="Search your current room…"
@@ -171,8 +179,13 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         </div>
 
         <div v-if="destination" class="info-card" :style="{ marginTop: planningMode ? '0.25rem' : '1rem' }">
+          <!-- keyed per room, so a photo that failed to load for one room is not hidden for the next -->
+          <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="dest-photo" @error="$event.target.hidden = true">
           <p style="font-weight:800; font-size:0.9375rem; color:var(--ink); margin:0 0 0.2rem;">
             {{ destination.room_number ? destination.room_number + ' — ' : '' }}{{ destination.room_name }}
+          </p>
+          <p v-if="destination.category || destination.hours" class="dest-meta">
+            {{ [({ office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' })[destination.category], destination.hours].filter(Boolean).join(' · ') }}
           </p>
           <p style="font-size:0.8125rem; color:var(--green-700); font-weight:700; margin:0;">{{ directionHint }}</p>
           <!-- The admin's own notes on THIS room are the real "how to find it"

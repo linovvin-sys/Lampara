@@ -58,7 +58,8 @@ window.LamparaBuildingApp = createApp({
       // guide scans to fix its real starting position, see Backend/api/qr-anchors.php.
       floorQrAnchor: null,     // { id, floor_plan_node_id, code, label } or null
       qrBusy: false,
-      showingFloorQr: false
+      showingFloorQr: false,
+      photoBusy: false         // building photo uploading / removing
     };
   },
   computed: {
@@ -73,6 +74,11 @@ window.LamparaBuildingApp = createApp({
     // (which need one) can't be managed until it has synced.
     editingIsLocalOnly() {
       return this.editingId !== null && AdminOffline.isTemp(this.editingId);
+    },
+    // The photo of the building being edited (server copy), or null.
+    editingPhoto() {
+      const b = this.editingId === null ? null : this.baseBuildings.find((x) => String(x.id) === String(this.editingId));
+      return b ? b.photo_path || null : null;
     },
     // "Point A", "Point B" ... for the points of the floor being edited (older unnamed ones are numbered in creation order).
     pathNames() { return PointNames.map(this.pathNodes); },
@@ -386,6 +392,45 @@ window.LamparaBuildingApp = createApp({
         }
       };
       reader.readAsDataURL(file);
+    },
+    // The building's photo, shown in the 3D campus map. Like floor plans: online only, and only once the building has
+    // been saved, since a photo is far too big for the offline queue kept on this device.
+    async uploadBuildingPhoto(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';                 // picking the same file again still triggers change
+      if (!file) return;
+      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Uploading a photo'); return; }
+      const buildingId = this.editingId;       // fixed now, so switching buildings mid-upload can't misfile it
+      if (!buildingId || AdminOffline.isTemp(buildingId)) { AdminOffline.toast('Save the building first, then add its photo.', 'info'); return; }
+      this.photoBusy = true;
+      try {
+        await this.saveBuildingPhoto(buildingId, await LamparaPhoto.read(file));
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Upload failed', text: e.message || 'unknown' });
+      } finally {
+        this.photoBusy = false;
+      }
+    },
+    async removeBuildingPhoto() {
+      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Removing a photo'); return; }
+      const result = await Swal.fire({ title: 'Remove this photo?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000', cancelButtonColor: '#6b7280' });
+      if (!result.isConfirmed) return;
+      this.photoBusy = true;
+      try {
+        await this.saveBuildingPhoto(this.editingId, null);
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Could not remove it', text: e.message || 'unknown' });
+      } finally {
+        this.photoBusy = false;
+      }
+    },
+    async saveBuildingPhoto(id, photo) {
+      const res = await fetch('../../../Backend/api/buildings.php?id=' + id, {
+        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'unknown');
+      await this.loadBuildings();              // the row's updated_at changed too: keep offline edits from seeing a stale copy
     },
     async openPathEditor(floor) {
       const plan = this.floorPlans[floor];

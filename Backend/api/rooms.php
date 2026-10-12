@@ -6,6 +6,8 @@
 //        category: 'office' | 'classroom' | 'cr' | 'canteen' — room_type is derived from it server-side
 // PUT    /api/rooms.php?id=1                  -> update a room
 //        body (JSON): { room_number, room_name, floor, category, hours, notes }
+//        or { photo: "data:image/...;base64,..." | null } -> set / remove only the room's photo (online only,
+//        kept out of the offline queue like floor-plan uploads) -> { success, photo_path }
 // DELETE /api/rooms.php?id=1                  -> delete a room (cascades to its flags)
 
 header('Content-Type: application/json');
@@ -19,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../room_number.php';
+require_once __DIR__ . '/../photo_upload.php';
 
 // Reads stay public (students need the directory); writes require an admin session.
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
@@ -65,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $sql = "SELECT r.id, r.building_id, b.name AS building_name, r.room_number, r.room_name,
-                   r.floor, r.room_type, r.category, r.hours, r.notes, r.map_x, r.map_y, r.path_node_id, r.updated_at,
+                   r.floor, r.room_type, r.category, r.hours, r.notes, r.map_x, r.map_y, r.path_node_id, r.photo_path, r.updated_at,
                    (SELECT COUNT(*) FROM outdated_flags f WHERE f.room_id = r.id AND f.resolved = 0) AS open_flags
             FROM rooms r
             JOIN buildings b ON b.id = r.building_id";
@@ -165,6 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $id = (int) ($_GET['id'] ?? 0);
     $input = json_decode(file_get_contents('php://input'), true);
+    if (is_array($input) && array_key_exists('photo', $input)) photoPut($conn, 'rooms', $id, $input['photo']);
 
     // One canonical form ("1101 - A") however it was typed.
     $roomNumber = normalize_room_number($input['room_number'] ?? '');
@@ -218,10 +222,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         exit;
     }
 
+    $stmt = $conn->prepare("SELECT photo_path FROM rooms WHERE id = ?");
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $photo = ($r = $stmt->get_result()->fetch_row()) ? $r[0] : null;
+    $stmt->close();
+
     $stmt = $conn->prepare("DELETE FROM rooms WHERE id = ?");
     $stmt->bind_param('i', $id);
 
     if ($stmt->execute()) {
+        photoDelete($photo);
         echo json_encode(['success' => true]);
     } else {
         http_response_code(500);

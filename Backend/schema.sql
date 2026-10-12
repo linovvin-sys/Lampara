@@ -28,6 +28,7 @@
 --   ALTER TABLE buildings ADD CONSTRAINT fk_buildings_entrance_node FOREIGN KEY (entrance_node_id) REFERENCES campus_nodes(id) ON DELETE SET NULL;
 
 --   CREATE TABLE static_maps (kind ENUM('2d','3d') NOT NULL PRIMARY KEY, image_path VARCHAR(255) NOT NULL, title VARCHAR(100) NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--   ALTER TABLE buildings ADD COLUMN photo_path VARCHAR(255) NULL; ALTER TABLE rooms ADD COLUMN photo_path VARCHAR(255) NULL;
 
 CREATE TABLE IF NOT EXISTS buildings (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -45,6 +46,9 @@ CREATE TABLE IF NOT EXISTS buildings (
     -- belong to a specific room (general hours, campus-wide notes). Room-level
     -- facts now live in the `rooms` table below instead of being crammed here.
     directory TEXT NULL,
+    -- Optional photo of the building (Frontend/assets/photos/buildings/), shown in the 3D campus map's building
+    -- panel. Not the floor plan: that lives in floor_plans. NULL until an admin uploads one.
+    photo_path VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -95,6 +99,9 @@ CREATE TABLE IF NOT EXISTS rooms (
     -- drawing a turn-by-turn line between two rooms on the same floor. The
     -- FK is added after floor_plan_nodes exists further down this file.
     path_node_id INT NULL,
+    -- Optional photo of the room (Frontend/assets/photos/rooms/), shown on its room page and as a thumbnail in the
+    -- 3D campus map. NULL until an admin uploads one: most rooms start without and grow into it.
+    photo_path VARCHAR(255) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
