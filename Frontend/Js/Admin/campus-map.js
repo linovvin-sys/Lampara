@@ -90,6 +90,32 @@ createApp({
       const r = img.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width * 100, y = (e.clientY - r.top) / r.height * 100;
       if (x < 0 || x > 100 || y < 0 || y > 100) return;
+      await this.addPinAt(x, y);
+    },
+    // Keyboard alternative to clicking the map: the new pin goes in the middle, then arrow keys move it.
+    async addPinAtCenter() {
+      await this.addPinAt(50, 50);
+      this.$nextTick(() => { const el = document.querySelector('.mk-pin.sel'); if (el) el.focus(); });
+    },
+    // Arrow keys on a focused pin: 0.5% per press (Shift: 2%). Saved after a short pause so a held key is one request.
+    onPinKey(m, e) {
+      if (e.key === 'Delete') { e.preventDefault(); this.selectedId = m.id; this.removeSelected(); return; }
+      const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 2 : 0.5;
+      m.x = Math.max(0, Math.min(100, Math.round((m.x + d[0] * step) * 10) / 10));
+      m.y = Math.max(0, Math.min(100, Math.round((m.y + d[1] * step) * 10) / 10));
+      this.selectedId = m.id;
+      clearTimeout(this._pinSave);
+      this._pinSave = setTimeout(async () => {
+        if (!(await AdminOffline.guardOnline('Moving a pin'))) { this.loadMarkers(); return; }
+        try {
+          await fetch(MK_API + '?id=' + m.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: m.x, y: m.y }) });
+        } catch (err) { this.loadMarkers(); }
+      }, 400);
+    },
+    async addPinAt(x, y) {
       if (this.mkType === 'entrance' && !this.mkBuilding) {
         Swal.fire({ icon: 'info', title: 'Choose a building first', text: 'Pick the building this entrance belongs to, then click the map.' });
         return;
@@ -283,6 +309,10 @@ createApp({
         return;
       }
       if (!(await AdminOffline.guardOnline('Uploading a map'))) return;
+      if (this.maps[kind] && !(await AdminConfirm({
+        title: 'Replace the ' + this.kindLabel(kind) + '?',
+        text: 'Students will see "' + file.name + '" instead of the current map as soon as it uploads. The current file is removed.',
+        confirmText: 'Replace map' }))) return;
       this.busy = kind; this.busyText = 'Uploading…';
       try {
         const payload = await this.prepare(file, format);

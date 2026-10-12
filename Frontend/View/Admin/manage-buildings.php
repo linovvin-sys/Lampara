@@ -1,5 +1,5 @@
 <?php
-// Merged into buildings.php (All Buildings tab). Kept as a redirect so old
-// bookmarks/links still work.
-header('Location: buildings.php?tab=all');
+// The building workspace is split into buildings.php, building-edit.php and room-edit.php.
+// Kept as a redirect so old bookmarks still work.
+header('Location: buildings.php');
 exit;

@@ -21,8 +21,10 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="../../Css/Admin/utilities.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/utilities.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/design-pass.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/design-pass.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/test-chat.css">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
@@ -44,29 +46,30 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
       <div class="form-grid">
         <div class="card chat-card">
           <div class="field" style="margin-bottom: 0.75rem;">
-            <label>Building</label>
-            <select v-model="buildingId" @change="resetChat">
+            <label for="chatBuilding">Building</label>
+            <select id="chatBuilding" v-model="buildingId" @change="resetChat">
               <option value="" disabled>Select a building…</option>
               <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
             </select>
           </div>
 
-          <div v-if="!buildingId" class="empty-state">Pick a building above to start testing.</div>
+          <div v-if="!buildingId" class="empty-state" role="status">Pick a building above to start testing.</div>
 
           <template v-else>
-            <div class="chat-log" ref="chatLog">
+            <div class="chat-log" ref="chatLog" role="log" aria-live="polite" aria-label="Conversation with the test assistant">
               <div v-for="(m, i) in messages" :key="i" class="chat-row" :class="m.role === 'user' ? 'row-user' : 'row-ai'">
                 <div class="chat-bubble" :class="m.role === 'user' ? 'bubble-user' : 'bubble-ai'" v-html="formatMessage(m.text)"></div>
               </div>
               <div v-if="loading" class="chat-row row-ai">
-                <div class="chat-bubble bubble-ai typing-bubble">
+                <div class="chat-bubble bubble-ai typing-bubble" role="status" aria-label="The assistant is typing">
                   <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
                 </div>
               </div>
             </div>
 
             <form @submit.prevent="send" class="chat-input-row">
-              <input v-model="input" type="text" placeholder="Ask something a student might ask…" :disabled="loading">
+              <label for="chatInput" class="sr-only">Question to ask</label>
+              <input id="chatInput" v-model="input" type="text" placeholder="Ask something a student might ask…" :disabled="loading" autocomplete="off">
               <button type="submit" class="btn btn-primary" :disabled="loading || !input.trim()">Send</button>
             </form>
           </template>
@@ -74,11 +77,11 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 
         <div class="side-col">
           <div class="tinted-card">
-            <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
+            <div class="u-fd5ed7">
               <span class="dot dot-green"></span>
-              <h3 style="font-weight:600; font-size:0.875rem; margin:0;">Why this matters</h3>
+              <h3 class="u-4e9d62">Why this matters</h3>
             </div>
-            <p style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0;">
+            <p class="u-2565fb">
               This calls the exact same grounded chat endpoint the student app uses — same
               refusal rules, same facts. If it hallucinates, guesses, or wrongly refuses
               something you know is registered, that's a directory data problem to fix here,

@@ -14,7 +14,11 @@ createApp({
     async loadBuildings() {
       const res = await fetch('../../../Backend/api/buildings.php');
       const data = await res.json();
-      if (data.success) this.buildings = data.buildings;
+      if (data.success) {
+        this.buildings = data.buildings;
+        const want = new URLSearchParams(location.search).get('building');
+        if (want && this.buildings.some((b) => String(b.id) === want)) this.buildingId = want;
+      }
     },
     resetChat() {
       this.messages = [];

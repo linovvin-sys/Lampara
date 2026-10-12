@@ -28,9 +28,13 @@ if ($username === '' || $password === '') {
 }
 
 // Guessing protection: after 8 wrong attempts from one address, wait 10 minutes.
-if (count(rate_limit_recent('login', 600)) >= 8) {
+$recent = rate_limit_recent('login', 600);
+if (count($recent) >= 8) {
+    // The lock lifts when the oldest counted attempt ages out of the 10-minute window.
+    $retry = max(1, min($recent) + 600 - time());
     http_response_code(429);
-    echo json_encode(['success' => false, 'error' => 'Too many failed attempts. Try again in a few minutes.']);
+    header('Retry-After: ' . $retry);
+    echo json_encode(['success' => false, 'error' => 'Too many failed attempts.', 'retry_after' => $retry]);
     exit;
 }
 
@@ -48,7 +52,9 @@ $stmt->close();
 if (!$admin || !password_verify($password, $admin['password_hash'])) {
     rate_limit_record('login', 600);
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Incorrect username or password']);
+    // Tell the admin how many tries are left once it gets close to the lock.
+    $left = 8 - (count($recent) + 1);
+    echo json_encode(['success' => false, 'error' => 'Incorrect username or password', 'attempts_left' => max(0, $left)]);
     exit;
 }
 

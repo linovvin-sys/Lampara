@@ -23,8 +23,10 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="../../Css/Admin/utilities.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/utilities.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/design-pass.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/design-pass.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/campus-map.css?v=<?= $pageCssVer ?>">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="admin-body">
@@ -63,7 +65,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
             <span v-else class="chip chip-empty">Not uploaded</span>
           </div>
 
-          <div class="preview-box" :class="{ empty: !maps[k.kind], busy: busy === k.kind }">
+          <div class="preview-box" :class="{ empty: !maps[k.kind], busy: busy === k.kind }" :data-dropzone="'#file-' + k.kind">
             <span v-if="!loaded" class="sk sk-box" style="position:absolute;inset:0;border-radius:0" aria-hidden="true"></span>
             <img v-else-if="previewSrc(k.kind)" :src="previewSrc(k.kind)" :alt="k.label + ' preview'">
             <div v-else-if="maps[k.kind] && maps[k.kind].format === 'obj'" class="preview-empty obj-card">
@@ -76,8 +78,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
               <span>PDF map</span>
             </div>
             <div v-else class="preview-empty">
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/></svg>
+              <img src="../../assets/illustrations/empty-map.svg" alt="" width="120" height="90">
               <span>No {{ k.short }} map yet</span>
+              <span class="drop-hint">Drop a file here, or press Upload file</span>
             </div>
             <span v-if="maps[k.kind]" class="fmt">{{ (maps[k.kind].format || '').toUpperCase() }}</span>
             <div v-if="busy === k.kind" class="busy-overlay"><span class="spinner"></span> {{ busyText }}</div>
@@ -135,11 +138,15 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
             </div>
             <p class="hint">Click the map to drop a pin with these settings. Drag a pin to move it; click a pin to edit or delete it.</p>
 
+            <div class="map-actions" style="margin-bottom:0.6rem;">
+              <button type="button" class="btn btn-secondary" :disabled="mkBusy" @click="addPinAtCenter">Add pin at map centre</button>
+              <span class="hint u-1386d5">Or click the map. Then use the arrow keys on the pin to place it exactly.</span>
+            </div>
             <div class="mk-canvas" ref="canvas" @click="canvasClick">
-              <img ref="mkImg" :src="markerBase" alt="Map to pin" draggable="false">
+              <img ref="mkImg" :src="markerBase" alt="Campus map with the pins placed on it" draggable="false">
               <button v-for="m in markersOf(mkKind)" :key="m.id" type="button" class="mk-pin" :class="[m.marker_type, { sel: selectedId === m.id }]"
                       :style="{ left: m.x + '%', top: m.y + '%' }" :title="m.name"
-                      @click.stop="selectedId = m.id" @pointerdown.stop="startDrag(m, $event)">
+                      @click.stop="selectedId = m.id" @pointerdown.stop="startDrag(m, $event)" @keydown="onPinKey(m, $event)" :aria-label="m.name + '. Arrow keys move it, Delete removes it.'">
                 <span class="mk-dot"></span>
                 <span class="mk-tag">{{ m.name }}</span>
               </button>
@@ -150,32 +157,34 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
             <h3>Pins on the {{ mkKind === '2d' ? '2D' : '3D' }} map</h3>
             <p v-if="!markersOf(mkKind).length" class="hint">None yet.</p>
             <ul class="mk-list">
-              <li v-for="m in markersOf(mkKind)" :key="m.id" :class="{ sel: selectedId === m.id }" @click="selectedId = m.id">
-                <span class="mk-chip" :class="m.marker_type"></span>
-                <span class="mk-name">{{ m.name }}</span>
+              <li v-for="m in markersOf(mkKind)" :key="m.id" :class="{ sel: selectedId === m.id }">
+                <button type="button" class="mk-row" :aria-pressed="selectedId === m.id" @click="selectedId = m.id">
+                  <span class="mk-chip" :class="m.marker_type"></span>
+                  <span class="mk-name">{{ m.name }}</span>
+                </button>
               </li>
             </ul>
 
             <div v-if="selected" class="mk-edit">
               <h3>Edit pin</h3>
               <div class="field">
-                <label>Type</label>
-                <select v-model="selected.marker_type">
+                <label for="pinType">Type</label>
+                <select id="pinType" v-model="selected.marker_type">
                   <option value="entrance">Building entrance</option>
                   <option value="gate">Campus gate</option>
                   <option value="landmark">&#9733; Key place</option>
                 </select>
               </div>
               <div v-if="selected.marker_type !== 'gate'" class="field">
-                <label>Building{{ selected.marker_type === 'landmark' ? ' (optional)' : '' }}</label>
-                <select v-model="selected.building_id">
+                <label for="pinBuilding">Building{{ selected.marker_type === 'landmark' ? ' (optional)' : '' }}</label>
+                <select id="pinBuilding" v-model="selected.building_id">
                   <option :value="null">{{ selected.marker_type === 'landmark' ? 'No building' : 'Choose a building…' }}</option>
                   <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
               </div>
               <div class="field">
-                <label>{{ selected.marker_type === 'gate' ? 'Gate name' : (selected.marker_type === 'landmark' ? 'Name' : 'Label (optional)') }}</label>
-                <input type="text" maxlength="100" v-model="selected.label" :placeholder="selected.marker_type === 'gate' ? 'Main Gate' : (selected.marker_type === 'landmark' ? 'Admission' : 'North door')">
+                <label for="pinLabel">{{ selected.marker_type === 'gate' ? 'Gate name' : (selected.marker_type === 'landmark' ? 'Name' : 'Label (optional)') }}</label>
+                <input id="pinLabel" type="text" maxlength="100" v-model="selected.label" :placeholder="selected.marker_type === 'gate' ? 'Main Gate' : (selected.marker_type === 'landmark' ? 'Admission' : 'North door')">
               </div>
               <div class="map-actions">
                 <button type="button" class="btn btn-primary" :disabled="mkBusy" @click="saveSelected">Save pin</button>

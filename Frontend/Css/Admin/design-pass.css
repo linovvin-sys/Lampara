@@ -1,0 +1,388 @@
+/* Admin design pass. Loaded after every other admin stylesheet, so these rules are the final word.
+   Same palette as before (theme.css); this only tidies type, buttons, surfaces and lists.
+
+   TYPE SCALE (five sizes)   12 meta · 14 body and labels · 16 inputs · 20 section headings · 28 page title
+   BUTTONS                   one filled (primary) button per area; everything else outlined or a text link
+   YELLOW                    only means "this is what you are working on" (active item, editing, locked)
+   UPPERCASE LABELS          form section labels only */
+
+:root {
+  --page: var(--off-white);   /* the tinted page background; also used for soft panels on white cards */
+  --fs-meta: 0.8125rem;
+  --fs-body: 0.875rem;
+  --fs-input: 1rem;
+  --fs-h2: 1.25rem;
+  --fs-title: 1.75rem;
+  --row-pad: 0.6rem 0.75rem;
+  --row-radius: 0.7rem;
+}
+
+/* ---- Header: breadcrumb, not a second page title ---- */
+.admin-crumb { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-body); color: var(--muted); }
+.admin-crumb .crumb-sep { opacity: 0.6; }
+.admin-crumb .crumb-current { color: var(--ink); font-weight: 600; }
+
+/* ---- Type scale ---- */
+.page-head h1 { font-size: var(--fs-title); line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 0.3rem; }
+.page-head p { font-size: var(--fs-body); }
+.section-title, .rooms-title, .card-head .section-title { font-size: var(--fs-h2); }
+.card-head .section-title, .rooms-title { font-size: 1.0625rem; }
+.field label { font-size: var(--fs-body); }
+.field input, .field select, .field textarea { font-size: var(--fs-input); }
+.stat-card .stat-label, .stat-grid.is-compact .stat-card .stat-label { text-transform: none; letter-spacing: 0; font-size: var(--fs-body); font-weight: 500; color: var(--muted); }
+.health-table th { text-transform: none; letter-spacing: 0; font-size: var(--fs-meta); }
+.ctl-title { text-transform: none; letter-spacing: 0; font-size: var(--fs-body); font-weight: 600; color: var(--ink); }
+.hint, .lock-text .lock-msg, .rooms-count { font-size: var(--fs-meta); }
+
+/* ---- Buttons: one shape, one filled button per area ---- */
+.btn, .lock-btn { border-radius: 999px; }
+.btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+.btn-secondary:hover { border-color: var(--primary); background: var(--blue-50); }
+.btn-secondary.room-picker-delete, .btn-secondary.danger, .btn-secondary.is-danger { color: #b00000; border-color: var(--red-200); }
+.btn-secondary.room-picker-delete:hover, .btn-secondary.danger:hover, .btn-secondary.is-danger:hover { background: var(--red-50); border-color: var(--red-600); }
+.btn:focus-visible, .lock-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn-primary:disabled, .btn:disabled { box-shadow: none; }
+
+/* ---- Surfaces: cards only for the main task; side notes are flat ---- */
+.card { box-shadow: none; border-radius: 1rem; }
+.tinted-card { background: var(--blue-50); border-color: var(--blue-100); box-shadow: none; }
+.save-state, .toast { box-shadow: var(--shadow); }
+
+/* ---- Lists: one row pattern for rooms, points, buildings ---- */
+.rooms-row, .pt-row, .quick-row, .bld-row { border-radius: var(--row-radius); }
+.rooms-row, .pt-row, .quick-row { padding: var(--row-pad); border: 1px solid transparent; transition: background-color 120ms ease-out; }
+.rooms-row:hover, .pt-row:not(.static):hover, .quick-row:hover { background: var(--blue-50); }
+.rooms-row.is-current, .pt-row.sel, .quick-row.is-current { background: var(--yellow-50); border-color: var(--yellow-100); }
+.pt-row.sel { box-shadow: none; }
+.rooms-row:focus-visible, .pt-row:focus-visible, .quick-row:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.rooms-list { max-height: max(18rem, calc(100vh - 24rem)); }
+.rooms-skeleton { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.25rem 0 0.5rem; }
+.rooms-skeleton .sk-row { padding: 0.4rem 0.2rem; }
+
+/* ---- Icons: one stroke weight in the sidebar and tiles ---- */
+.admin-sidebar svg, .stat-icon svg, .admin-header-btn svg { stroke-width: 1.8; }
+
+/* ---- Campus Paths: one card style in the side column, steadier map ---- */
+.paths-layout .side-col > .card, .paths-layout .side-col > .tinted-card { padding: 1rem 1.1rem; border-radius: 1rem; }
+.paths-layout .side-title { font-size: 1rem; font-weight: 700; margin: 0 0 0.6rem; }
+.paths-map { min-height: 28rem; }
+@media (max-width: 899px) {
+  /* narrow screens: the selected point's controls come first, then the map, then the rest */
+  .paths-layout { display: flex; flex-direction: column; }
+  .paths-layout .side-col { display: contents; }
+  .paths-layout > *, .paths-layout .side-col > * { min-width: 0; max-width: 100%; }
+  .paths-layout .side-col > :first-child { order: 1; }
+  .paths-layout > .map-card { order: 2; }
+  .paths-layout .side-col > :not(:first-child) { order: 3; }
+}
+
+
+/* ---- Add / Edit Building and Room: use the whole screen ----
+   The two editor pages drop the page-width cap and the side padding, and split the form into two columns
+   whenever the form itself is wide enough (container query, so it adapts to the space it actually gets). */
+.admin-main.wide .form-grid { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1500px) { .admin-main.wide .form-grid { grid-template-columns: minmax(0, 1fr) 22rem; } }
+
+.bform-wrap, .room-form-col, #building-app form.card { container-type: inline-size; }
+.bform, .rform { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 2rem; }
+.bform-main, .bform-map, .rform-col { min-width: 0; }
+.bform-map .field-divider:first-child, .rform-col .field-divider:first-child, .bform-main .field-divider:first-child { margin-top: 0; }
+@container (min-width: 44rem) {
+  .bform { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: start; }
+  .bform-map { position: sticky; top: 1rem; }
+  .bform-map .pick-map { height: clamp(24rem, 62vh, 40rem); }
+  .rform { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
+}
+
+
+/* ================= Page templates =================
+   Every admin page shares one width, one edge and one header. Four page types sit on top of that:
+   LIST (toolbar + table), EDITOR (banner, two-column form, sticky save bar), WORKBENCH (map or plan first,
+   how-to collapsed), SETTINGS (tabs + cards). */
+.admin-container, .admin-container.narrow { max-width: 100rem; }
+@media (min-width: 960px) { .admin-main { padding-left: 2rem; padding-right: 2rem; } }
+.page-head { align-items: flex-start; }
+.page-head p { max-width: 62rem; }
+.page-head > .btn, .page-head > a.btn, .page-actions .btn { flex: none; white-space: nowrap; }
+
+/* ---- Save status lives in the top bar on desktop ---- */
+.save-state.in-header { position: static; transform: none; min-width: 13rem; text-align: right; background: none; border: 0; box-shadow: none; padding: 0; left: auto; bottom: auto; }
+
+/* ---- LIST template: toolbar + table ---- */
+.list-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+.list-count { margin: 0; color: var(--muted); }
+.list-count strong { color: var(--ink); }
+.table-card { padding: 0.25rem 1.1rem; }
+.table-wrap { overflow-x: auto; }
+.btable { width: 100%; border-collapse: collapse; }
+.btable th { text-align: left; font-size: var(--fs-meta); font-weight: 700; color: var(--muted); padding: 0.75rem 0.5rem 0.6rem 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.btable td { padding: 0.7rem 0.5rem 0.7rem 0; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: var(--fs-body); }
+.btable tbody tr:last-child td { border-bottom: 0; }
+.btable tbody tr:hover td { background: var(--blue-50); }
+.btable td:first-child, .btable th:first-child { padding-left: 0.4rem; }
+.btable .bt-name { display: flex; align-items: center; gap: 0.75rem; min-width: 11rem; }
+.btable .bt-text { min-width: 0; display: flex; flex-direction: column; }
+.btable .bt-text small { font-family: 'JetBrains Mono', monospace; font-size: var(--fs-meta); color: var(--muted); }
+.btable .badge { margin-left: 0.5rem; }
+.btable td[data-label="Setup"] .badge { margin-left: 0; text-decoration: none; }
+.btable .dot { display: inline-block; margin-right: 0.4rem; vertical-align: middle; }
+.btable .bt-actions { white-space: nowrap; text-align: right; padding-right: 0.4rem; display: table-cell; }
+.btable .bt-actions .btn-link { font-size: var(--fs-body); color: var(--primary); margin-left: 0.7rem; text-decoration: none; }
+.btable .bt-actions .btn-link:hover { text-decoration: underline; }
+.btable .bt-actions .delete-link { color: #b00000; }
+@media (min-width: 1200px) { .manage-grid { grid-template-columns: minmax(0, 1fr) 24rem; align-items: start; } .manage-grid .map-card { position: sticky; top: 1rem; } }
+@media (max-width: 700px) {
+  .btable thead { display: none; }
+  .btable, .btable tbody, .btable tr, .btable td { display: block; width: 100%; }
+  .btable tr { padding: 0.8rem 0; border-bottom: 1px solid var(--line); }
+  .btable td { border: 0; padding: 0.15rem 0; }
+  .btable td[data-label]::before { content: attr(data-label) ': '; color: var(--muted); }
+  .btable .bt-actions { text-align: left; padding-top: 0.5rem; } .btable .bt-actions .btn-link { margin: 0 0.9rem 0 0; }
+}
+
+/* ---- WORKBENCH template: how-to is collapsed, the tool comes first ---- */
+.howto-details summary { cursor: pointer; font-size: 1.0625rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+.howto-details summary::marker { color: var(--primary); }
+.howto-details[open] summary { margin-bottom: 0.75rem; }
+.howto-details .howto-time { font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
+
+.btable .badge { white-space: nowrap; }
+.btable td[data-label="Updated"], .btable td[data-label="Floors"], .btable td[data-label="Rooms"] { white-space: nowrap; }
+.card + .empty-card { margin-top: 1.25rem; }
+
+/* ================= Photos, search, setup progress, floor thumbnails ================= */
+
+/* ---- Photo field (building and room editors) ---- */
+.photo-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.8rem; align-items: start; padding: 0.75rem; border: 1px dashed var(--blue-100); border-radius: 1rem; background: var(--page); transition: border-color 120ms, background-color 120ms; }
+.photo-field.is-over { border-color: var(--primary); background: var(--blue-50); }
+.photo-preview { max-width: 22rem; aspect-ratio: 4 / 3; border-radius: 0.8rem; overflow: hidden; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; }
+.photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-preview.is-empty { background: var(--blue-50); }
+.photo-empty { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; color: var(--muted); font-size: var(--fs-meta); }
+.photo-empty img { width: 5.5rem; height: auto; }
+.photo-side .hint { margin: 0 0 0.6rem; }
+.photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem; }
+.btn-link.danger { color: #b00000; }
+
+/* ---- Photo dialog (crop) ---- */
+.photo-dialog { border: 0; padding: 0; border-radius: 1.2rem; width: min(34rem, 94vw); box-shadow: 0 30px 60px -20px rgba(16, 24, 56, 0.45); }
+.photo-dialog::backdrop, .search-dialog::backdrop { background: rgba(16, 24, 56, 0.45); }
+.pd-head, .pd-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.9rem 1.1rem; }
+.pd-head { border-bottom: 1px solid var(--line); }
+.pd-head h3 { margin: 0; font-size: 1.0625rem; }
+.pd-foot { border-top: 1px solid var(--line); justify-content: flex-end; flex-wrap: wrap; }
+.pd-close { width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 0; background: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--muted); }
+.pd-close:hover { background: var(--blue-50); }
+.pd-body { padding: 1.1rem; }
+.pd-drop { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 2.2rem 1rem; border: 2px dashed var(--blue-100); border-radius: 1rem; background: var(--page); text-align: center; cursor: pointer; color: var(--muted); }
+.pd-drop:hover, .pd-drop.is-over, .pd-drop:focus-visible { border-color: var(--primary); background: var(--blue-50); outline: none; }
+.pd-drop strong { color: var(--ink); font-size: 1rem; }
+.pd-drop-icon { font-size: 2rem; color: var(--primary); line-height: 1; }
+.pd-pick-row { display: flex; justify-content: center; gap: 0.6rem; margin-top: 0.8rem; flex-wrap: wrap; }
+.pd-error { color: #b00000; margin: 0.6rem 0 0; min-height: 1.2em; font-size: var(--fs-body); text-align: center; }
+.pd-stage { border-radius: 0.8rem; overflow: hidden; border: 1px solid var(--line); background: #e8e8f2; }
+.pd-canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; cursor: grab; touch-action: none; }
+.pd-canvas:active { cursor: grabbing; }
+.pd-zoom { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.8rem; font-weight: 600; }
+.pd-zoom input { flex: 1; }
+.pd-hint { margin: 0.5rem 0 0; color: var(--muted); font-size: var(--fs-meta); }
+
+/* ---- Search (Ctrl+K) ---- */
+.admin-search-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.9rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); font: inherit; font-size: var(--fs-body); cursor: pointer; }
+.admin-search-btn:hover { border-color: var(--primary); color: var(--ink); }
+.admin-search-btn kbd, .search-dialog kbd { font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; padding: 0.1rem 0.4rem; border: 1px solid var(--line); border-radius: 0.4rem; background: var(--page); color: var(--muted); }
+.admin-search-icon { margin-left: auto; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; cursor: pointer; color: var(--ink); }
+.admin-search-icon + .admin-logout { margin-left: 0.5rem !important; }
+.search-dialog { border: 0; padding: 0; border-radius: 1.1rem; width: min(36rem, 94vw); margin-top: 12vh; box-shadow: 0 30px 60px -20px rgba(16, 24, 56, 0.45); }
+.sd-field { display: flex; align-items: center; gap: 0.7rem; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--line); color: var(--muted); }
+.sd-input { flex: 1; border: 0; outline: none; font: inherit; font-size: 1rem; background: none; color: var(--ink); }
+.sd-list { list-style: none; margin: 0; padding: 0.4rem; max-height: 22rem; overflow-y: auto; }
+.sd-list li[role="option"] { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0.75rem; border-radius: 0.6rem; cursor: pointer; }
+.sd-list li.is-active { background: var(--blue-50); }
+.sd-list li small { color: var(--muted); }
+.sd-group { padding: 0.5rem 0.75rem 0.2rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.sd-empty { padding: 1.4rem; text-align: center; color: var(--muted); }
+.sd-foot { margin: 0; padding: 0.55rem 1.1rem; border-top: 1px solid var(--line); font-size: var(--fs-meta); color: var(--muted); }
+@media (max-width: 959px) { .admin-search-btn { display: none; } }
+@media (min-width: 960px) { .admin-search-icon { display: none; } }
+
+/* ---- Drag-and-drop highlight (data-dropzone) ---- */
+[data-dropzone].is-over { outline: 2px dashed var(--primary); outline-offset: 3px; background: var(--blue-50); }
+
+/* ---- Guided setup progress ---- */
+.setup-card .card-head { margin-bottom: 0.7rem; }
+.pill { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 99px; font-size: var(--fs-meta); font-weight: 700; white-space: nowrap; }
+.pill-blue { background: var(--blue-50); color: var(--primary); }
+.pill-ok { background: #e7f6ec; color: #15803d; }
+.steps-bar, .steps-bar-lg { display: flex; gap: 0.3rem; margin-bottom: 0.8rem; }
+.sb { flex: 1; height: 0.45rem; border-radius: 99px; background: var(--line); }
+.sb.done { background: var(--primary); } .sb.now { background: var(--yellow-500); }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.setup-steps li { display: flex; align-items: center; gap: 0.65rem; padding: 0.35rem 0.4rem; border-radius: 0.6rem; font-size: var(--fs-body); }
+.setup-steps li.now { background: var(--yellow-50); font-weight: 600; }
+.setup-steps li.done { color: var(--muted); }
+.setup-steps a { color: var(--primary); font-weight: 600; text-decoration: none; }
+.setup-steps a:hover { text-decoration: underline; }
+.ss-dot { flex: none; width: 1.55rem; height: 1.55rem; border-radius: 50%; display: grid; place-items: center; font-size: 0.8125rem; font-weight: 700; background: var(--line); color: var(--muted); }
+.setup-steps li.done .ss-dot { background: var(--primary); color: #fff; }
+.setup-steps li.now .ss-dot { background: var(--yellow-500); color: var(--ink); }
+
+/* ---- Floor plan thumbnails ---- */
+/* One fixed-size row that scrolls sideways: the card stays the same height however many floors a building has. */
+.floor-thumbs { display: flex; flex-wrap: nowrap; gap: 0.6rem; margin-top: 0.4rem; overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 0.25rem; scrollbar-width: thin; }
+.floor-thumb { display: flex; flex-direction: column; gap: 0.3rem; flex: none; width: 6.5rem; min-width: 0; }
+.ft-img { aspect-ratio: 4 / 3; border-radius: 0.6rem; overflow: hidden; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; }
+.ft-img img { width: 100%; height: 100%; object-fit: cover; }
+.ft-img.is-none { background: var(--page); border-style: dashed; color: var(--muted); font-size: var(--fs-meta); }
+.ft-name { font-weight: 600; font-size: var(--fs-body); }
+.ft-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.ft-chip { font-size: 0.6875rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 99px; }
+.ft-chip.ok { background: #e7f6ec; color: #15803d; } .ft-chip.bad { background: var(--red-50); color: #b00000; }
+
+/* ================= Room page: views, bulk select, floor plan, student preview ================= */
+.rooms-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.rooms-head .rooms-title { margin: 0; }
+.seg-mini { display: inline-flex; padding: 0.2rem; border-radius: 999px; background: var(--page); border: 1px solid var(--line); }
+.seg-mini button { border: 0; background: none; padding: 0.3rem 0.8rem; border-radius: 999px; font: inherit; font-size: var(--fs-body); font-weight: 600; color: var(--muted); cursor: pointer; }
+.seg-mini button.on { background: var(--primary); color: #fff; }
+.seg-mini button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.rooms-tools { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.25rem 0 0.4rem; }
+.rooms-tools .rooms-count { margin: 0; }
+.rooms-tools .link-sm { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-weight: 600; margin-left: 0.7rem; }
+.rooms-thumb { flex: none; width: 2.4rem; height: 1.8rem; object-fit: cover; border-radius: 0.35rem; border: 1px solid var(--line); }
+.rooms-row.is-checked { background: var(--blue-50); border-color: var(--blue-100); }
+.rooms-row input[type="checkbox"] { flex: none; width: 1.1rem; height: 1.1rem; accent-color: var(--primary); }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.6rem 0.7rem; margin-bottom: 0.5rem; border-radius: 0.8rem; background: var(--blue-50); border: 1px solid var(--blue-100); }
+.bulk-bar strong { margin-right: auto; }
+.bulk-hours { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: end; gap: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--blue-100); }
+.bulk-hours label { display: flex; flex-direction: column; gap: 0.2rem; font-weight: 600; font-size: var(--fs-meta); }
+.bulk-hours input, .bulk-hours select { font: inherit; font-size: var(--fs-body); padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: #fff; }
+.bulk-hours .hint { flex-basis: 100%; margin: 0; }
+
+/* plan view */
+@media (min-width: 900px) { .rooms-workspace.is-plan { grid-template-columns: minmax(20rem, 1.15fr) minmax(0, 1fr); } .rooms-workspace.is-plan .room-list-panel { position: static; } }
+.plan-tabs { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.6rem; }
+.plan-tabs button { padding: 0.3rem 0.8rem; border-radius: 999px; border: 1px solid var(--line); background: #fff; font: inherit; font-size: var(--fs-body); font-weight: 600; color: var(--muted); cursor: pointer; }
+.plan-tabs button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.plan-tabs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.plan-canvas { position: relative; border: 1px solid var(--line); border-radius: 0.8rem; overflow: hidden; background: #fff; line-height: 0; cursor: default; }
+.plan-canvas.placing { cursor: crosshair; outline: 2px dashed var(--yellow-600); outline-offset: 2px; }
+.plan-canvas img { width: 100%; height: auto; display: block; user-select: none; }
+.plan-pin { position: absolute; transform: translate(-50%, -100%); min-width: 1.6rem; max-width: 4.5rem; padding: 0.1rem 0.4rem; border: 2px solid #fff; border-radius: 999px; background: var(--primary); color: #fff; font: inherit; font-size: 0.6875rem; font-weight: 700; line-height: 1.3; cursor: pointer; box-shadow: 0 2px 6px rgba(22, 24, 80, 0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plan-pin:hover, .plan-pin:focus-visible { background: var(--blue-700); outline: 2px solid var(--ink); outline-offset: 1px; z-index: 2; }
+.plan-pin.cur { background: var(--yellow-500); color: var(--ink); border-color: var(--ink); z-index: 3; }
+.plan-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.6rem 0 0.3rem; }
+.plan-empty { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 1.2rem 0.5rem; text-align: center; color: var(--muted); }
+.plan-empty strong { color: var(--ink); }
+
+/* what students see */
+.phone-preview { margin-top: 1.2rem; }
+.pp-label { font-size: var(--fs-meta); font-weight: 700; color: var(--muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.phone { width: min(17rem, 100%); border: 6px solid var(--ink); border-radius: 1.6rem; background: #fff; overflow: hidden; box-shadow: 0 14px 30px -16px rgba(22, 24, 80, 0.45); }
+.pp-photo { aspect-ratio: 4 / 3; background: var(--blue-50); display: grid; place-items: center; overflow: hidden; }
+.pp-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-photo.empty img { width: 60%; height: auto; }
+.pp-body { padding: 0.8rem 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.pp-chip { align-self: flex-start; font-size: 0.6875rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 99px; background: var(--blue-50); color: var(--primary); }
+.pp-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.1rem; color: var(--primary); margin-top: 0.3rem; }
+.pp-name { font-weight: 700; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+.pp-meta { color: var(--muted); font-size: var(--fs-meta); }
+.pp-line { font-size: var(--fs-meta); margin-top: 0.3rem; overflow-wrap: anywhere; }
+.pp-marker { color: var(--muted); } .pp-marker.on { color: #15803d; font-weight: 600; }
+
+.hint { color: var(--muted); line-height: 1.5; }
+
+/* ================= Dashboard: health map, setup progress, illustrated empty states ================= */
+.muted-sm { color: var(--muted); font-size: var(--fs-meta); }
+.progress-card { margin-bottom: 1.25rem; }
+.prog-sub { margin: 0.2rem 0 0; color: var(--muted); font-size: var(--fs-body); max-width: 46rem; }
+.progress-card .card-head { align-items: flex-start; }
+.overall { margin: 0.9rem 0 0.4rem; }
+.overall-bar { height: 0.7rem; border-radius: 99px; background: var(--line); overflow: hidden; }
+.overall-bar span { display: block; height: 100%; border-radius: 99px; background: var(--primary); transition: width 400ms ease-out; }
+.overall-note { margin: 0.4rem 0 0; color: var(--muted); font-size: var(--fs-body); }
+.overall-note strong { color: var(--ink); }
+.bprog-list { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.bprog { border: 1px solid var(--line); border-radius: 1rem; padding: 0.9rem 1rem; background: #fff; }
+.bprog.open { background: var(--page); }
+.bprog-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; }
+.ring { position: relative; width: 3.6rem; height: 3.6rem; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--primary) calc(var(--p) * 1%), var(--line) 0); flex: none; }
+.ring::before { content: ''; position: absolute; inset: 0.38rem; border-radius: 50%; background: #fff; }
+.bprog.open .ring::before { background: var(--page); }
+.ring span { position: relative; font-weight: 700; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.bprog-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.bprog-title strong { font-size: 1rem; }
+.status-chip { font-size: 0.8125rem; font-weight: 700; padding: 0.1rem 0.55rem; border-radius: 99px; }
+.status-chip.start { background: var(--red-50); color: #b00000; }
+.status-chip.mid { background: var(--blue-50); color: var(--primary); }
+.status-chip.almost { background: #e7f6ec; color: #15803d; }
+.bprog-next { margin: 0.25rem 0 0; font-size: var(--fs-body); color: var(--muted); line-height: 1.45; }
+.bprog-next b { color: var(--ink); }
+.bprog-next .lbl { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); margin-right: 0.35rem; }
+.bprog-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; }
+.bprog-actions .btn { white-space: nowrap; }
+.bprog-actions .link-sm { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: var(--fs-meta); font-weight: 600; color: var(--primary); }
+.bsteps { list-style: none; margin: 0.9rem 0 0; padding: 0.9rem 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1.5rem; }
+.bsteps li { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.35rem 0.4rem; border-radius: 0.6rem; }
+.bsteps li.next { background: var(--yellow-50); }
+.bs-dot { flex: none; width: 1.6rem; height: 1.6rem; border-radius: 50%; display: grid; place-items: center; font-size: 0.8125rem; font-weight: 700; background: var(--line); color: var(--muted); }
+.bsteps li.done .bs-dot, .bs-dot.ok { background: var(--primary); color: #fff; }
+.bsteps li.next .bs-dot { background: var(--yellow-500); color: var(--ink); }
+.bs-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bs-text small { color: var(--muted); font-size: var(--fs-meta); line-height: 1.4; }
+.bsteps li.done .bs-text b { color: var(--muted); font-weight: 600; }
+.bs-done { font-size: var(--fs-meta); font-weight: 600; color: #15803d; white-space: nowrap; }
+.bsteps .link-sm { white-space: nowrap; }
+.done-toggle { margin-top: 0.9rem; }
+.done-toggle > .link-sm { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-weight: 600; }
+.done-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.done-list li { display: flex; align-items: center; gap: 0.65rem; padding: 0.45rem 0; border-top: 1px solid var(--line); }
+.done-list li strong { flex: 1; min-width: 0; }
+@media (max-width: 760px) {
+  .bprog-main { grid-template-columns: auto minmax(0, 1fr); }
+  .bprog-actions { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
+  .bsteps { grid-template-columns: 1fr; }
+}
+.empty-art { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 1.2rem 0.5rem; text-align: center; color: var(--muted); }
+.empty-art strong { color: var(--ink); font-size: 1.0625rem; }
+.empty-art img { max-width: 100%; height: auto; }
+
+
+/* ================= Buildings list: photo thumbnails and the quick-edit drawer ================= */
+.bt-thumb { width: 3rem; height: 2.25rem; object-fit: cover; border-radius: 0.5rem; border: 1px solid var(--line); flex: none; }
+.btable .bt-actions button.btn-link { background: none; border: 0; cursor: pointer; font-family: inherit; }
+.drawer-overlay { position: fixed; inset: 0; z-index: 70; background: rgba(16, 24, 56, 0.4); display: flex; justify-content: flex-end; }
+.drawer { width: min(30rem, 100%); height: 100%; background: #fff; display: flex; flex-direction: column; box-shadow: -20px 0 50px -20px rgba(16, 24, 56, 0.4); animation: drawerIn 200ms ease-out; }
+@keyframes drawerIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+.drawer-head, .drawer-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.9rem 1.2rem; }
+.drawer-head { border-bottom: 1px solid var(--line); } .drawer-head h2 { margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
+.drawer-foot { border-top: 1px solid var(--line); flex-wrap: wrap; }
+.drawer-body { padding: 1.1rem 1.2rem; overflow-y: auto; flex: 1; }
+.drawer-body .photo-field { margin-bottom: 1.1rem; }
+.drawer-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.drawer-body textarea { width: 100%; font: inherit; font-size: 1rem; padding: 0.65rem 0.85rem; border: 1px solid var(--line); border-radius: 0.75rem; resize: vertical; }
+.drawer-error { color: #b00000; background: var(--red-50); padding: 0.6rem 0.8rem; border-radius: 0.6rem; margin: 0.6rem 0 0; }
+
+
+/* ---- Illustrated empty states and drop hints ---- */
+.empty-card img { display: block; margin: 0 auto 0.4rem; max-width: 100%; height: auto; }
+.preview-empty img { margin-bottom: 0.2rem; }
+.drop-hint { font-size: var(--fs-meta); color: var(--muted); }
+.list-row[data-dropzone].is-over { border-radius: 0.8rem; }
+
+
+/* ================= Dashboard: collapsible cards (minimal vs all content) ================= */
+.card-head > :first-child { flex: 1; min-width: 0; }
+.collapse-btn { flex: none; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); font: inherit; font-size: var(--fs-body); font-weight: 600; cursor: pointer; }
+.collapse-btn:hover { border-color: var(--primary); color: var(--ink); background: var(--blue-50); }
+.collapse-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.collapse-btn .chev { transition: transform 160ms ease-out; transform: rotate(180deg); }          /* open: arrow points up */
+.collapse-btn[aria-expanded="false"] .chev { transform: none; }                                    /* collapsed: arrow points down */
+@media (prefers-reduced-motion: reduce) { .collapse-btn .chev { transition: none; } }
+.card-summary { margin: 0; color: var(--muted); font-size: var(--fs-body); line-height: 1.5; }
+.card-summary strong { color: var(--ink); }
+.card:has(> .card-head + .card-summary:not([style*="display: none"])) .card-head { border-bottom: 0; margin-bottom: 0.1rem; padding-bottom: 0.4rem; }
+.card-tools { display: flex; align-items: center; gap: 0.6rem; justify-content: flex-end; margin: -0.5rem 0 0.75rem; font-size: var(--fs-meta); color: var(--muted); }
+.card-tools .link-sm { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: var(--fs-meta); font-weight: 600; color: var(--primary); }
+.card-tools .link-sm:disabled { color: var(--muted); cursor: default; opacity: 0.6; text-decoration: none; }

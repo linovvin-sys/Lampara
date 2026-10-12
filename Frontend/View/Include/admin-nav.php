@@ -43,6 +43,16 @@ $navItems = [
                 'href'  => 'buildings.php',
                 'icon'  => '<rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/>',
             ],
+            'building-edit' => [
+                'label' => 'Add / Edit Building',
+                'href'  => 'building-edit.php',
+                'icon'  => '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/>',
+            ],
+            'room-edit' => [
+                'label' => 'Add / Edit Room',
+                'href'  => 'room-edit.php',
+                'icon'  => '<path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16"/><path d="M4 21h16M9 12v.01"/>',
+            ],
             'floor-calibration' => [
                 'label' => 'Floor Calibration',
                 'href'  => 'floor-calibration.php',
@@ -59,18 +69,40 @@ $navItems = [
 
 $initial = strtoupper(substr($adminUsername, 0, 1));
 
-// Header title: the active page, with its dropdown group (if any) as a small lead-in.
+// Simpler navigation: every page is one tap away, grouped by what you are doing. (The old dropdown groups are gone.)
+$leaf = [];
+foreach ($navItems as $k => $it) {
+    if (!empty($it['children'])) { foreach ($it['children'] as $ck => $c) $leaf[$ck] = $c; }
+    else $leaf[$k] = $it;
+}
+$navSections = [
+    'Overview'            => ['dashboard'],
+    'Buildings and rooms' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration'],
+    'Campus outdoors'     => ['campus-paths', 'campus-map'],
+];
+// The three tabs along the bottom of a phone, and which pages count as "inside" each one.
+$tabs = [
+    ['label' => 'Home',      'href' => 'dashboard.php',      'icon' => $leaf['dashboard']['icon'],        'match' => ['dashboard']],
+    ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'test-chat']],
+    ['label' => 'Campus',    'href' => 'campus-paths.php',   'icon' => $leaf['campus-paths']['icon'],     'match' => ['campus-paths', 'campus-map']],
+];
+
+// Pages reached from another page (the chat preview opens from the Buildings list menu) light that page's entry.
+$parentOf = ['test-chat' => 'manage-buildings'];
+$litKey = $parentOf[$activeNav] ?? $activeNav;
+
+// Header title: the active page, with its section as a small lead-in.
 $headerGroup = '';
 $headerTitle = 'Admin';
-foreach ($navItems as $key => $item) {
-    if (!empty($item['children']) && isset($item['children'][$activeNav])) {
-        $headerGroup = $item['label'];
-        $headerTitle = $item['children'][$activeNav]['label'];
-    } elseif ($key === $activeNav) {
-        $headerTitle = $item['label'];
+foreach ($navSections as $sectionName => $keys) {
+    if (in_array($litKey, $keys, true)) {
+        $headerGroup = $sectionName;
+        $headerTitle = $leaf[$activeNav]['label'];
     }
 }
 ?>
+<script>try { if (localStorage.getItem('lampara_admin_sidebar') === '1') document.documentElement.classList.add('sb-collapsed'); } catch (e) { /* storage blocked: stays open */ }</script>
+<a href="#adminMain" class="skip-link">Skip to main content</a>
 <div class="admin-topbar">
   <div class="admin-topbar-row">
     <button type="button" class="sidebar-toggle" data-sidebar-open aria-label="Open menu" aria-expanded="false" aria-controls="adminSidebar">
@@ -82,7 +114,7 @@ foreach ($navItems as $key => $item) {
       </span>
       Admin
     </a>
-    <a href="logout.php" class="admin-logout" style="margin-left:auto;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Logout</a>
+    <button type="button" class="admin-search-icon" data-admin-search aria-label="Search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
   </div>
 </div>
 
@@ -90,24 +122,27 @@ foreach ($navItems as $key => $item) {
   <div class="admin-header-title">
     <span class="admin-header-bar" aria-hidden="true"></span>
     <div>
-      <?php if ($headerGroup !== ''): ?><div class="admin-header-group"><?= htmlspecialchars($headerGroup) ?></div><?php endif; ?>
-      <div class="admin-header-page"><?= htmlspecialchars($headerTitle) ?></div>
+      <nav class="admin-crumb" aria-label="Breadcrumb">
+        <span class="crumb-item"><?= htmlspecialchars($headerGroup !== '' ? $headerGroup : 'Admin') ?></span>
+        <span class="crumb-sep" aria-hidden="true">&rsaquo;</span>
+        <strong class="crumb-current" aria-current="page"><?= htmlspecialchars($headerTitle) ?></strong>
+      </nav>
     </div>
   </div>
   <div class="admin-header-actions">
+    <button type="button" class="admin-search-btn" data-admin-search aria-label="Search pages, buildings and rooms (Ctrl K)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span>Search</span><kbd>Ctrl K</kbd>
+    </button>
     <a class="admin-header-btn" href="../Public/index.php" target="_blank" rel="noopener" title="Open the student site" aria-label="Open the student site">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
     </a>
-    <div class="admin-header-user">
-      <span class="admin-header-avatar"><?= htmlspecialchars($initial) ?></span>
-      <span class="admin-header-name"><?= htmlspecialchars($adminUsername) ?></span>
-    </div>
   </div>
 </header>
 
 <div class="sidebar-backdrop" data-sidebar-backdrop></div>
 
-<aside class="admin-sidebar" id="adminSidebar">
+<aside class="admin-sidebar" id="adminSidebar" aria-label="Admin navigation">
   <div class="sidebar-brand">
     <span class="brand-mark">
       <img src="../../assets/logo.svg" alt="" width="20" height="20" style="display:block">
@@ -116,55 +151,60 @@ foreach ($navItems as $key => $item) {
       <span class="brand-name">Lampara</span><br>
       <span class="brand-sub">Admin Panel</span>
     </span>
+    <button type="button" class="sidebar-collapse" data-sidebar-collapse aria-label="Collapse the sidebar" aria-expanded="true" title="Collapse the sidebar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+    </button>
     <button type="button" class="sidebar-close" data-sidebar-close aria-label="Close menu">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
   </div>
 
-  <div class="sidebar-label">Menu</div>
-  <nav>
-    <?php foreach ($navItems as $key => $item): ?>
-      <?php if (!empty($item['children'])): ?>
-        <?php $groupActive = array_key_exists($activeNav, $item['children']); ?>
-        <div class="nav-group<?= $groupActive ? ' is-open has-active' : '' ?>" data-nav-group="<?= htmlspecialchars($key) ?>">
-          <button type="button" class="nav-group-toggle" aria-expanded="<?= $groupActive ? 'true' : 'false' ?>" aria-controls="navSub-<?= htmlspecialchars($key) ?>">
-            <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><?= $item['icon'] ?></svg></span>
-            <span class="nav-group-label"><?= htmlspecialchars($item['label']) ?></span>
-            <svg class="nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="nav-sub" id="navSub-<?= htmlspecialchars($key) ?>">
-            <div class="nav-sub-inner">
-              <?php foreach ($item['children'] as $ckey => $child): ?>
-                <a href="<?= htmlspecialchars($child['href']) ?>" class="<?= $activeNav === $ckey ? 'is-active' : '' ?>">
-                  <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><?= $child['icon'] ?></svg></span>
-                  <?= htmlspecialchars($child['label']) ?>
-                </a>
-              <?php endforeach; ?>
-            </div>
-          </div>
-        </div>
-      <?php else: ?>
-        <a href="<?= htmlspecialchars($item['href']) ?>" class="<?= $activeNav === $key ? 'is-active' : '' ?>">
-          <span class="nav-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><?= $item['icon'] ?></svg></span>
-          <?= htmlspecialchars($item['label']) ?>
-        </a>
-      <?php endif; ?>
+  <nav aria-label="Admin sections" class="nav-sections">
+    <?php foreach ($navSections as $sectionName => $keys): ?>
+      <div class="nav-section">
+        <div class="nav-section-label"><?= htmlspecialchars($sectionName) ?></div>
+        <?php foreach ($keys as $key): $item = $leaf[$key]; ?>
+          <a href="<?= htmlspecialchars($item['href']) ?>" class="<?= $litKey === $key ? 'is-active' : '' ?>" title="<?= htmlspecialchars($item['label']) ?>"<?= $litKey === $key ? ' aria-current="page"' : '' ?>>
+            <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $item['icon'] ?></svg></span>
+            <span class="nav-label"><?= htmlspecialchars($item['label']) ?></span>
+            <?php if ($litKey === $key): ?><span class="nav-here"><span class="sr-only">Current page</span></span><?php endif; ?>
+          </a>
+        <?php endforeach; ?>
+      </div>
     <?php endforeach; ?>
   </nav>
 
   <div class="sidebar-footer">
     <div class="sidebar-profile">
       <div class="profile-avatar"><?= htmlspecialchars($initial) ?></div>
-      <div style="min-width:0;">
+      <div class="profile-text" style="min-width:0;">
         <div class="profile-name"><?= htmlspecialchars($adminUsername) ?></div>
         <div class="profile-role">Administrator</div>
       </div>
     </div>
-    <a href="logout.php" class="admin-logout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Logout</a>
+    <a href="logout.php" class="admin-logout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="logout-label">Logout</span></a>
   </div>
 </aside>
+
+<!-- Phone navigation: the three places you go most, and More for everything else (opens the same menu). -->
+<nav class="admin-tabs" aria-label="Main">
+  <?php foreach ($tabs as $tab): $on = in_array($activeNav, $tab['match'], true); ?>
+    <a href="<?= htmlspecialchars($tab['href']) ?>" class="<?= $on ? 'is-active' : '' ?>"<?= $on ? ' aria-current="page"' : '' ?>>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $tab['icon'] ?></svg>
+      <span><?= htmlspecialchars($tab['label']) ?></span>
+    </a>
+  <?php endforeach; ?>
+  <button type="button" data-sidebar-open aria-label="More: all pages and log out" aria-expanded="false" aria-controls="adminSidebar">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+    <span>More</span>
+  </button>
+</nav>
 
 <?php $adminOfflineVer = filemtime(__DIR__ . '/../../Js/Include/admin-offline.js'); ?>
 <!-- Offline support for the whole admin panel: pending changes, sync prompt, service worker. -->
 <script src="../../Js/Include/admin-offline.js?v=<?= $adminOfflineVer ?>"></script>
+<script src="../../Js/Include/admin-savestate.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-savestate.js') ?>"></script>
+<script src="../../Js/Include/admin-toast.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-toast.js') ?>"></script>
+<script src="../../Js/Include/admin-search.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-search.js') ?>"></script>
+<script src="../../Js/Include/dropzone.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/dropzone.js') ?>"></script>
 <script src="../../Js/Include/admin-nav.js"></script>

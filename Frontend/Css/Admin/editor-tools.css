@@ -8,7 +8,7 @@
 .lock-btn:hover { border-color: var(--blue-600, #2e3192); }
 .lock-btn.on { background: var(--yellow-600, #d4ab00); border-color: var(--yellow-600, #d4ab00); color: #fff; }
 .lock-btn:focus-visible { outline: 2px solid var(--blue-500, #4a4eb0); outline-offset: 2px; }
-.lock-msg { font-size: 0.75rem; color: var(--muted, #55556b); line-height: 1.5; flex: 1; min-width: 12rem; }
+.lock-msg { font-size: 0.8125rem; color: var(--muted, #55556b); line-height: 1.5; flex: 1; min-width: 12rem; }
 .lock-bar.is-locked .lock-msg { color: #9a3412; font-weight: 600; }
 /* a locked map/plan is no longer a crosshair target */
 .is-locked-surface { cursor: not-allowed !important; }
@@ -22,23 +22,23 @@
 .pt-row.static { cursor: default; }
 .pt-row.static:hover { background: transparent; }
 .pt-row:focus-visible { outline: 2px solid var(--blue-500, #4a4eb0); outline-offset: 1px; }
-.pt-badge { flex: none; width: 1.7rem; height: 1.7rem; border-radius: 999px; display: grid; place-items: center; background: var(--blue-600, #2e3192); color: #fff; font-weight: 800; font-size: 0.72rem; }
+.pt-badge { flex: none; width: 1.7rem; height: 1.7rem; border-radius: 999px; display: grid; place-items: center; background: var(--blue-600, #2e3192); color: #fff; font-weight: 800; font-size: 0.8125rem; }
 .pt-badge.gate { background: #0369a1; }
 .pt-badge.entrance { background: #ffd100; color: #422006; }
 .pt-badge.wide { width: auto; min-width: 1.7rem; padding: 0 0.4rem; border-radius: 999px; }
 .pt-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .pt-name { font-weight: 700; font-size: 0.8125rem; line-height: 1.3; }
-.pt-sub { font-size: 0.6875rem; color: var(--muted, #55556b); line-height: 1.4; overflow-wrap: anywhere; }
-.pt-coords { font-size: 0.625rem; color: #9a9ab0; }
-.pt-pend { margin-left: 0.4rem; font-size: 0.5625rem; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #fff3b8; border-radius: 999px; padding: 0 0.4rem; vertical-align: 1px; }
-.pt-remove { flex: none; border: 0; background: none; color: var(--red-600, #ff0000); font: inherit; font-size: 0.75rem; cursor: pointer; padding: 0.2rem 0.3rem; }
+.pt-sub { font-size: 0.8125rem; color: var(--muted, #55556b); line-height: 1.4; overflow-wrap: anywhere; }
+.pt-coords { font-size: 0.8125rem; color: var(--muted); }
+.pt-pend { margin-left: 0.4rem; font-size: 0.8125rem; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #fff3b8; border-radius: 999px; padding: 0 0.4rem; vertical-align: 1px; }
+.pt-remove { flex: none; border: 0; background: none; color: var(--red-600, #ff0000); font: inherit; font-size: 0.8125rem; cursor: pointer; padding: 0.2rem 0.3rem; }
 .pt-remove:disabled { color: #cfcfe0; cursor: not-allowed; }
 .name-row { display: flex; gap: 0.4rem; }
 .name-row input { flex: 1; min-width: 0; }
-.name-error { color: #cc0000; font-size: 0.75rem; margin: 0.3rem 0 0; }
+.name-error { color: #cc0000; font-size: 0.8125rem; margin: 0.3rem 0 0; }
 
 /* the letter next to a point on the map */
-.cp-pt-label { background: var(--ink, #0d0e33); color: #fff; border: 0; box-shadow: none; font-weight: 800; font-size: 10px; padding: 0 5px; line-height: 15px; border-radius: 999px; }
+.cp-pt-label { background: var(--ink, #0d0e33); color: #fff; border: 0; box-shadow: none; font-weight: 800; font-size: 12px; padding: 0 5px; line-height: 16px; border-radius: 999px; }
 .cp-pt-label::before { display: none; }
 
 /* floor-plan path editor: the plan on the left, the points list on the right (stacked on narrow screens) */
@@ -49,10 +49,23 @@
 /* header of a points list: title on the left, "Remove all" on the right; undo bar under it */
 .pts-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.5rem; }
 .pts-head .side-title { margin: 0; }
-.btn-remove-all { border: 1px solid #ffc7c7; background: #fff; color: #cc0000; font: inherit; font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 999px; cursor: pointer; }
+.btn-remove-all { border: 1px solid #ffc7c7; background: #fff; color: #cc0000; font: inherit; font-size: 0.8125rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 999px; cursor: pointer; }
 .btn-remove-all:hover:not(:disabled) { background: #fff0f0; }
 .btn-remove-all:disabled { color: #cfcfe0; border-color: #e5e7eb; cursor: not-allowed; }
-.undo-bar { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.6rem; padding: 0.45rem 0.65rem; border-radius: 0.7rem; background: #1f2937; color: #fff; font-size: 0.75rem; }
+.undo-bar { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.6rem; padding: 0.45rem 0.65rem; border-radius: 0.7rem; background: #1f2937; color: #fff; font-size: 0.8125rem; }
 .undo-bar span { flex: 1; min-width: 0; }
-.undo-bar button { border: 0; background: #fff; color: #0d0e33; font: inherit; font-weight: 800; font-size: 0.75rem; padding: 0.3rem 0.8rem; border-radius: 999px; cursor: pointer; }
+.undo-bar button { border: 0; background: #fff; color: #0d0e33; font: inherit; font-weight: 800; font-size: 0.8125rem; padding: 0.3rem 0.8rem; border-radius: 999px; cursor: pointer; }
 .undo-bar .undo-x { background: transparent; color: #9ca3af; padding: 0.2rem 0.4rem; }
+
+/* ---- Lock banner: the locked state is a clear, calm banner with one obvious way out ---- */
+.lock-bar { display: flex; align-items: center; gap: 0.8rem; padding: 0.7rem 0.9rem; border-radius: 0.9rem; border: 1px solid var(--blue-100); background: var(--blue-50); }
+.lock-bar.is-locked { background: var(--yellow-50); border-color: var(--yellow-100); border-left: 4px solid var(--yellow-600); }
+.lock-icon { flex: none; width: 2.25rem; height: 2.25rem; border-radius: 50%; display: grid; place-items: center; background: #fff; color: var(--primary); border: 1px solid var(--line); }
+.lock-bar.is-locked .lock-icon { color: var(--yellow-700); border-color: var(--yellow-100); }
+.lock-text { flex: 1; min-width: 12rem; display: flex; flex-direction: column; gap: 0.1rem; }
+.lock-text strong { font-size: 0.9375rem; }
+.lock-text .lock-msg { font-size: 0.8125rem; min-width: 0; font-weight: 400; color: var(--muted); }
+.lock-bar.is-locked .lock-msg { color: var(--muted); font-weight: 400; }
+.lock-btn { padding: 0.55rem 1rem; font-size: 0.875rem; font-weight: 700; }
+.lock-btn.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.lock-btn.on:hover { filter: brightness(1.08); }

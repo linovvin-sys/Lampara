@@ -2,7 +2,7 @@
 
 // GET    /api/rooms.php                       -> list all rooms (optionally ?building_id=1, ?q=search, ?room_number=204)
 // POST   /api/rooms.php                       -> add a new room
-//        body (JSON): { building_id, room_number, room_name, floor, category, hours, notes }
+//        body (JSON): { building_id, room_number, room_name, subtitle?, floor, category, hours, notes }
 //        category: 'office' | 'classroom' | 'cr' | 'canteen' — room_type is derived from it server-side
 // PUT    /api/rooms.php?id=1                  -> update a room
 //        body (JSON): { room_number, room_name, floor, category, hours, notes }
@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../room_number.php';
 require_once __DIR__ . '/../photo_upload.php';
+require_once __DIR__ . '/../change_log.php';
 
 // Reads stay public (students need the directory); writes require an admin session.
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
@@ -30,6 +31,18 @@ if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
 
 $db = new Database();
 $conn = $db->connect();
+
+// The optional one-line subtitle; saved separately so everything still works before the column exists.
+function save_subtitle(mysqli $conn, int $id, $input): void
+{
+    if (!is_array($input) || !array_key_exists('subtitle', $input) || !column_exists($conn, 'rooms', 'subtitle')) return;
+    $sub = trim((string) $input['subtitle']);
+    $sub = $sub === '' ? null : mb_substr($sub, 0, 120);
+    $stmt = $conn->prepare("UPDATE rooms SET subtitle = ? WHERE id = ?");
+    $stmt->bind_param('si', $sub, $id);
+    $stmt->execute();
+    $stmt->close();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $where = [];
@@ -54,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $compactQ = compact_room_number($_GET['q']);
         if ($compactQ !== '') {
             // "1101a" should also find "1101 - A".
-            $where[] = '(r.room_name LIKE ? OR r.room_number LIKE ? OR ' . ROOM_NUMBER_COMPACT_SQL . ' LIKE ?)';
+            $where[] = '(r.room_name LIKE ? OR r.room_number LIKE ? OR ' . ROOM_NUMBER_COMPACT_SQL . ' LIKE ?)';  // (subtitles are matched on the device)
             $params[] = $like;
             $params[] = $like;
             $params[] = '%' . $compactQ . '%';
@@ -67,7 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     }
 
-    $sql = "SELECT r.id, r.building_id, b.name AS building_name, r.room_number, r.room_name,
+    $extra = (column_exists($conn, 'rooms', 'subtitle') ? 'r.subtitle' : 'NULL AS subtitle') . ', '
+           . (column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor AS building_entrance_floor' : 'NULL AS building_entrance_floor') . ',';
+    $sql = "SELECT r.id, r.building_id, b.name AS building_name, r.room_number, r.room_name, $extra
                    r.floor, r.room_type, r.category, r.hours, r.notes, r.map_x, r.map_y, r.path_node_id, r.photo_path, r.updated_at,
                    (SELECT COUNT(*) FROM outdated_flags f WHERE f.room_id = r.id AND f.resolved = 0) AS open_flags
             FROM rooms r
@@ -147,7 +162,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // branched on a falsy return value.
     try {
         $stmt->execute();
-        echo json_encode(['success' => true, 'id' => $stmt->insert_id]);
+        $newId = $stmt->insert_id;
+        save_subtitle($conn, $newId, $input);
+        log_change($conn, 'room', $newId, 'create', null, change_row($conn, 'rooms', $newId));
+        echo json_encode(['success' => true, 'id' => $newId]);
     } catch (mysqli_sql_exception $e) {
         if ($conn->errno === 1062) {
             // The admin UI already checks for this client-side, but the DB
@@ -195,11 +213,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         exit;
     }
 
+    $before = change_row($conn, 'rooms', $id);
     $stmt = $conn->prepare("UPDATE rooms SET room_number = ?, room_name = ?, floor = ?, room_type = ?, category = ?, hours = ?, notes = ?, map_x = ?, map_y = ?, path_node_id = ? WHERE id = ?");
     $stmt->bind_param('sssssssddii', $roomNumber, $roomName, $floor, $roomType, $category, $hours, $notes, $mapX, $mapY, $pathNodeId, $id);
 
     try {
         $stmt->execute();
+        save_subtitle($conn, $id, $input);
+        log_change($conn, 'room', $id, 'update', $before, change_row($conn, 'rooms', $id));
         echo json_encode(['success' => true]);
     } catch (mysqli_sql_exception $e) {
         if ($conn->errno === 1062) {
@@ -222,6 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         exit;
     }
 
+    $before = change_row($conn, 'rooms', $id);
     $stmt = $conn->prepare("SELECT photo_path FROM rooms WHERE id = ?");
     $stmt->bind_param('i', $id);
     $stmt->execute();
@@ -233,6 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
     if ($stmt->execute()) {
         photoDelete($photo);
+        if ($before) log_change($conn, 'room', $id, 'delete', $before, null);
         echo json_encode(['success' => true]);
     } else {
         http_response_code(500);

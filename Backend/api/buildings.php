@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../photo_upload.php';
+require_once __DIR__ . '/../change_log.php';
 
 // Reads stay public (students need the directory); writes require an admin session.
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
@@ -29,9 +30,22 @@ if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
 $db = new Database();
 $conn = $db->connect();
 
+// The optional "entrance is on this floor" value; saved separately so everything still works before the column exists.
+function save_entrance_floor(mysqli $conn, int $id, $input): void
+{
+    if (!is_array($input) || !array_key_exists('entrance_floor', $input) || !column_exists($conn, 'buildings', 'entrance_floor')) return;
+    $f = trim((string) $input['entrance_floor']);
+    $f = $f === '' ? null : mb_substr($f, 0, 50);
+    $stmt = $conn->prepare("UPDATE buildings SET entrance_floor = ? WHERE id = ?");
+    $stmt->bind_param('si', $f, $id);
+    $stmt->execute();
+    $stmt->close();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $ef = column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor' : 'NULL AS entrance_floor';
     $result = $conn->query(
-        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, b.building_number, b.directory, b.photo_path, b.updated_at,
+        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, $ef, b.building_number, b.directory, b.photo_path, b.updated_at,
                 (SELECT COUNT(*) FROM rooms r WHERE r.building_id = b.id) AS room_count,
                 (SELECT COUNT(*) FROM outdated_flags f
                     JOIN rooms r2 ON r2.id = f.room_id
@@ -74,7 +88,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param('sddiis', $name, $lat, $lng, $floorCount, $buildingNumber, $directory);
 
     if ($stmt->execute()) {
-        echo json_encode(['success' => true, 'id' => $stmt->insert_id]);
+        $newId = $stmt->insert_id;
+        save_entrance_floor($conn, $newId, $input);
+        log_change($conn, 'building', $newId, 'create', null, change_row($conn, 'buildings', $newId));
+        echo json_encode(['success' => true, 'id' => $newId]);
     } else {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Insert failed']);
@@ -101,10 +118,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
         exit;
     }
 
+    $before = change_row($conn, 'buildings', $id);
     $stmt = $conn->prepare("UPDATE buildings SET name = ?, lat = ?, lng = ?, floor_count = ?, building_number = ?, directory = ? WHERE id = ?");
     $stmt->bind_param('sddiisi', $name, $lat, $lng, $floorCount, $buildingNumber, $directory, $id);
 
     if ($stmt->execute()) {
+        save_entrance_floor($conn, $id, $input);
+        log_change($conn, 'building', $id, 'update', $before, change_row($conn, 'buildings', $id));
         echo json_encode(['success' => true]);
     } else {
         http_response_code(500);
@@ -122,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         exit;
     }
 
+    $before = change_row($conn, 'buildings', $id);
     // Photo files of the building and of its rooms: the rows go with the delete below, the files would not.
     $photos = [];
     $stmt = $conn->prepare("SELECT photo_path FROM buildings WHERE id = ? UNION ALL SELECT photo_path FROM rooms WHERE building_id = ?");
@@ -137,6 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
     if ($stmt->execute()) {
         foreach ($photos as $p) photoDelete($p);
+        if ($before) log_change($conn, 'building', $id, 'delete', $before, null);
         echo json_encode(['success' => true]);
     } else {
         http_response_code(500);

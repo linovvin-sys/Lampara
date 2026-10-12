@@ -26,7 +26,7 @@ window.LamparaRoomApp = createApp({
   data() {
     return {
       form: {
-        building_id: '', room_number: '', room_name: '', floor: '', category: 'office', hours: '',
+        building_id: '', room_number: '', room_name: '', subtitle: '', floor: '', category: 'office', hours: '',
         hoursStart: '', hoursEnd: '', hasLunchBreak: false, lunchStart: '', lunchEnd: '',
         hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false,
         map_x: null, map_y: null
@@ -38,7 +38,6 @@ window.LamparaRoomApp = createApp({
       buildings: [],      // server data + changes made offline (shown on the page)
       rooms: [],
       submitting: false,
-      photoBusy: false,   // room photo uploading / removing
       editingId: null,
       // The uploaded plan image for whichever building+floor is currently
       // selected — null whenever that floor has none, which just hides the
@@ -48,6 +47,18 @@ window.LamparaRoomApp = createApp({
       loadingPlan: false,
       planUnavailable: false, // couldn't load the plan (offline and never opened online)
       planForNewBuilding: false, // the picked building was made offline and has no plans yet
+      roomQuery: '',
+      viewMode: 'list',            // 'list' or 'plan' (rooms drawn on the floor plan)
+      plans: [],                   // the selected building's floor plans
+      planFloor: '',
+      planLoading: false,
+      placing: false,              // next click on the plan places this room's marker
+      selectMode: false,           // checkboxes on the room list
+      selected: [],
+      bulk: { open: false, busy: false, start: '08:00', end: '17:00', days: 'Mon–Fri' },
+      photoBusy: false,
+      photoOver: false,
+      loaded: false,
       nameOther: false,          // "Something else — type a name" picked in the Room name dropdown
       classroomTypes: ['Lecture Room', 'Laboratory Room'],
       otherRoomTypes: ['Kubo', 'Cubicle', 'Church']   // ready-made choices for rooms that are not a lecture room or lab
@@ -88,11 +99,6 @@ window.LamparaRoomApp = createApp({
     dirtyView() { return { ...this.form, building_id: null }; },
     dirty() { return JSON.stringify(this.dirtyView) !== this.snap; },
     editingRoom() { return this.editingId === null ? null : (this.rooms.find((r) => r.id === this.editingId) || null); },
-    // The photo of the room being edited (server copy), or null.
-    editingPhoto() {
-      const r = this.editingId === null ? null : this.baseRooms.find((x) => String(x.id) === String(this.editingId));
-      return r ? r.photo_path || null : null;
-    },
     // Rooms of the selected building for the Room dropdown, by floor then room number.
     buildingRooms() {
       if (!this.form.building_id) return [];
@@ -101,6 +107,42 @@ window.LamparaRoomApp = createApp({
         .filter((r) => r.building_id == this.form.building_id)
         .slice()
         .sort((a, b) => floorNo(a.floor) - floorNo(b.floor) || String(a.room_number || '~').localeCompare(String(b.room_number || '~'), undefined, { numeric: true }));
+    },
+    // The room list on the left, narrowed by the search box.
+    // ---- photo ----
+    roomPhoto() { return this.editingRoom && this.editingRoom.photo_path ? this.editingRoom.photo_path : ''; },
+    editingIsTemp() { return this.editingId !== null && AdminOffline.isTemp(this.editingId); },
+    // ---- the student preview ----
+    categoryLabel() { return { office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' }[this.form.category] || 'Room'; },
+    previewNumber() { return (this.form.noSignage || this.forcesNoNumber) ? '' : this.roomNumberNormalized; },
+    // ---- floor plan view ----
+    planFloors() {
+      const n = (f) => { const v = parseInt(f, 10); return isFinite(v) ? v : 99; };
+      return this.plans.map((p) => p.floor).sort((a, b) => n(a) - n(b));
+    },
+    planImage() { return this.plans.find((p) => p.floor === this.planFloor) || null; },
+    // Markers on the shown floor. The room being edited follows the form, so moving it is visible straight away.
+    planPins() {
+      const pins = [];
+      this.buildingRooms.forEach((r) => {
+        if (r.floor !== this.planFloor) return;
+        const cur = this.editingId === r.id;
+        const x = cur ? this.form.map_x : r.map_x, y = cur ? this.form.map_y : r.map_y;
+        if (x === null || x === undefined || y === null || y === undefined) return;
+        pins.push({ id: r.id, x, y, cur, short: r.room_number || '•', label: (r.room_number ? r.room_number + ' ' : '') + (r.room_name || 'Unnamed') + (cur ? ' (editing)' : '') });
+      });
+      if (this.editingId === null && this.form.floor === this.planFloor && this.form.map_x !== null && this.form.map_y !== null) {
+        pins.push({ id: 'new', x: this.form.map_x, y: this.form.map_y, cur: true, short: 'New', label: 'The new room' });
+      }
+      return pins;
+    },
+    unplacedOnFloor() {
+      return this.buildingRooms.filter((r) => r.floor === this.planFloor && (r.map_x === null || r.map_x === undefined)).length;
+    },
+    visibleRooms() {
+      const q = this.roomQuery.trim().toLowerCase();
+      if (!q) return this.buildingRooms;
+      return this.buildingRooms.filter((r) => [r.room_number, r.room_name, r.floor].some((v) => String(v || '').toLowerCase().includes(q)));
     },
     floorOptions() {
       const b = this.buildings.find(x => x.id == this.form.building_id);
@@ -208,10 +250,27 @@ window.LamparaRoomApp = createApp({
     AdminOffline.onSynced(() => this.loadAll());
     AdminOffline.onChange(() => this.applyPending());
     await this.loadAll();
+    this.loaded = true;
+    // Links from the buildings list and the dashboard carry context: ?building=<id> and ?room=<id>.
+    const q = new URLSearchParams(window.location.search);
+    const bid = q.get('building'), rid = q.get('room');
+    const room = rid ? this.rooms.find((r) => String(r.id) === rid) : null;
+    const building = room ? this.buildings.find((b) => b.id == room.building_id) : (bid ? this.buildings.find((b) => String(b.id) === bid) : null);
+    // No link context: reopen the building you were last working in (or the only one there is), instead of an empty page.
+    let start = building;
+    if (!start && !room) {
+      let last = null;
+      try { last = localStorage.getItem('lampara_last_building'); } catch (e) { /* storage blocked */ }
+      start = this.buildings.find((b) => String(b.id) === last) || (this.buildings.length === 1 ? this.buildings[0] : null);
+    }
+    if (start) { this.form.building_id = start.id; this.prevBuilding = start.id; this.markClean(); }
+    if (room) this.startEdit(room);
   },
   watch: {
     form() { this.nameOther = false; },   // a new form (edit, reset, other building) starts without a half-picked "something else"
-    'form.building_id'() { this.loadFloorPlanForCurrentSelection(); },
+    'form.building_id'(id) { try { if (id) localStorage.setItem('lampara_last_building', String(id)); } catch (e) { /* storage blocked */ }
+       this.loadFloorPlanForCurrentSelection(); this.selected = []; this.placing = false; this.loadBuildingPlans(); },
+    editingId() { if (this.editingRoom) this.planFloor = this.editingRoom.floor; this.placing = false; },
     'form.floor'() { this.loadFloorPlanForCurrentSelection(); }
   },
   methods: {
@@ -297,48 +356,6 @@ window.LamparaRoomApp = createApp({
       } catch (e) { /* offline with no saved copy — pending changes still show */ }
       this.applyPending();
     },
-    // The room's photo, shown on its room page and in the 3D campus map. Online only and only for a saved room, like
-    // floor plans: a photo is far too big for the offline queue kept on this device.
-    async uploadRoomPhoto(event) {
-      const file = event.target.files && event.target.files[0];
-      event.target.value = '';                 // picking the same file again still triggers change
-      if (!file) return;
-      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Uploading a photo'); return; }
-      const roomId = this.editingId;           // fixed now, so switching rooms mid-upload can't misfile it
-      if (roomId === null || AdminOffline.isTemp(roomId) || (this.editingRoom && this.editingRoom._pending)) {
-        AdminOffline.toast('Save the room first, then add its photo.', 'info');
-        return;
-      }
-      this.photoBusy = true;
-      try {
-        await this.saveRoomPhoto(roomId, await LamparaPhoto.read(file));
-      } catch (e) {
-        Swal.fire({ icon: 'error', title: 'Upload failed', text: e.message || 'unknown' });
-      } finally {
-        this.photoBusy = false;
-      }
-    },
-    async removeRoomPhoto() {
-      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Removing a photo'); return; }
-      const result = await Swal.fire({ title: 'Remove this photo?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000', cancelButtonColor: '#6b7280' });
-      if (!result.isConfirmed) return;
-      this.photoBusy = true;
-      try {
-        await this.saveRoomPhoto(this.editingId, null);
-      } catch (e) {
-        Swal.fire({ icon: 'error', title: 'Could not remove it', text: e.message || 'unknown' });
-      } finally {
-        this.photoBusy = false;
-      }
-    },
-    async saveRoomPhoto(id, photo) {
-      const res = await fetch('../../../Backend/api/rooms.php?id=' + id, {
-        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'unknown');
-      await this.loadRooms();                  // the row's updated_at changed too: keep offline edits from seeing a stale copy
-    },
     async loadRooms() {
       try {
         const res = await fetch('../../../Backend/api/rooms.php', { credentials: 'same-origin' });
@@ -378,7 +395,7 @@ window.LamparaRoomApp = createApp({
       const hoursDaysPreset = presets.includes(dayPart) ? dayPart : (dayPart ? 'Custom' : 'Mon–Fri');
 
       this.form = {
-        building_id: r.building_id, room_number: r.room_number || '', room_name: r.room_name,
+        building_id: r.building_id, room_number: r.room_number || '', room_name: r.room_name, subtitle: r.subtitle || '',
         floor: r.floor, category: r.category || r.room_type || 'office', hours: hours,
         hoursStart, hoursEnd, hasLunchBreak, lunchStart, lunchEnd,
         hoursDaysPreset, hoursDaysCustom: hoursDaysPreset === 'Custom' ? dayPart : '',
@@ -396,7 +413,7 @@ window.LamparaRoomApp = createApp({
     // in several similar rooms back to back via "Add another?").
     blankForm(overrides) {
       return {
-        building_id: '', room_number: '', room_name: '', floor: '', category: 'office', hours: '',
+        building_id: '', room_number: '', room_name: '', subtitle: '', floor: '', category: 'office', hours: '',
         hoursStart: '', hoursEnd: '', hasLunchBreak: false, lunchStart: '', lunchEnd: '',
         hoursDaysPreset: 'Mon–Fri', hoursDaysCustom: '', notes: '', noSignage: false,
         map_x: null, map_y: null, ...overrides
@@ -422,6 +439,122 @@ window.LamparaRoomApp = createApp({
       this.markClean();
     },
     // Room dropdown: a room loads it for editing; the first option goes back to adding a new one.
+    // ---- floor plan view ----
+    setView(mode) { this.viewMode = mode; this.placing = false; if (mode === 'plan') this.loadBuildingPlans(); },
+    async loadBuildingPlans() {
+      this.plans = [];
+      if (!this.form.building_id || AdminOffline.isTemp(this.form.building_id)) return;
+      const id = this.form.building_id;
+      this.planLoading = true;
+      try {
+        const res = await fetch('../../../Backend/api/floor-plans.php?building_id=' + id, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (this.form.building_id !== id) return;   // the building changed while this was loading
+        if (data.success) this.plans = data.plans;
+      } catch (e) { /* offline: the plan view just says there is no plan */ }
+      finally { this.planLoading = false; }
+      if (!this.planFloors.includes(this.planFloor)) {
+        this.planFloor = (this.editingRoom && this.planFloors.includes(this.editingRoom.floor)) ? this.editingRoom.floor : (this.planFloors[0] || '');
+      }
+    },
+    planPin(p) { if (p.id !== 'new') this.pickRoom(p.id); },
+    planClick(event) {
+      if (!this.placing) return;
+      if (this.editingId !== null && this.form.floor !== this.planFloor) {
+        AdminOffline.toast('This room is on ' + this.form.floor + '. Switch to that floor to move its marker.', 'info');
+        return;
+      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 100, y = ((event.clientY - rect.top) / rect.height) * 100;
+      if (this.editingId === null) this.form.floor = this.planFloor;   // a new room goes on the floor you are looking at
+      this.form.map_x = Math.round(Math.max(0, Math.min(100, x)) * 10) / 10;
+      this.form.map_y = Math.round(Math.max(0, Math.min(100, y)) * 10) / 10;
+      this.placing = false;
+      AdminOffline.toast('Marker placed. Press Save on the room to keep it.', 'success');
+    },
+    // ---- photo ----
+    async choosePhoto(file) {
+      if (this.editingId === null || this.editingIsTemp) return;
+      if (!(await AdminOffline.guardOnline('Uploading a photo'))) return;
+      const data = await LamparaPhoto.pick({ title: 'Photo of ' + (this.form.room_name || 'the room'), file });
+      if (!data) return;
+      this.photoBusy = true;
+      try {
+        await LamparaPhoto.upload('room', this.editingId, data);
+        await this.loadRooms();
+        AdminOffline.toast('Photo saved', 'success');
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: "Couldn't save the photo", text: e.message });
+      } finally { this.photoBusy = false; }
+    },
+    dropPhoto(ev) {
+      this.photoOver = false;
+      const f = ev.dataTransfer && ev.dataTransfer.files[0];
+      if (f) this.choosePhoto(f);
+    },
+    async removePhoto() {
+      if (!(await AdminOffline.guardOnline('Removing a photo'))) return;
+      if (!(await AdminConfirm({ title: 'Remove this photo?', text: 'Students will see no photo for this room.', confirmText: 'Remove photo', danger: true }))) return;
+      this.photoBusy = true;
+      try { await LamparaPhoto.remove('room', this.editingId); await this.loadRooms(); }
+      catch (e) { Swal.fire({ icon: 'error', title: "Couldn't remove the photo", text: e.message }); }
+      finally { this.photoBusy = false; }
+    },
+    // ---- select several rooms ----
+    isSelected(id) { return this.selected.includes(id); },
+    toggleSelected(id) { this.selected = this.isSelected(id) ? this.selected.filter((x) => x !== id) : [...this.selected, id]; },
+    toggleSelectMode() { this.selectMode = !this.selectMode; this.selected = []; this.bulk.open = false; },
+    selectAllShown() { this.selected = this.visibleRooms.filter((r) => !r._pending).map((r) => r.id); },
+    async bulkSetHours() {
+      if (!(await AdminOffline.guardOnline('Changing several rooms'))) return;
+      const hours = `${to12Hour(this.bulk.start)} – ${to12Hour(this.bulk.end)}, ${this.bulk.days}`;
+      const rooms = this.rooms.filter((r) => this.selected.includes(r.id));
+      const eligible = rooms.filter((r) => r.category === 'office' || r.category === 'canteen');
+      const skipped = rooms.length - eligible.length;
+      if (!eligible.length) { AdminOffline.toast('None of the selected rooms have fixed hours (only offices and canteens do).', 'info'); return; }
+      if (!(await AdminConfirm({
+        icon: 'question', title: 'Set hours for ' + eligible.length + ' room' + (eligible.length === 1 ? '' : 's') + '?',
+        text: hours + (skipped ? '. ' + skipped + ' other room' + (skipped === 1 ? ' is' : 's are') + ' left unchanged.' : ''), confirmText: 'Set hours' }))) return;
+      this.bulk.busy = true;
+      let ok = 0, failed = 0;
+      for (const r of eligible) {
+        try {
+          const res = await fetch('../../../Backend/api/rooms.php?id=' + r.id, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+            body: JSON.stringify({ room_number: r.room_number, room_name: r.room_name, floor: r.floor, category: r.category, hours, notes: r.notes, map_x: r.map_x, map_y: r.map_y, path_node_id: r.path_node_id })
+          });
+          const data = await res.json();
+          if (data.success) ok++; else failed++;
+        } catch (e) { failed++; }
+      }
+      this.bulk.busy = false; this.bulk.open = false;
+      await this.loadRooms();
+      if (this.editingRoom) this.startEdit(this.editingRoom);
+      AdminOffline.toast('Hours set for ' + ok + ' room' + (ok === 1 ? '' : 's') + (failed ? ', ' + failed + ' failed' : '') + '.', failed ? 'error' : 'success');
+    },
+    async bulkDelete() {
+      if (!(await AdminOffline.guardOnline('Deleting rooms'))) return;
+      const n = this.selected.length;
+      if (!(await AdminConfirm({ title: 'Delete ' + n + ' room' + (n === 1 ? '' : 's') + '?', text: 'Students will no longer find them by sign or search. This can\'t be undone.', confirmText: 'Delete ' + n + ' room' + (n === 1 ? '' : 's'), danger: true }))) return;
+      this.bulk.busy = true;
+      let failed = 0;
+      for (const id of [...this.selected]) {
+        try {
+          const res = await fetch('../../../Backend/api/rooms.php?id=' + id, { method: 'DELETE', credentials: 'same-origin' });
+          const data = await res.json();
+          if (!data.success) failed++;
+        } catch (e) { failed++; }
+      }
+      if (this.editingId !== null && this.selected.includes(this.editingId)) this.cancelEdit();
+      this.selected = []; this.bulk.busy = false;
+      await this.loadRooms();
+      AdminOffline.toast(failed ? failed + ' room(s) could not be deleted.' : 'Rooms deleted.', failed ? 'error' : 'success');
+    },
+    // "+ Add a room": back to a blank form for the chosen building (asks first if there are unsaved edits).
+    async newRoom() {
+      if (!(await this.confirmDiscard())) return;
+      this.cancelEdit();
+    },
     async pickRoom(value, el) {
       if (!(await this.confirmDiscard())) { if (el) el.value = this.editingId === null ? '' : this.editingId; return; }
       if (value === '') { this.cancelEdit(); return; }
@@ -436,7 +569,7 @@ window.LamparaRoomApp = createApp({
       const wasAdding = !editing; // captured before cancelEdit() clears it
       const fields = {
         room_number: (this.form.noSignage || this.forcesNoNumber) ? '' : this.roomNumberNormalized,
-        room_name: this.form.room_name, floor: this.form.floor, category: this.form.category,
+        room_name: this.form.room_name, subtitle: (this.form.subtitle || '').trim(), floor: this.form.floor, category: this.form.category,
         hours: this.composedHours, notes: this.form.notes, map_x: this.form.map_x, map_y: this.form.map_y
       };
       const seen = editing ? this.baseRooms.find((x) => String(x.id) === String(editing)) : null;

@@ -1,269 +1,64 @@
-:root {
-  --green-50:  var(--blue-50);
-  --green-100: var(--blue-100);
-  --green-200: var(--blue-100);
-  --green-500: var(--blue-500);
-  --green-600: var(--blue-600);
-  --green-700: var(--blue-700);
-  --green-800: var(--blue-900);
-}
-
+/* Admin sign-in.
+   Layout: a campus panel (the NCST photo under a navy tint, who this is for) beside a white form panel; stacked on a phone with the
+   form first. Same navy and yellow as the landing page. */
+:root { --ink: #15173f; --navy: #23267a; --muted: #55587a; --line: #dcdeee; --yellow: #ffd100; }
 * { box-sizing: border-box; }
-
 html, body { margin: 0; min-height: 100%; }
-body {
-  font-family: 'Outfit', sans-serif;
-  color: var(--ink);
-  background: #ffffff;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
+body { font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--ink); background: #f5f6fc; -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; border-radius: 6px; }
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(560px 380px at 12% -6%, var(--green-100), transparent 60%),
-    radial-gradient(480px 420px at 100% 8%, var(--green-200), transparent 58%),
-    radial-gradient(520px 460px at 100% 100%, var(--green-50), transparent 55%),
-    #ffffff;
-}
+.back-link { position: fixed; top: 0.9rem; left: 1rem; z-index: 5; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2.5rem; padding: 0 0.9rem; border-radius: 999px; background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line); color: var(--ink); font-weight: 600; font-size: 0.9rem; text-decoration: none; box-shadow: 0 6px 18px -10px rgba(21, 23, 63, 0.5); }
+.back-link:hover { border-color: var(--navy); }
 
-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3.5rem 1.25rem 2rem;
-}
+.login { min-height: 100dvh; display: grid; }
+.shell { display: grid; min-height: 100dvh; grid-template-columns: minmax(0, 1fr); }
 
-.back-link {
-  position: fixed;
-  top: 1.25rem;
-  left: 1.25rem;
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-decoration: none;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 0.4rem 0.7rem;
-  border-radius: 999px;
-}
-.back-link:hover { color: var(--ink); }
+/* campus side */
+.about { position: relative; display: none; color: #fff; background:
+  linear-gradient(160deg, rgba(21, 23, 63, 0.86) 0%, rgba(35, 38, 122, 0.78) 100%),
+  url('../../assets/ncst-new-bg.webp') center / cover no-repeat; }
+.about-in { height: 100%; padding: 5.5rem 3rem 3rem; display: flex; flex-direction: column; justify-content: center; gap: 1.6rem; max-width: 32rem; }
+.brand { display: inline-flex; align-items: center; gap: 0.6rem; font-weight: 800; font-size: 1.3rem; letter-spacing: -0.01em; }
+.logo { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; background: #fff; display: grid; place-items: center; }
+.about h2 { margin: 0; font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.12; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.about ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.8rem; }
+.about li { display: flex; align-items: center; gap: 0.7rem; font-size: 1.02rem; color: rgba(255, 255, 255, 0.92); }
+.check { flex: none; width: 1.55rem; height: 1.55rem; border-radius: 50%; background: var(--yellow); color: var(--ink); display: grid; place-items: center; font-size: 0.8rem; font-weight: 800; }
 
-.card {
-  width: 100%;
-  max-width: 26rem;
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 1.5rem;
-  overflow: hidden;
-  box-shadow: 0 24px 48px -24px rgba(20, 37, 28, 0.18);
-}
-
-/* ---- Left/top half: description ---- */
-.card-about {
-  background: linear-gradient(150deg, var(--green-500) 0%, var(--green-600) 45%, var(--green-800) 100%);
-  color: #ffffff;
-  padding: 2rem 1.75rem;
-}
-
-.card-about .logo {
-  width: 3rem;
-  height: 3rem;
-  margin-bottom: 1.25rem;
-  border-radius: 0.9rem;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.card-about h1 {
-  font-size: 1.5rem;
-  line-height: 1.25;
-  margin: 0 0 0.6rem;
-}
-
-.card-about p {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  margin: 0 0 1.25rem;
-}
-
-.card-about ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.card-about li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  color: rgba(255, 255, 255, 0.92);
-  line-height: 1.5;
-}
-
-.card-about li .check {
-  flex-shrink: 0;
-  width: 1.125rem;
-  height: 1.125rem;
-  margin-top: 0.05rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ---- Right/bottom half: form ---- */
-.card-form {
-  padding: 2rem 1.75rem 1.75rem;
-}
-
-.field { margin-bottom: 1rem; }
-
-.field label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  margin-bottom: 0.4rem;
-}
-
-.field input {
-  width: 100%;
-  padding: 0.8rem 0.9rem;
-  font-size: 0.9375rem;
-  font-family: inherit;
-  color: var(--ink);
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 0.75rem;
-  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
-}
-.field input:focus {
-  outline: none;
-  border-color: var(--green-500);
-  box-shadow: 0 0 0 3px var(--green-100);
-}
-
-/* Show/hide password: eye button sits inside the field's right edge. */
+/* form side */
+.panel { display: grid; align-items: center; padding: 4.6rem 1.25rem 2.4rem; background: #fff; }
+.panel-in { width: 100%; max-width: 25rem; margin-inline: auto; }
+.mark { width: 3.2rem; height: 3.2rem; border-radius: 1rem; background: #eceefa; display: grid; place-items: center; margin-bottom: 1.1rem; }
+.panel h1 { margin: 0; font-size: 2rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
+.sub { margin: 0.6rem 0 1.6rem; color: var(--muted); font-size: 1rem; line-height: 1.5; }
+.field { margin-bottom: 1.1rem; }
+.field label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 700; }
+.field input { width: 100%; min-height: 3.2rem; padding: 0 1rem; border: 2px solid var(--line); border-radius: 0.9rem; background: #fff; color: var(--ink); font: inherit; font-size: 1.05rem; transition: border-color 140ms, box-shadow 140ms; }
+.field input::placeholder { color: #9a9cb8; }
+.field input:focus { outline: 0; border-color: var(--navy); box-shadow: 0 0 0 4px rgba(35, 38, 122, 0.14); }
+.field input[aria-invalid="true"] { border-color: #d92d20; }
 .password-wrap { position: relative; }
-.password-wrap input { padding-right: 2.9rem; }
-.password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 0.35rem;
-  transform: translateY(-50%);
-  width: 2.2rem;
-  height: 2.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 0.6rem;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-.password-toggle:hover { color: var(--ink); background: var(--green-50); }
-.password-toggle:focus-visible { outline: 2px solid var(--green-500); outline-offset: 1px; }
-
-.form-error {
-  color: #cc0000;
-  background: #fff0f0;
-  border: 1px solid #ffc7c7;
-  border-radius: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  margin-bottom: 1rem;
-}
-
-.btn-submit {
-  width: 100%;
-  padding: 0.9rem 1rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--green-600);
-  color: #ffffff;
-  font-family: inherit;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  cursor: pointer;
-  box-shadow: 0 10px 24px -8px rgba(22, 163, 74, 0.45);
-  transition: transform 160ms ease-out, filter 160ms ease-out, opacity 160ms ease-out;
-}
-.btn-submit:hover { filter: brightness(1.06); }
-.btn-submit:active { transform: scale(0.98); }
-.btn-submit:disabled { opacity: 0.6; cursor: default; }
-
-.hint {
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.6;
-  margin: 1.25rem 0 0;
-}
-
-.hint code {
-  background: var(--green-50);
-  color: var(--green-700);
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.35rem;
-  font-size: 0.7rem;
-}
-
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fade-up { animation: fade-up 480ms cubic-bezier(0.23, 1, 0.32, 1) both; }
-
-/* Desktop: card splits side by side instead of stacked. */
-@media (min-width: 768px) {
-  .card {
-    max-width: 46rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-  .card-about { padding: 3rem 2.5rem; display: flex; flex-direction: column; justify-content: center; }
-  .card-form { padding: 3rem 2.75rem; display: flex; flex-direction: column; justify-content: center; }
-}
-
-/* Loading state — full opacity instead of the usual :disabled dim, plus a
-   soft pulsing glow and a spinner, so signing in reads as "actively
-   working" instead of just stuck. */
-.is-loading { opacity: 1 !important; cursor: wait; animation: btn-pulse 1.4s ease-in-out infinite; }
-@keyframes btn-pulse {
-  0%, 100% { box-shadow: 0 10px 24px -8px rgba(22, 163, 74, 0.45); }
-  50% { box-shadow: 0 10px 34px -4px rgba(22, 163, 74, 0.85); }
-}
-.btn-spinner {
-  display: inline-block;
-  width: 13px;
-  height: 13px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: btn-spin 0.6s linear infinite;
-  vertical-align: -2px;
-  margin-right: 0.45rem;
-}
+.password-wrap input { padding-right: 3.4rem; }
+.password-toggle { position: absolute; top: 50%; right: 0.35rem; transform: translateY(-50%); width: 2.6rem; height: 2.6rem; border: 0; border-radius: 0.7rem; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.password-toggle:hover { background: #eceefa; color: var(--ink); }
+.caps { margin: 0.45rem 0 0; font-size: 0.85rem; font-weight: 600; color: #92400e; }
+#loginError { min-height: 0; }
+.form-error { margin: 0 0 1rem; padding: 0.75rem 0.9rem; border-radius: 0.8rem; background: #fef1f0; border: 1px solid #f4b8b3; color: #b3261e; font-size: 0.92rem; line-height: 1.45; }
+.btn-submit { width: 100%; min-height: 3.4rem; border: 0; border-radius: 999px; background: var(--yellow); color: var(--ink); font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; box-shadow: 0 12px 26px -14px rgba(230, 187, 0, 0.95); transition: transform 140ms, filter 140ms; }
+.btn-submit:hover:not(:disabled) { filter: brightness(1.05); }
+.btn-submit:active:not(:disabled) { transform: scale(0.985); }
+.btn-submit:disabled { opacity: 0.65; cursor: not-allowed; }
+.hint { margin: 1.4rem 0 0; font-size: 0.88rem; color: var(--muted); line-height: 1.5; text-align: center; }
+.btn-spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: btn-spin 0.6s linear infinite; vertical-align: -2px; margin-right: 0.5rem; }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
+
+@media (min-width: 56rem) {
+  .shell { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); }
+  .about { display: block; }
+  .panel { padding: 3rem 3rem; }
+  .back-link { background: rgba(255, 255, 255, 0.95); }
+}
+@media (prefers-reduced-motion: reduce) { .btn-spinner, .loading-icon, .loading-icon::before { animation: none !important; } .field input, .btn-submit { transition: none; } }
 
 /* Full-screen loading overlay — blurred backdrop + a breathing, glowing
    lamp icon with a spinning halo ring around it (the app's own brand icon,
@@ -306,7 +101,7 @@ main {
   inset: -7px;
   border-radius: 50%;
   border: 3px solid transparent;
-  border-top-color: rgba(22, 163, 74, 0.85);
+  border-top-color: rgba(46, 49, 146, 0.85);
   animation: btn-spin 0.9s linear infinite;
 }
 @keyframes loading-breathe {

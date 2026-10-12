@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS buildings (
     -- Drives the floor dropdown on Register Room — rooms can only be filed
     -- under a floor that actually exists in this building.
     floor_count INT NOT NULL DEFAULT 1,
+    -- Which floor the main entrance is on (optional; the indoor "I just arrived at the entrance" list uses it).
+    entrance_floor VARCHAR(50) NULL,
     -- The school's room-numbering scheme encodes this as the first digit of
     -- every room number (e.g. "1101" = building 1, floor 1, room 01) — NULL
     -- for buildings with no numbered rooms (e.g. the Gymnasium).
@@ -70,6 +72,8 @@ CREATE TABLE IF NOT EXISTS rooms (
     -- under a UNIQUE constraint, so several unnumbered rooms coexist fine.
     room_number VARCHAR(30) NULL UNIQUE,
     room_name VARCHAR(150) NOT NULL,
+    -- Optional short line under the name (department, equipment) to tell rooms with the same name apart.
+    subtitle VARCHAR(120) NULL,
     floor VARCHAR(50) NOT NULL,
     -- Office = has real operating hours. Classroom/Lab = no fixed hours;
     -- class scheduling is a deliberately separate scope (see project docs).
@@ -300,4 +304,21 @@ CREATE TABLE IF NOT EXISTS campus_footprints (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     KEY footprint_kind (kind),
     FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Who changed which room or building, with the old values, for the admin Undo list (api/changes.php).
+CREATE TABLE IF NOT EXISTS change_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    entity ENUM('room','building') NOT NULL,
+    entity_id INT NOT NULL,
+    action ENUM('create','update','delete') NOT NULL,
+    label VARCHAR(200) NOT NULL,
+    admin_id INT NULL,
+    admin_name VARCHAR(100) NOT NULL DEFAULT 'Admin',
+    before_json MEDIUMTEXT NULL,
+    after_json MEDIUMTEXT NULL,
+    undone_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY entity_idx (entity, entity_id, id),
+    KEY created_idx (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

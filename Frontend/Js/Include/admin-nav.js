@@ -1,22 +1,23 @@
 (function () {
   var sidebar = document.getElementById('adminSidebar');
   var backdrop = document.querySelector('[data-sidebar-backdrop]');
-  var openBtn = document.querySelector('[data-sidebar-open]');
+  var openBtns = document.querySelectorAll('[data-sidebar-open]');
+  var openBtn = openBtns[0];
   var closeBtn = document.querySelector('[data-sidebar-close]');
   if (!sidebar || !backdrop || !openBtn) return;
 
   function openSidebar() {
     sidebar.classList.add('is-open');
     backdrop.classList.add('is-open');
-    openBtn.setAttribute('aria-expanded', 'true');
+    openBtns.forEach(function (b) { b.setAttribute('aria-expanded', 'true'); });
   }
   function closeSidebar() {
     sidebar.classList.remove('is-open');
     backdrop.classList.remove('is-open');
-    openBtn.setAttribute('aria-expanded', 'false');
+    openBtns.forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
   }
 
-  openBtn.addEventListener('click', openSidebar);
+  openBtns.forEach(function (b) { b.addEventListener('click', openSidebar); });
   if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
   backdrop.addEventListener('click', closeSidebar);
   document.addEventListener('keydown', function (e) {
@@ -74,4 +75,37 @@
       });
     });
   });
+})();
+
+// Skip link target: the page's <main>, focusable so the jump actually moves keyboard focus.
+(function () {
+  var main = document.querySelector('.admin-main');
+  if (!main) return;
+  if (!main.id) main.id = 'adminMain';
+  else if (main.id !== 'adminMain') main.setAttribute('data-skip-id', main.id);
+  main.setAttribute('tabindex', '-1');
+  var link = document.querySelector('.skip-link');
+  if (link) link.setAttribute('href', '#' + main.id);
+})();
+
+// Collapse the sidebar to an icon rail on a computer (remembered on this device). A phone uses the drawer instead.
+(function () {
+  var btn = document.querySelector('[data-sidebar-collapse]');
+  if (!btn) return;
+  var root = document.documentElement;
+  function sync() {
+    var collapsed = root.classList.contains('sb-collapsed');
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    var label = collapsed ? 'Expand the sidebar' : 'Collapse the sidebar';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
+  }
+  btn.addEventListener('click', function () {
+    var collapsed = root.classList.toggle('sb-collapsed');
+    try { localStorage.setItem('lampara_admin_sidebar', collapsed ? '1' : '0'); } catch (e) { /* storage blocked */ }
+    sync();
+    // Maps and other sized widgets need to re-measure once the page has grown or shrunk.
+    setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 260);
+  });
+  sync();
 })();

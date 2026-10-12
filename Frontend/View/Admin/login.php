@@ -26,59 +26,65 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Admin/login.css');
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/login.css?v=<?= $pageCssVer ?>">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="../../assets/vendor/vue.global.prod.js"></script>
 </head>
 <body>
 
-<div class="backdrop"></div>
+<a href="../Public/index.php" class="back-link">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  Back to Lampara
+</a>
 
-<a href="../Public/index.php" class="back-link">&larr; Back to Lampara</a>
+<main class="login">
+  <div id="app" v-cloak class="shell">
 
-<main>
-  <div id="app" class="card fade-up">
-
-    <div class="card-about">
-      <div class="logo">
-        <img src="../../assets/logo.svg" alt="" width="27" height="27" style="display:block">
+    <!-- the campus side: who this is for and what it is for -->
+    <aside class="about" aria-label="About the admin area">
+      <div class="about-in">
+        <div class="brand"><span class="logo"><img src="../../assets/logo.svg" alt="" width="26" height="26" aria-hidden="true"></span><span>Lampara</span></div>
+        <h2>Keep the campus directory right for every student.</h2>
+        <ul>
+          <li><span class="check" aria-hidden="true">&#10003;</span>Register and edit buildings and rooms</li>
+          <li><span class="check" aria-hidden="true">&#10003;</span>Draw walkways and calibrate floor plans</li>
+          <li><span class="check" aria-hidden="true">&#10003;</span>Review outdated-info reports from students</li>
+        </ul>
       </div>
-      <h1>Admin Login</h1>
-      <p>Sign in to manage the campus directory that powers every student's guide.</p>
-      <ul>
-        <li><span class="check">&#10003;</span> Register and edit buildings &amp; rooms</li>
-        <li><span class="check">&#10003;</span> Keep office hours and floors accurate</li>
-        <li><span class="check">&#10003;</span> Review outdated-info reports from students</li>
-      </ul>
-    </div>
+    </aside>
 
-    <div class="card-form">
-      <form @submit.prevent="login">
-        <div class="field">
-          <label>Username</label>
-          <input v-model="username" type="text" required autocapitalize="off" autocorrect="off" placeholder="Enter your username">
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <div class="password-wrap">
-            <input v-model="password" :type="showPassword ? 'text' : 'password'" required placeholder="Enter your password" autocapitalize="off" autocorrect="off">
-            <button type="button" class="password-toggle" @click="showPassword = !showPassword"
-                    :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword">
-              <svg v-if="!showPassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.4-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
-            </button>
+    <!-- the sign-in form -->
+    <section class="panel" aria-labelledby="login-h">
+      <div class="panel-in">
+        <div class="mark" aria-hidden="true"><img src="../../assets/logo.svg" alt="" width="24" height="24"></div>
+        <h1 id="login-h">Admin sign in</h1>
+        <p class="sub">Use your administrator account to manage the campus guide.</p>
+
+        <form @submit.prevent="login" novalidate>
+          <div class="field">
+            <label for="loginUsername">Username</label>
+            <input id="loginUsername" name="username" v-model="username" type="text" required autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus :aria-invalid="!!error" aria-describedby="loginError" placeholder="Your username">
           </div>
-        </div>
+          <div class="field">
+            <label for="loginPassword">Password</label>
+            <div class="password-wrap">
+              <input id="loginPassword" name="password" v-model="password" :type="showPassword ? 'text' : 'password'" required autocomplete="current-password" :aria-invalid="!!error" aria-describedby="loginError capsNote" placeholder="Your password" autocapitalize="off" autocorrect="off" spellcheck="false" @keyup="capsCheck" @keydown="capsCheck" @blur="capsOn = false">
+              <button type="button" class="password-toggle" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword">
+                <svg v-if="!showPassword" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.4-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+              </button>
+            </div>
+            <p id="capsNote" class="caps" v-if="capsOn" role="status">Caps Lock is on.</p>
+          </div>
 
-        <p v-if="error" class="form-error">{{ error }}</p>
+          <div id="loginError" role="alert" aria-live="assertive"><p v-if="error" class="form-error">{{ error }}<template v-if="lockSeconds > 0"> Try again in <strong>{{ lockLabel }}</strong>.</template></p></div>
 
-        <button type="submit" class="btn-submit" :class="{ 'is-loading': loading }" :disabled="loading">
-          <span v-if="loading" class="btn-spinner"></span>{{ loading ? 'Signing in…' : 'Sign In' }}
-        </button>
-      </form>
+          <button type="submit" class="btn-submit" :class="{ 'is-loading': loading }" :disabled="loading || lockSeconds > 0">
+            <span v-if="loading" class="btn-spinner" aria-hidden="true"></span>{{ loading ? 'Signing in…' : (lockSeconds > 0 ? 'Locked for ' + lockLabel : 'Sign in') }}
+          </button>
+        </form>
 
-      <p class="hint">
-        No account yet? Run <code>php Backend/scripts/create-admin.php</code> from the project folder on your computer.
-      </p>
-    </div>
+        <p class="hint">Need an account? Ask a Lampara administrator to create one for you.</p>
+      </div>
+    </section>
 
     <transition name="overlay">
       <div v-if="loading" class="loading-overlay">

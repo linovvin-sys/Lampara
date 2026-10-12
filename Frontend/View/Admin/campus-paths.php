@@ -23,11 +23,13 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Admin/admin.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="../../Css/Admin/utilities.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/utilities.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/design-pass.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/design-pass.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/campus-paths.css?v=<?= $pageCssVer ?>">
 <link rel="stylesheet" href="../../Css/Admin/editor-tools.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/editor-tools.css') ?>">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="../../assets/vendor/leaflet/leaflet.css">
+<script src="../../assets/vendor/vue.global.prod.js"></script>
+<script src="../../assets/vendor/leaflet/leaflet.js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -62,6 +64,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
           <h1>Campus Paths</h1>
           <p>Draw the walkways the AR ground arrow follows outdoors. {{ nodes.length }} point(s), {{ edges.length }} connection(s).</p>
         </div>
+        <a class="btn btn-secondary" href="../Public/guide-ar.php" target="_blank" rel="noopener">Preview as student</a>
       </div>
 
       <div class="paths-layout">
@@ -71,33 +74,72 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             (the second stays selected so you can keep chaining along the path). Drag a point to move it.
             Tap a line to remove it.
           </p>
-          <div class="lock-bar" :class="{ 'is-locked': locked }">
-            <button type="button" class="lock-btn" :class="{ on: locked }" :aria-pressed="locked ? 'true' : 'false'" @click="toggleLock">
-              <span v-html="locked ? lockIcon.closed : lockIcon.open"></span>{{ locked ? 'Locked' : 'Unlocked' }}
-            </button>
-            <span class="lock-msg">{{ locked
+          <div class="lock-bar" :class="{ 'is-locked': locked }" :title="locked ? 'Points cannot be added, moved, connected or deleted. You can still pan, zoom and select points.' : 'Lock the map to protect it from accidental taps.'">
+            <span class="lock-icon" aria-hidden="true" v-html="locked ? lockIcon.closed : lockIcon.open"></span>
+<div class="lock-text"><strong>{{ locked ? 'Editing is locked' : 'Editing is on' }}</strong>
+<span class="lock-msg">{{ locked
               ? 'Points can\'t be added, moved, connected or deleted. You can still pan, zoom and select points.'
-              : 'Editing is on. Lock the map to protect it from accidental taps.' }}</span>
+              : 'Editing is on. Lock the map to protect it from accidental taps.' }}</span></div>
+<button type="button" class="lock-btn" :class="{ on: locked }" @click="toggleLock">{{ locked ? 'Unlock to edit' : 'Lock editing' }}</button>
+            
           </div>
-          <div ref="mapArea" class="paths-map" :class="{ 'is-locked-surface': locked }"></div>
-          <div class="here-row">
-            <button type="button" class="btn btn-primary" :disabled="locating || recording || locked" @click="dropHere">
+          <div class="view-bar" role="group" aria-label="What the map shows">
+            <label class="view-switch">
+              <input type="checkbox" v-model="showNames">
+              <span class="view-switch-track" aria-hidden="true"></span>
+              <span>Show point names</span>
+            </label>
+            <div class="view-route">
+              <label for="view-from">Show only the path from</label>
+              <select id="view-from" v-model="viewFrom">
+                <option value="">Everything</option>
+                <optgroup label="Buildings"><option v-for="o in viewBuildings" :key="o.value" :value="o.value">{{ o.label }}</option></optgroup>
+                <optgroup label="Points"><option v-for="o in viewPoints" :key="o.value" :value="o.value">{{ o.label }}</option></optgroup>
+              </select>
+              <label for="view-to">to</label>
+              <select id="view-to" v-model="viewTo">
+                <option value="">Everything</option>
+                <optgroup label="Buildings"><option v-for="o in viewBuildings" :key="o.value" :value="o.value">{{ o.label }}</option></optgroup>
+                <optgroup label="Points"><option v-for="o in viewPoints" :key="o.value" :value="o.value">{{ o.label }}</option></optgroup>
+              </select>
+              <button type="button" class="btn btn-secondary" :disabled="!viewFrom && !viewTo" @click="swapView" title="Swap start and end">&#8646;</button>
+              <button type="button" class="btn btn-secondary" :disabled="!viewFrom && !viewTo" @click="clearView">Show all</button>
+            </div>
+            <p v-if="routeView && routeView.ok" class="view-note">Showing only the path from <strong>{{ routeView.from }}</strong> to <strong>{{ routeView.to }}</strong>: {{ routeView.nodeIds.size }} point(s), {{ Math.round(routeView.length) }} m. <span v-if="routeView.via"> It goes {{ routeView.phase === 'exit' ? 'out through' : 'in through' }} <strong>{{ routeView.via }}</strong>, the same rule the AR guide uses.</span> Everything else is hidden, not deleted.</p>
+            <p v-else-if="routeView" class="view-note is-warn">No connected path from <strong>{{ routeView.from }}</strong> to <strong>{{ routeView.to }}</strong>. There is a gap in the walkways between them, so everything is still shown.
+              <span v-if="viewGap" class="view-gap">
+                <strong>{{ viewGap.aName }}</strong> is not joined to the rest. Join it to:
+                <select v-model="gapTarget" aria-label="Point to join to">
+                  <option value="">{{ viewGap.choices[0].name }} (nearest, {{ viewGap.choices[0].meters }} m)</option>
+                  <option v-for="c in viewGap.choices.slice(1)" :key="c.id" :value="c.id">{{ c.name }} ({{ c.meters }} m)</option>
+                </select>
+                <button type="button" class="btn btn-secondary view-gap-btn" :disabled="locked" @click="connectGap">Connect</button></span></p>
+          </div>
+          <div ref="mapArea" class="paths-map" :class="{ 'is-locked-surface': locked }" aria-label="Campus walkway map. Use the buttons below and the Selected point panel to edit without a mouse."></div>
+          <p class="sr-only" role="status" aria-live="polite">{{ liveMsg }}</p>
+          <div class="here-row ctl-groups">
+            <div class="ctl-group" role="group" aria-labelledby="grpAdd"><span class="ctl-title" id="grpAdd">Add points</span><div class="ctl-buttons">
+            <button type="button" class="btn" :class="locked ? 'btn-secondary' : 'btn-primary'" :disabled="locating || recording || locked" @click="dropHere">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px; margin-right:0.35rem;"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" stroke="currentColor" stroke-width="2"/></svg>
               {{ locating ? 'Locating…' : 'Drop a point here' }}
             </button>
+            <button type="button" class="btn btn-secondary" :disabled="locked" @click="addAtCenter">Add point at map centre</button>
             <button type="button" class="btn btn-secondary" :disabled="locating || recording || locked" @click="captureLocation">
               {{ locating ? 'Locating…' : 'Capture my location' }}
             </button>
+            </div></div>
+            <div class="ctl-group" role="group" aria-labelledby="grpWalk"><span class="ctl-title" id="grpWalk">Record a walk</span><div class="ctl-buttons">
             <button type="button" class="btn" :class="recording ? 'btn-rec-on' : 'btn-secondary'" :disabled="locating || locked" @click="toggleWalk">
               <span v-if="recording" class="rec-dot"></span>{{ recording ? 'Stop recording' : 'Record my walk' }}
             </button>
-            <p class="hint" style="margin:0;">
+            </div></div>
+            <p class="hint u-1386d5">
               <strong>Drop a point here</strong> adds one point where you're standing. <strong>Record my walk</strong> adds the corners for you as you walk.
               Both join an existing point if you're within 6 m of one, connect to the selected point, and work with no signal (changes sync later, after you approve).
             </p>
           </div>
-          <p v-if="recording || walkNote" class="hint" :class="{ 'rec-note': recording }" style="margin:0.5rem 0 0;">{{ walkNote }}</p>
-          <p v-if="gpsNote" class="hint" style="margin:0.5rem 0 0;">{{ gpsNote }}</p>
+          <p v-if="recording || walkNote" class="hint u-33b881" :class="{ 'rec-note': recording }">{{ walkNote }}</p>
+          <p v-if="gpsNote" class="hint u-33b881">{{ gpsNote }}</p>
         </div>
 
         <div class="side-col">
@@ -107,13 +149,32 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             <div v-else>
               <div class="mono">{{ selected.lat.toFixed(6) }}, {{ selected.lng.toFixed(6) }}</div>
 
-              <div class="field" style="margin-top:0.75rem;">
+              <div class="field u-1c0307">
                 <label for="point-name">Name</label>
                 <div class="name-row">
                   <input id="point-name" v-model="nameDraft" type="text" maxlength="40" :disabled="locked" @keydown.enter.prevent="renameSelected">
                   <button type="button" class="btn btn-secondary" :disabled="locked" @click="renameSelected">Rename</button>
                 </div>
                 <p v-if="nameError" class="name-error">{{ nameError }}</p>
+              </div>
+
+              <div class="field">
+                <label for="connect-to">Connect to</label>
+                <select id="connect-to" :disabled="locked" @change="connectSelectedTo($event.target.value); $event.target.value = ''">
+                  <option value="">Choose a point…</option>
+                  <option v-for="p in pointList.filter(x => String(x.id) !== String(selectedId))" :key="p.id" :value="p.id">{{ p.name }}</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <span class="field-label" id="nudge-label">Move this point</span>
+                <div class="nudge-pad" role="group" aria-labelledby="nudge-label">
+                  <button type="button" class="btn btn-secondary" :disabled="locked" aria-label="Move 1 metre north" @click="nudge('n', 1)">&uarr;</button>
+                  <button type="button" class="btn btn-secondary" :disabled="locked" aria-label="Move 1 metre west" @click="nudge('w', 1)">&larr;</button>
+                  <button type="button" class="btn btn-secondary" :disabled="locked" aria-label="Move 1 metre south" @click="nudge('s', 1)">&darr;</button>
+                  <button type="button" class="btn btn-secondary" :disabled="locked" aria-label="Move 1 metre east" @click="nudge('e', 1)">&rarr;</button>
+                </div>
+                <p class="hint u-d93599">1 m per press. Keyboard: Alt+Arrow (Shift for 5 m), Delete removes, Esc deselects.</p>
               </div>
 
               <div class="field">
@@ -131,7 +192,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                   <option value="">— none —</option>
                   <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
-                <p class="hint" style="margin:0.4rem 0 0;">The route to that building ends at this point.</p>
+                <p class="hint u-d93599">The route to that building ends at this point.</p>
               </div>
 
               <div class="side-actions">
@@ -146,9 +207,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                outdoor node they actually pass to fix their starting
                position instead of trusting GPS alone near buildings. -->
           <div class="tinted-card" style="padding:0.9rem 1rem;">
-            <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.3rem;">Outdoor AR anchors ({{ campusAnchors.length }})</p>
+            <p class="u-c7d2f6">Outdoor AR anchors ({{ campusAnchors.length }})</p>
 
-            <p v-if="!campusAnchors.length" style="font-size:0.75rem; color:var(--muted); margin:0 0 0.5rem;">
+            <p class="u-32e0ef" v-if="!campusAnchors.length">
               None yet. Select a point on the map — a gate, junction, or entrance — and set it as an AR anchor. Add one at every spot students actually enter from, not just the main gate.
             </p>
 
@@ -156,9 +217,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
               <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.4rem;">
                 <button type="button" class="btn-link" style="font-size:0.75rem; padding:0;" @click="focusNode(a.campus_node_id)"><strong>{{ a.label || 'this point' }}</strong></button>
               </p>
-              <div style="display:flex; gap:0.5rem;">
-                <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem;" @click="showCampusQr(a)">View / print</button>
-                <button type="button" class="btn-link" style="font-size:0.75rem; color: var(--red-600);" @click="removeCampusQr(a)">Remove</button>
+              <div class="u-a6db54">
+                <button type="button" class="btn btn-secondary u-6196eb" @click="showCampusQr(a)">View / print</button>
+                <button type="button" class="btn-link u-615d80" @click="removeCampusQr(a)">Remove</button>
               </div>
               <!-- Which way a person faces while scanning the sign. With this the AR guide
                    lines the paths up the instant the QR is scanned; without it, only the
@@ -173,7 +234,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                   <button type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.45rem 0.8rem;" @click="startPickDirection(a)">
                     {{ a.scan_heading != null ? 'Change direction' : 'Set direction' }}
                   </button>
-                  <p style="font-size:0.7rem; color:var(--muted); margin:0.35rem 0 0;">Then tap the map where the sign is. That's it.</p>
+                  <p style="font-size: 0.75rem; color:var(--muted); margin:0.35rem 0 0;">Then tap the map where the sign is. That's it.</p>
                 </template>
                 <template v-else>
                   <p style="font-size:0.8rem; font-weight:700; color:var(--ink); margin:0 0 0.35rem;">Now tap the map where the sign is.</p>
@@ -181,7 +242,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 </template>
                 <div style="display:flex; gap:0.4rem; align-items:center; margin-top:0.4rem;">
                   <input type="number" min="0" max="359.99" step="1" v-model="headingDrafts[a.id]" placeholder="or type degrees (optional)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
-                  <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.6rem;" @click="saveHeadingDraft(a)">Save</button>
+                  <button type="button" class="btn btn-secondary u-150f02" @click="saveHeadingDraft(a)">Save</button>
                 </div>
               </div>
             </div>
@@ -193,17 +254,17 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 
           <div class="card">
             <div class="pts-head">
-              <h3 class="side-title">Points ({{ pointList.length }})</h3>
+              <h3 class="side-title">Points ({{ listPoints.length }}<span v-if="listPoints.length !== pointList.length"> of {{ pointList.length }}</span>)</h3>
               <button type="button" class="btn-remove-all" :disabled="locked || !pointList.length" @click="removeAll">Remove all</button>
             </div>
             <div v-if="undo" class="undo-bar" role="status">
               <span>{{ undo.label }}</span>
-              <button type="button" @click="undoLast">Undo</button>
+              <button type="button" @click="undoLast" title="Undo (Ctrl+Z)">Undo</button>
               <button type="button" class="undo-x" aria-label="Dismiss" @click="undo = null">&times;</button>
             </div>
             <p v-if="!pointList.length" class="side-empty">No points yet. Tap the map to add Point A.</p>
             <div v-else class="points-list" role="list">
-              <button v-for="p in pointList" :key="p.id" type="button" role="listitem" class="pt-row" :class="{ sel: String(p.id) === String(selectedId) }" @click="focusNode(p.id)">
+              <button v-for="p in listPoints" :key="p.id" type="button" role="listitem" class="pt-row" :class="{ sel: String(p.id) === String(selectedId) }" @click="focusNode(p.id)">
                 <span class="pt-badge" :class="p.type">{{ p.short }}</span>
                 <span class="pt-main">
                   <span class="pt-name">{{ p.name }}<span v-if="p.pending" class="pt-pend">not synced</span></span>
@@ -220,7 +281,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
               <span class="dot" :class="b.entrance_node_id ? 'dot-green' : 'dot-amber'"></span>
               <span class="bld-name truncate">{{ b.name }}</span>
               <button v-if="b.entrance_node_id" type="button" class="btn-link" @click="focusNode(b.entrance_node_id)">Entrance: {{ nodeNames.get(String(b.entrance_node_id)) || 'set' }}</button>
-              <span v-else class="side-empty" style="margin:0;">no entrance</span>
+              <span v-else class="side-empty u-1386d5">no entrance</span>
             </div>
             <p v-if="buildings.length === 0" class="side-empty">No buildings registered yet.</p>
           </div>
@@ -237,9 +298,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
               </button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:0.9rem;">
+            <div class="modal-body u-82c013">
               <div class="qr-print-canvas" ref="qrCanvas"></div>
-              <p style="color: var(--muted); font-size:0.8125rem; line-height:1.6; margin:0;">
+              <p class="u-2565fb">
                 Print this and post it at <strong>{{ qrModalAnchor ? (qrModalAnchor.label || 'this spot') : '' }}</strong>. Scanning it when starting the outdoor AR guide sets the exact starting anchor instead of relying on GPS alone.
               </p>
             </div>
@@ -256,6 +317,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 
 <script src="../../Js/Include/point-names.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/point-names.js') ?>"></script>
 <script src="../../Js/Include/editor-lock.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/editor-lock.js') ?>"></script>
+<script src="../../Js/Public/campus-route.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/campus-route.js') ?>"></script>
 <script src="../../Js/Admin/campus-paths.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

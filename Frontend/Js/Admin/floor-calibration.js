@@ -32,7 +32,10 @@ createApp({
       saving: false, suggesting: false, suggestNote: '', justSaved: false,
       // Lock: while on, taps on the plan can't place, replace or clear the two points.
       // "Measure it for me": walk from A to B (steps + compass) or mark A and B with GPS.
-      measure: 'walk',         // 'walk' | 'gps'
+      measure: (navigator.maxTouchPoints > 0) ? 'walk' : 'type',   // 'walk' | 'type' | 'gps'
+      pickerOpen: false,       // the building / floor picker is shown even though a floor is chosen
+      step: 1,                 // 1 mark the hallway, 2 measure it, 3 check and save
+      maxStep: 1,              // the furthest step reached so far
       walking: false, steps: 0, walkNote: '',
       stride: Number(safeGet('lampara_stride')) || 0.7,   // meters per step
       gps: { a: null, b: null }, gpsBusy: '', gpsNote: '',
@@ -50,6 +53,26 @@ createApp({
       if (!(this.distance > 0)) m.push('the real distance');
       if (this.bearing === null || this.bearing === '') m.push('the compass direction');
       return m;
+    },
+    buildingName() { const b = this.buildings.find((x) => String(x.id) === String(this.buildingId)); return b ? b.name : 'Building'; },
+    // Is this step finished?
+    canNext() {
+      if (this.step === 1) return this.pts.length === 2;
+      if (this.step === 2) return this.distance > 0 && this.bearing !== null && this.bearing !== '';
+      return false;
+    },
+    // Sanity checks on the numbers, in plain words: things that usually mean a typo or a badly chosen hallway.
+    warnings() {
+      const out = [], pv = this.preview;
+      if (!pv) return out;
+      const { w, h } = this.imgSize, [a, b] = this.pts;
+      const pxLen = Math.hypot((b.x - a.x) / 100 * w, (b.y - a.y) / 100 * h);
+      if (pxLen < 0.15 * Math.hypot(w, h)) out.push('A and B are close together on the plan. A longer hallway gives a more accurate result.');
+      if (this.distance < 4) out.push('The hallway is only ' + this.distance + ' m. Pick a longer one if you can: small errors matter more on a short hallway.');
+      if (pv.widthM < 6 || pv.heightM < 6) out.push('The plan works out to only ' + pv.widthM.toFixed(1) + ' by ' + pv.heightM.toFixed(1) + ' m, which is very small for a floor. Check the distance.');
+      if (pv.widthM > 250 || pv.heightM > 250) out.push('The plan works out to ' + pv.widthM.toFixed(0) + ' by ' + pv.heightM.toFixed(0) + ' m, which is very large for one floor. Check the distance.');
+      if (this.bearing < 0 || this.bearing > 360) out.push('The direction should be between 0 and 360 degrees.');
+      return out;
     },
     calibratedCount() { return this.plans.filter((p) => this.isCalibrated(p)).length; },
     // The next floor of this building that still needs calibrating (not the one being edited).
@@ -93,6 +116,21 @@ createApp({
   },
   beforeUnmount() { this.stopCompass(); this.stopSteps(); },
   methods: {
+    // The three steps. A step you have not reached yet stays locked, so nothing is skipped.
+    stepDone(n) {
+      if (n === 1) return this.pts.length === 2;
+      if (n === 2) return this.distance > 0 && this.bearing !== null && this.bearing !== '';
+      return !!this.justSaved;
+    },
+    goStep(n) { if (n <= this.maxStep) { this.step = n; this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' })); } },
+    nextStep() {
+      if (!this.canNext) return;
+      this.step = Math.min(3, this.step + 1);
+      this.maxStep = Math.max(this.maxStep, this.step);
+      this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    },
+    backStep() { this.step = Math.max(1, this.step - 1); this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' })); },
+    chooseFloor(p) { this.planId = p.id; this.pickPlan(); },
     isCalibrated(p) {
       return !!p && p.north_offset !== null && p.meters_per_unit_x > 0 && p.meters_per_unit_y > 0;
     },
@@ -125,6 +163,7 @@ createApp({
       if (keep) this.planId = keep;
     },
     pickPlan() {
+      this.pickerOpen = false;
       this.resetInputs();
       this.justSaved = false; this.suggestNote = '';
       safeSet('lampara_cal_building', String(this.buildingId || ''));
@@ -137,6 +176,7 @@ createApp({
       this.$nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
     },
     resetInputs() {
+      this.step = 1; this.maxStep = 1;
       this.cancelWalk();
       this.gps = { a: null, b: null }; this.gpsNote = ''; this.walkNote = '';
       this.undoPts = null;
@@ -171,6 +211,26 @@ createApp({
       el.addEventListener('pointermove', move);
       el.addEventListener('pointerup', up);
       el.addEventListener('pointercancel', up);
+    },
+    // Keyboard alternative to dragging: arrows move the focused point 0.5% (Shift: 2%), Delete removes it.
+    onPointKey(i, e) {
+      if (this.locked) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.removePoint(i); return; }
+      const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 2 : 0.5;
+      this.pts[i] = {
+        x: Math.max(0, Math.min(100, this.pts[i].x + d[0] * step)),
+        y: Math.max(0, Math.min(100, this.pts[i].y + d[1] * step))
+      };
+    },
+    // Puts A and B in the middle of the plan, ready to be moved with the arrow keys or dragged.
+    placeBoth() {
+      if (this.locked) return;
+      if (this.pts.length) this.undoPts = this.pts.map((p) => ({ ...p }));
+      this.pts = [{ x: 25, y: 50 }, { x: 75, y: 50 }];
+      this.$nextTick(() => { const el = document.querySelector('.plan-wrap .pt'); if (el) el.focus(); });
     },
     clearPoints() {
       if (this.locked || !this.pts.length) return;
@@ -374,6 +434,10 @@ createApp({
 
     async save() {
       if (!this.preview || !this.plan) return;
+      if (this.isCalibrated(this.plan) && !(await AdminConfirm({
+        title: 'Replace the calibration for ' + this.plan.floor + '?',
+        text: 'Indoor AR on this floor switches to the new values right away. The old values are not kept.',
+        confirmText: 'Replace calibration' }))) return;
       this.saving = true;
       const values = { north_offset: this.preview.north, meters_per_unit_x: this.preview.mx, meters_per_unit_y: this.preview.my };
       const seen = this.basePlans.find((p) => String(p.id) === String(this.plan.id));

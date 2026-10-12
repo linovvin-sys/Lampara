@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+require_once __DIR__ . '/../change_log.php';
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/_require_admin.php';
 require_once __DIR__ . '/../room_number.php';
@@ -122,6 +123,18 @@ function failure($message) {
 
 // ---------- applying one op ----------
 
+// The optional columns (room subtitle, building entrance floor) ride along with an offline edit when they exist.
+function syncExtras($conn, $table, $id, array $p) {
+    $col = $table === 'rooms' ? 'subtitle' : 'entrance_floor';
+    if (!array_key_exists($col, $p) || !column_exists($conn, $table, $col)) return;
+    $v = trim((string) $p[$col]);
+    $v = $v === '' ? null : mb_substr($v, 0, $col === 'subtitle' ? 120 : 50);
+    $stmt = $conn->prepare("UPDATE `$table` SET `$col` = ? WHERE id = ?");
+    $stmt->bind_param('si', $v, $id);
+    $stmt->execute();
+    $stmt->close();
+}
+
 function applyOp($conn, $type, array $p, $force, array &$tempMap) {
     switch ($type) {
 
@@ -137,6 +150,8 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             $stmt->execute();
             $id = $stmt->insert_id;
             $stmt->close();
+            syncExtras($conn, 'buildings', $id, $p);
+            log_change($conn, 'building', $id, 'create', null, change_row($conn, 'buildings', $id));
             rememberTemp($conn, $p['temp_id'] ?? null, 'building', $id, $tempMap);
             return ['status' => 'ok', 'server_id' => $id, 'temp_id' => $p['temp_id'] ?? null];
         }
@@ -154,10 +169,13 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             $floors = max(1, (int) ($p['floor_count'] ?? 1));
             $number = nullableInt($p['building_number'] ?? null);
             $dir = trim((string) ($p['directory'] ?? ''));
+            $beforeRow = change_row($conn, 'buildings', $id);
             $stmt = $conn->prepare("UPDATE buildings SET name = ?, lat = ?, lng = ?, floor_count = ?, building_number = ?, directory = ? WHERE id = ?");
             $stmt->bind_param('sddiisi', $name, $lat, $lng, $floors, $number, $dir, $id);
             $stmt->execute();
             $stmt->close();
+            syncExtras($conn, 'buildings', $id, $p);
+            log_change($conn, 'building', $id, 'update', $beforeRow, change_row($conn, 'buildings', $id));
             return ['status' => 'ok', 'server_id' => $id];
         }
 
@@ -176,6 +194,8 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             }
             $id = $stmt->insert_id;
             $stmt->close();
+            syncExtras($conn, 'rooms', $id, $p);
+            log_change($conn, 'room', $id, 'create', null, change_row($conn, 'rooms', $id));
             rememberTemp($conn, $p['temp_id'] ?? null, 'room', $id, $tempMap);
             return ['status' => 'ok', 'server_id' => $id, 'temp_id' => $p['temp_id'] ?? null];
         }
@@ -190,6 +210,7 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             $f = roomFields($p);
             if ($f['room_name'] === '' || $f['floor'] === '') return failure('A room needs a name and a floor.');
             if (room_number_taken($conn, $f['room_number'], $id)) return failure("Room {$f['room_number']} is already registered.");
+            $beforeRow = change_row($conn, 'rooms', $id);
             try {
                 $stmt = $conn->prepare("UPDATE rooms SET room_number = ?, room_name = ?, floor = ?, room_type = ?, category = ?, hours = ?, notes = ?, map_x = ?, map_y = ? WHERE id = ?");
                 $stmt->bind_param('sssssssddi', $f['room_number'], $f['room_name'], $f['floor'], $f['room_type'], $f['category'], $f['hours'], $f['notes'], $f['map_x'], $f['map_y'], $id);
@@ -199,6 +220,8 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
                 throw $e;
             }
             $stmt->close();
+            syncExtras($conn, 'rooms', $id, $p);
+            log_change($conn, 'room', $id, 'update', $beforeRow, change_row($conn, 'rooms', $id));
             return ['status' => 'ok', 'server_id' => $id];
         }
 

@@ -1,6 +1,6 @@
 const { createApp, markRaw } = Vue;
 const API = 'campus-graph.php';
-const LABEL_MIN_ZOOM = 18; // building names are always-on from this zoom in
+const LABEL_MIN_ZOOM = 19; // building names are always-on from this zoom in (lower, they overlap at the main cluster)
 const POOR_GPS_METERS = 25;
 
 // Recording a walk / dropping a point at your position.
@@ -36,6 +36,15 @@ function distToSegment(p, a, b) {
 // Leaflet objects stay out of Vue's reactivity (markRaw) — proxying them breaks
 // their internal identity checks. Everything drawn on the map is rebuilt from
 // the reactive arrays in redraw().
+// Remembers the "Show point names" choice on this device.
+function viewPref(key, dflt) {
+  try { const v = localStorage.getItem('lampara_cp_' + key); return v === null ? dflt : v; } catch (e) { return dflt; }
+}
+function setViewPref(key, value) {
+  try { localStorage.setItem('lampara_cp_' + key, value); } catch (e) { /* storage blocked: the choice just is not remembered */ }
+}
+const edgeKey = (a, b) => (String(a) < String(b) ? a + '|' + b : b + '|' + a);
+
 createApp({
   data() {
     return {
@@ -53,11 +62,18 @@ createApp({
       recordedCount: 0,
       walkNote: '',
       // Lock: while on, taps can't add, move, connect or delete points (panning, zooming and selecting still work).
-      undo: null,            // what the last delete removed: { label, snapshot }, for the Undo button
+      undo: null,
+      nudgeBusy: false,
+      liveMsg: '',            // what the last delete removed: { label, snapshot }, for the Undo button
       locked: EditorLock.get('campus-paths'),
       lockIcon: EditorLock.icon,
       nameDraft: '',
       nameError: '',
+      // View controls (display only: nothing here changes the saved paths).
+      showNames: viewPref('names', '1') === '1',   // point names on the map (building names still follow the zoom)
+      gapTarget: '',                               // which point to join across a gap ('' = the nearest)
+      viewFrom: '',                                // show only the path between these two places (node ids), '' = everything
+      viewTo: '',
       // Outdoor AR anchors — one QR per gate/junction/entrance a sign gets
       // posted at, so a student who skips the main gate can still scan
       // whichever outdoor node they actually pass to fix their starting
@@ -70,6 +86,9 @@ createApp({
     };
   },
   watch: {
+    showNames(v) { setViewPref('names', v ? '1' : '0'); if (this.map) this.redraw(); },
+    viewFrom() { this.viewChanged(); },
+    viewTo() { this.viewChanged(); },
     // The Name field follows whichever point is selected.
     selectedId() {
       const n = this.selected;
@@ -102,6 +121,143 @@ createApp({
     },
     // Name of every point (its own, or "Point X" in creation order for older unnamed ones).
     nodeNames() { return PointNames.map(this.nodes); },
+    // Places the path view can start or end at: every building and every gate. A building is reached at its entrance
+    // point; one with no entrance set is reached at the walkway point nearest its pin (and the option says so).
+    //   value 'b:<building id>' or 'n:<node id>';  node = the walkway point the path starts or ends at.
+    viewOptions() {
+      const names = this.nodeNames, out = [];
+      const nearest = (lat, lng) => {
+        let best = null;
+        this.nodes.forEach((n) => {
+          const d = Math.hypot((n.lat - lat) * 111320, (n.lng - lng) * 111320 * Math.cos(lat * Math.PI / 180));
+          if (!best || d < best.d) best = { id: String(n.id), d };
+        });
+        return best ? best.id : null;
+      };
+      const entranceIds = new Set();
+      this.buildings.forEach((b) => {
+        const id = b.entrance_node_id;
+        const has = id !== null && id !== undefined && this.nodes.some((n) => String(n.id) === String(id));
+        const node = has ? String(id) : nearest(b.lat, b.lng);
+        if (node === null) return;
+        if (has) entranceIds.add(node);
+        out.push({ value: 'b:' + b.id, node, building: b.id, outside: CampusRoute.isOutsideBuilding(b), label: b.name + (has ? '' : ' (nearest point)') });
+      });
+      out.sort((x, y) => x.label.localeCompare(y.label));
+      const buildingOf = new Map();
+      this.buildings.forEach((b) => { if (b.entrance_node_id !== null && b.entrance_node_id !== undefined) buildingOf.set(String(b.entrance_node_id), b.name); });
+      // Every walkway point under its own name, so a path can be viewed point to point (Point B, Point D, ...).
+      const pts = this.nodes.map((n) => {
+        const nm = names.get(String(n.id)) || 'Point';
+        const where = buildingOf.get(String(n.id));
+        return { value: 'n:' + n.id, node: String(n.id), group: 'Points', label: nm + (where ? ' (' + where + ')' : n.node_type === 'gate' ? ' (gate)' : '') };
+      }).sort((x, y) => PointNames.compare(names.get(x.node), names.get(y.node)));
+      return out.map((o) => ({ ...o, group: 'Buildings' })).concat(pts);
+    },
+    viewBuildings() { return this.viewOptions.filter((o) => o.group === 'Buildings'); },
+    viewPoints() { return this.viewOptions.filter((o) => o.group === 'Points'); },
+    // When the two chosen places are not connected: the two closest points across the gap, so the map can offer to join them.
+    viewGap() {
+      const rv = this.routeView;
+      if (!rv || rv.ok || !rv.a || !rv.b) return null;
+      const byId = new Map(this.nodes.map((n) => [String(n.id), n]));
+      const comp = new Map();
+      const adj = new Map(this.nodes.map((n) => [String(n.id), []]));
+      this.edges.forEach((e) => { const x = String(e.node_a_id), y = String(e.node_b_id); if (adj.has(x) && adj.has(y)) { adj.get(x).push(y); adj.get(y).push(x); } });
+      const walk = (start, tag) => { const st = [start]; comp.set(start, tag); while (st.length) { const c = st.pop(); adj.get(c).forEach((o) => { if (!comp.has(o)) { comp.set(o, tag); st.push(o); } }); } };
+      walk(rv.a.node, 'a');
+      if (comp.has(rv.b.node)) return null;
+      walk(rv.b.node, 'b');
+      const A = this.nodes.filter((n) => comp.get(String(n.id)) === 'a'), Bn = this.nodes.filter((n) => comp.get(String(n.id)) === 'b');
+      let best = null;
+      A.forEach((p) => Bn.forEach((q) => {
+        const d = Math.hypot((q.lat - p.lat) * 111320, (q.lng - p.lng) * 111320 * Math.cos(p.lat * Math.PI / 180));
+        if (!best || d < best.d) best = { p, q, d };
+      }));
+      if (!best) return null;
+      // Every point on the far side, nearest first: the closest one is only a guess, so the page lets the admin choose
+      // (for example the path really goes Main building > Point B, not to the nearest point).
+      const dist = (q) => Math.hypot((q.lat - best.p.lat) * 111320, (q.lng - best.p.lng) * 111320 * Math.cos(best.p.lat * Math.PI / 180));
+      const choices = Bn.map((q) => ({ id: q.id, name: this.nodeNames.get(String(q.id)), meters: Math.round(dist(q)) })).sort((x, y) => x.meters - y.meters);
+      return { a: best.p, aName: this.nodeNames.get(String(best.p.id)), choices };
+    },
+    // The walk between the two chosen places, or null when no path view is chosen. It follows the same entrance and exit rules as
+    // the AR guide (CampusRoute.regions):
+    //   inside -> an outside building (Heritage, JEG): out through an exit gate first (the cheaper of the main and vehicle exit);
+    //   outside -> a place inside the campus: in through the main entrance first, never through an exit gate;
+    //   anything else: the shortest walk.
+    //   { ok: true, nodeIds: Set, edgeKeys: Set, length (m), from, to, via, phase }   or   { ok: false, from, to, a, b } when not connected
+    routeView() {
+      if (!this.viewFrom || !this.viewTo || this.viewFrom === this.viewTo) return null;
+      const opt = (v) => this.viewOptions.find((o) => o.value === v) || null;
+      const oa = opt(this.viewFrom), ob = opt(this.viewTo);
+      if (!oa || !ob) return null;
+      const from = oa.label.replace(' (nearest point)', ''), to = ob.label.replace(' (nearest point)', '');
+      const start = oa.node, end = ob.node;
+      const byId = new Map(this.nodes.map((n) => [String(n.id), n]));
+      const metres = (p, q) => Math.hypot((q.lat - p.lat) * 111320, (q.lng - p.lng) * 111320 * Math.cos(p.lat * Math.PI / 180));
+      // the shortest walk between two points, optionally limited to some points: { ids, length } or null
+      const walk = (a, b, allowed) => {
+        if (a === b) return { ids: [a], length: 0 };
+        if (!byId.has(a) || !byId.has(b)) return null;
+        const adj = new Map();
+        byId.forEach((n, id) => { if (!allowed || allowed.has(id)) adj.set(id, []); });
+        this.edges.forEach((e) => {
+          const x = String(e.node_a_id), y = String(e.node_b_id);
+          if (!adj.has(x) || !adj.has(y)) return;
+          const d = metres(byId.get(x), byId.get(y));
+          adj.get(x).push({ id: y, d }); adj.get(y).push({ id: x, d });
+        });
+        if (!adj.has(a) || !adj.has(b)) return null;
+        const dist = new Map([...adj.keys()].map((id) => [id, Infinity])), prev = new Map(), done = new Set();
+        dist.set(a, 0);
+        while (done.size < dist.size) {
+          let cur = null, cd = Infinity;
+          dist.forEach((d, id) => { if (!done.has(id) && d < cd) { cur = id; cd = d; } });
+          if (cur === null || cur === b) break;
+          done.add(cur);
+          adj.get(cur).forEach(({ id, d }) => { if (cd + d < dist.get(id)) { dist.set(id, cd + d); prev.set(id, cur); } });
+        }
+        if (dist.get(b) === Infinity) return null;
+        const ids = [b];
+        while (ids[0] !== a) ids.unshift(prev.get(ids[0]));
+        return { ids, length: dist.get(b) };
+      };
+      const join = (p1, p2) => (p1 && p2 ? { ids: p1.ids.concat(p2.ids.slice(1)), length: p1.length + p2.length } : null);
+      const strSet = (set) => new Set([...set].map(String));
+
+      const R = CampusRoute.regions({ nodes: this.nodes, edges: this.edges }, this.buildings);
+      const outsideSet = strSet(R.outsideNodes), insideSet = strSet(R.insideNodes);
+      const isOut = (o) => (o.group === 'Buildings' ? !!o.outside : outsideSet.has(o.node));
+      let path = null, via = '', phase = '';
+      if (outsideSet.size) {
+        if (!isOut(oa) && isOut(ob)) {                                   // inside -> outside: through an exit gate
+          let best = null;
+          this.nodes.filter((n) => n.node_type === 'gate').forEach((gt) => {
+            const id = String(gt.id), name = gt.name || this.nodeNames.get(id) || 'Gate';
+            const p = join(walk(start, id, null), walk(id, end, new Set([...outsideSet, id])) || walk(id, end, null));
+            if (!p) return;
+            const cost = p.length + (CampusRoute.gateKind(name) === 'vehicle' ? CampusRoute.VEHICLE_GATE_PENALTY_M : 0);
+            if (!best || cost < best.cost) best = { path: p, cost, name };
+          });
+          if (best) { path = best.path; via = best.name; phase = 'exit'; }
+        } else if (isOut(oa) && !isOut(ob) && R.mainEntrance) {          // outside -> inside: through the main entrance
+          const portal = String(R.mainEntrance.id);
+          const p = join(walk(start, portal, new Set([...outsideSet, portal])), walk(portal, end, insideSet));
+          if (p) { path = p; via = R.mainEntrance.name || this.nodeNames.get(portal) || 'the main entrance'; phase = 'enter'; }
+        }
+      }
+      if (!path) path = walk(start, end, null);
+      if (!path) return { ok: false, from, to, a: oa, b: ob };
+      const edgeKeys = new Set();
+      for (let i = 1; i < path.ids.length; i++) edgeKeys.add(edgeKey(path.ids[i - 1], path.ids[i]));
+      return { ok: true, nodeIds: new Set(path.ids), edgeKeys, length: path.length, from, to, a: oa, b: ob, via, phase };
+    },
+    // The list beside the map follows the path view too.
+    listPoints() {
+      const rv = this.routeView;
+      return rv && rv.ok ? this.pointList.filter((p) => rv.nodeIds.has(String(p.id))) : this.pointList;
+    },
     // The list beside the map: one row per point, in name order.
     pointList() {
       const names = this.nodeNames;
@@ -130,6 +286,12 @@ createApp({
     AdminOffline.onChange(() => { this.rebuild(); });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.showingCampusQr) this.showingCampusQr = false;
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && this.undo) {
+        const t = e.target; const tag = t && t.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+        e.preventDefault(); this.undoLast();
+      }
+      this.onEditorKey(e);
     });
   },
   methods: {
@@ -273,14 +435,39 @@ createApp({
       else if (pts.length === 1) this.map.setView(pts[0], 18);
     },
 
+    // The path view changed: redraw, and bring the chosen path into view.
+    viewChanged() {
+      if (!this.map) return;
+      this.redraw();
+      const rv = this.routeView;
+      if (rv && rv.ok) {
+        const pts = this.nodes.filter((n) => rv.nodeIds.has(String(n.id))).map((n) => [n.lat, n.lng]);
+        if (pts.length > 1) this.map.fitBounds(pts, { padding: [50, 50], maxZoom: 19 });
+      }
+    },
+    clearView() { this.viewFrom = ''; this.viewTo = ''; },
+    // Joins the two closest points across a gap (the usual reason two places are "not connected"), then shows the path.
+    async connectGap() {
+      const g = this.viewGap;
+      if (!g || this.lockedNow('connect these points')) return;
+      const to = this.gapTarget && g.choices.some((c) => String(c.id) === String(this.gapTarget)) ? this.gapTarget : g.choices[0].id;
+      await this.connect(g.a.id, to);
+      this.gapTarget = '';
+    },
+    swapView() { const f = this.viewFrom; this.viewFrom = this.viewTo; this.viewTo = f; },
+
     // ---- drawing ----
     redraw() {
       this.layer.clearLayers();
       const byId = new Map(this.nodes.map((n) => [String(n.id), n]));
+      // With a path view on, only that path's points, connections and the two buildings at its ends are drawn.
+      const rv = this.routeView && this.routeView.ok ? this.routeView : null;
+      const showNode = (n) => !rv || rv.nodeIds.has(String(n.id));
 
       this.edges.forEach((e) => {
         const a = byId.get(String(e.node_a_id)), b = byId.get(String(e.node_b_id));
         if (!a || !b) return;
+        if (rv && !rv.edgeKeys.has(edgeKey(a.id, b.id))) return;
         const line = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
           color: '#ffd100', weight: 5, opacity: 0.9, dashArray: e._pending ? '2 8' : null,
           interactive: !this.locked     // a locked map ignores taps on connections
@@ -291,8 +478,9 @@ createApp({
 
       // Building pin, plus a dashed leader to its entrance point so a missing
       // or wrong link is visible at a glance.
-      const showLabels = this.map.getZoom() >= LABEL_MIN_ZOOM;
+      const showLabels = this.showNames && this.map.getZoom() >= LABEL_MIN_ZOOM;
       this.buildings.forEach((b) => {
+        if (rv && b.id !== rv.a.building && b.id !== rv.b.building) return;
         const icon = L.divIcon({ className: '', html: '<div class="cp-building"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
         L.marker([b.lat, b.lng], { icon, interactive: true, zIndexOffset: -500 })
           .bindTooltip(b.name, { permanent: showLabels, direction: 'top', offset: [0, -8], className: 'cp-label' })
@@ -301,12 +489,22 @@ createApp({
         if (ent) L.polyline([[b.lat, b.lng], [ent.lat, ent.lng]], { color: '#7c3aed', weight: 2, dashArray: '4 6' }).addTo(this.layer);
       });
 
+      // Names of points that would sit on top of each other are left off (they still show on hover or when selected),
+      // so a crowded spot such as the main entrance stays readable. Zooming in makes room for more.
+      const placed = [];
       this.nodes.forEach((n) => {
+        if (!showNode(n)) return;
         const cls = ['cp-node', n.node_type, String(n.id) === String(this.selectedId) ? 'is-selected' : '', n._pending ? 'is-pending' : ''].join(' ');
         const icon = L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
         const m = L.marker([n.lat, n.lng], { icon, draggable: !this.locked, zIndexOffset: 500 });
         // The point's letter, so the map matches the list beside it.
-        m.bindTooltip(PointNames.short(this.nodeNames.get(String(n.id))), { permanent: true, direction: 'right', offset: [9, 0], className: 'cp-pt-label' });
+        let labelOn = this.showNames;
+        if (labelOn) {
+          const pt = this.map.latLngToContainerPoint([n.lat, n.lng]);
+          if (String(n.id) !== String(this.selectedId) && placed.some((q) => Math.hypot(q.x - pt.x, q.y - pt.y) < 26)) labelOn = false;
+          else placed.push(pt);
+        }
+        m.bindTooltip(PointNames.short(this.nodeNames.get(String(n.id))), { permanent: labelOn, direction: 'right', offset: [9, 0], className: 'cp-pt-label' });
         m.on('click', (ev) => { L.DomEvent.stopPropagation(ev); this.onNodeTap(n); });
         m.on('dragend', () => { const p = m.getLatLng(); this.moveNode(n, p.lat, p.lng); });
         m.addTo(this.layer);
@@ -517,6 +715,16 @@ createApp({
       const n = this.selected;
       if (!n || this.lockedNow('delete a point')) return;
       const name = this.labelOf(n);
+      const joins = this.baseGraph.edges.filter((e) => String(e.node_a_id) === String(n.id) || String(e.node_b_id) === String(n.id)).length;
+      const entranceOf = this.baseBuildings.filter((b) => String(b.entrance_node_id) === String(n.id)).map((b) => b.name);
+      const hasAnchor = this.campusAnchors.some((a) => String(a.campus_node_id) === String(n.id));
+      if ((joins > 0 || entranceOf.length || hasAnchor) && !(await AdminConfirm({
+        title: 'Delete ' + (name || 'this point') + '?',
+        text: [joins ? 'It is joined to ' + joins + ' other point' + (joins === 1 ? '' : 's') + ', and those connections go with it.' : '',
+               entranceOf.length ? 'It is the entrance of ' + entranceOf.join(', ') + ', which will have no entrance until you set a new one.' : '',
+               hasAnchor ? 'Its outdoor AR anchor QR will stop working.' : '',
+               'You can undo this right afterwards.'].filter(Boolean).join(' '),
+        confirmText: 'Delete point', danger: true }))) return;
       const out = await this.save(
         { type: 'node.delete', payload: { id: n.id }, label: 'Deleted a walkway point' },
         () => this.request(API + '?node_id=' + n.id, 'DELETE')
@@ -556,6 +764,48 @@ createApp({
       const id = await this.createNode(lat, lng);
       if (id !== null) this.select(id);
     },
+
+    // ---- keyboard / assistive alternatives to tap and drag ----
+
+    // Alt+Arrow nudges the selected point 1 m (Shift: 5 m); Delete removes it; Esc deselects.
+    // Ignored while typing in a field, so renaming a point never moves or deletes it.
+    onEditorKey(e) {
+      const t = e.target, tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+      if (document.querySelector('.modal-overlay.is-open, .swal2-container')) return;
+      if (e.key === 'Escape' && this.selectedId !== null) { this.select(null); return; }
+      if (this.selectedId === null) return;
+      if (e.key === 'Delete') { e.preventDefault(); this.deleteSelected(); return; }
+      const dir = { ArrowUp: 'n', ArrowDown: 's', ArrowLeft: 'w', ArrowRight: 'e' }[e.key];
+      if (dir && e.altKey) { e.preventDefault(); this.nudge(dir, e.shiftKey ? 5 : 1); }
+    },
+    async nudge(dir, meters) {
+      const n = this.selected;
+      if (!n || this.nudgeBusy || this.lockedNow('move a point')) return;
+      this.nudgeBusy = true;
+      const dLat = meters / 111320, dLng = meters / (111320 * Math.cos(n.lat * Math.PI / 180));
+      const lat = n.lat + (dir === 'n' ? dLat : dir === 's' ? -dLat : 0);
+      const lng = n.lng + (dir === 'e' ? dLng : dir === 'w' ? -dLng : 0);
+      try { await this.moveNode(n, lat, lng); } finally { this.nudgeBusy = false; }
+      this.announce(`Moved ${meters} m ${{ n: 'north', s: 'south', e: 'east', w: 'west' }[dir]}`);
+    },
+    // Same as tapping an empty spot, but at the centre of the visible map.
+    async addAtCenter() {
+      if (this.lockedNow('add a point') || !this.map) return;
+      const c = this.map.getCenter();
+      const id = await this.createNode(c.lat, c.lng);
+      if (id === null) return;
+      if (this.selectedId !== null) await this.connect(this.selectedId, id);
+      this.select(id);
+      this.announce('Point added at the centre of the map');
+    },
+    // Same as tapping a second point while one is selected.
+    async connectSelectedTo(otherId) {
+      if (!otherId || this.selectedId === null) return;
+      await this.connect(this.selectedId, otherId);
+      this.announce('Points connected');
+    },
+    announce(msg) { this.liveMsg = ''; this.$nextTick(() => { this.liveMsg = msg; }); },
 
     // ---- adding points from where you're standing ----
 

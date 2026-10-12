@@ -26,7 +26,7 @@ window.LamparaBuildingApp = createApp({
     return {
       snap: '',            // the form as last saved / loaded: anything different counts as an unsaved change
       loaded: false,       // first list of buildings has arrived (until then the side list shows a skeleton)
-      form: { name: '', lat: '', lng: '', floor_count: 1, building_number: null, directory: '' },
+      form: { name: '', lat: '', lng: '', floor_count: 1, entrance_floor: '', building_number: null, directory: '' },
       baseBuildings: [],   // last data from the server
       buildings: [],       // server data + changes made offline (shown on the page)
       submitting: false,
@@ -52,14 +52,17 @@ window.LamparaBuildingApp = createApp({
       lockIcon: EditorLock.icon,
       pathNameDraft: '',
       pathNameError: '',
+      pathLive: '',
+      photoBusy: false,
+      photoOver: false,
+      health: null,           // /setup-health.php: per-building steps and the list of problems
       pathUndo: null,         // what the last delete removed: { label, snapshot }, for the Undo button
       // The ONE AR-anchor QR for the floor currently open in the path editor
       // (null if not set yet) — not per point. This is what the indoor AR
       // guide scans to fix its real starting position, see Backend/api/qr-anchors.php.
       floorQrAnchor: null,     // { id, floor_plan_node_id, code, label } or null
       qrBusy: false,
-      showingFloorQr: false,
-      photoBusy: false         // building photo uploading / removing
+      showingFloorQr: false
     };
   },
   computed: {
@@ -72,13 +75,18 @@ window.LamparaBuildingApp = createApp({
     },
     // A building made offline has no server copy yet, so floor plans and paths
     // (which need one) can't be managed until it has synced.
+    // The photo of the building being edited (from the saved list).
+    photoUrl() {
+      const b = this.buildings.find((x) => String(x.id) === String(this.editingId));
+      return b && b.photo_path ? b.photo_path : '';
+    },
+    // The eight guided-setup steps for the building being edited.
+    setup() {
+      if (!this.health || this.editingId === null || this.editingIsLocalOnly) return null;
+      return (this.health.buildings || []).find((b) => String(b.id) === String(this.editingId)) || null;
+    },
     editingIsLocalOnly() {
       return this.editingId !== null && AdminOffline.isTemp(this.editingId);
-    },
-    // The photo of the building being edited (server copy), or null.
-    editingPhoto() {
-      const b = this.editingId === null ? null : this.baseBuildings.find((x) => String(x.id) === String(this.editingId));
-      return b ? b.photo_path || null : null;
     },
     // "Point A", "Point B" ... for the points of the floor being edited (older unnamed ones are numbered in creation order).
     pathNames() { return PointNames.map(this.pathNodes); },
@@ -136,8 +144,15 @@ window.LamparaBuildingApp = createApp({
     this.$nextTick(() => this.initPickMap());
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.showingFloorQr) this.showingFloorQr = false;
+      this.onPathKey(e);
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && this.pathUndo) {
+        const t = e.target; const tag = t && t.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+        e.preventDefault(); this.undoPathDelete();
+      }
     });
     AdminOffline.onSynced(() => this.loadBuildings());
+    this.loadHealth();
     AdminOffline.onChange(() => { this.buildings = AdminOffline.overlayBuildings(this.baseBuildings); });
     await this.loadBuildings();
     const editId = new URLSearchParams(window.location.search).get('edit');
@@ -274,6 +289,55 @@ window.LamparaBuildingApp = createApp({
         { enableHighAccuracy: true, timeout: 10000 }
       );
     },
+    // ---- photo ----
+    async choosePhoto(file) {
+      if (!this.editingId || this.editingIsLocalOnly) return;
+      if (!(await AdminOffline.guardOnline('Uploading a photo'))) return;
+      const data = await LamparaPhoto.pick({ title: 'Photo of ' + (this.form.name || 'the building'), file });
+      if (!data) return;
+      this.photoBusy = true;
+      try {
+        await LamparaPhoto.upload('building', this.editingId, data);
+        await this.loadBuildings();
+        AdminOffline.toast('Photo saved', 'success');
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: "Couldn't save the photo", text: e.message });
+      } finally { this.photoBusy = false; }
+    },
+    dropPhoto(ev) {
+      this.photoOver = false;
+      const f = ev.dataTransfer && ev.dataTransfer.files[0];
+      if (f) this.choosePhoto(f);
+    },
+    async removePhoto() {
+      if (!(await AdminOffline.guardOnline('Removing a photo'))) return;
+      if (!(await AdminConfirm({ title: 'Remove this photo?', text: 'Students will see no photo for this building.', confirmText: 'Remove photo', danger: true }))) return;
+      this.photoBusy = true;
+      try {
+        await LamparaPhoto.remove('building', this.editingId);
+        await this.loadBuildings();
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: "Couldn't remove the photo", text: e.message });
+      } finally { this.photoBusy = false; }
+    },
+    // ---- setup health (steps, per-floor status) ----
+    async loadHealth() {
+      try {
+        const res = await fetch('../../../Backend/api/setup-health.php', { credentials: 'same-origin', cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) this.health = data;
+      } catch (e) { /* offline: the progress card and floor status just stay hidden */ }
+    },
+    // Is this floor's path drawn and its calibration done? (calibration is read from the plan itself)
+    floorStatus(floor) {
+      const plan = this.floorPlans[floor];
+      const name = this.form.name;
+      const pathProblem = this.health && (this.health.items || []).some((i) => i.building === name && i.floor === floor && i.problem === 'No walkable path');
+      return {
+        path: !!plan && !pathProblem,
+        cal: !!plan && plan.north_offset !== null && plan.north_offset !== undefined && Number(plan.meters_per_unit_x) > 0
+      };
+    },
     async loadBuildings() {
       try {
         const res = await fetch('../../../Backend/api/buildings.php', { credentials: 'same-origin' });
@@ -285,7 +349,7 @@ window.LamparaBuildingApp = createApp({
     },
     startEdit(b) {
       this.editingId = b.id;
-      this.form = { name: b.name, lat: String(b.lat), lng: String(b.lng), floor_count: b.floor_count || 1, building_number: b.building_number, directory: b.directory || '' };
+      this.form = { name: b.name, lat: String(b.lat), lng: String(b.lng), floor_count: b.floor_count || 1, entrance_floor: b.entrance_floor || '', building_number: b.building_number, directory: b.directory || '' };
       this.geoStatus = '';
       this.drawOtherBuildings();
       this.$nextTick(() => { this.syncPin(); this.centrePick(); });
@@ -299,7 +363,7 @@ window.LamparaBuildingApp = createApp({
     },
     cancelEdit() {
       this.editingId = null;
-      this.form = { name: '', lat: '', lng: '', floor_count: 1, building_number: null, directory: '' };
+      this.form = { name: '', lat: '', lng: '', floor_count: 1, entrance_floor: '', building_number: null, directory: '' };
       this.geoStatus = '';
       this.floorPlans = {};
       this.closePathEditor();
@@ -362,7 +426,7 @@ window.LamparaBuildingApp = createApp({
     // Reads the picked file as a base64 data URL — same pattern signage
     // scanning already uses to send a photo to the backend, no separate
     // multipart file-upload handling needed anywhere in this app.
-    uploadFloorPlan(floor, event) {
+    async uploadFloorPlan(floor, event) {
       const file = event.target.files && event.target.files[0];
       event.target.value = ''; // lets picking the same file again re-trigger change
       if (!file) return;
@@ -371,6 +435,10 @@ window.LamparaBuildingApp = createApp({
       // building in between used to send the plan to that other building.
       const buildingId = this.editingId;
       if (!buildingId || AdminOffline.isTemp(buildingId)) { AdminOffline.toast('Save the building first, then upload its floor plans.', 'info'); return; }
+      if (this.floorPlans[floor] && !(await AdminConfirm({
+        title: 'Replace the ' + floor + ' plan?',
+        text: 'The new image replaces the current one. Walkable paths and room markers keep their positions, so check that they still line up with the new picture.',
+        confirmText: 'Replace plan' }))) return;
       this.uploadingFloor = floor;
       const reader = new FileReader();
       reader.onload = async () => {
@@ -384,6 +452,7 @@ window.LamparaBuildingApp = createApp({
           if (data.success) {
             // only show it if that building is still the one on screen
             if (this.editingId === buildingId) this.floorPlans = { ...this.floorPlans, [floor]: { id: data.id, image_path: data.image_path } };
+            this.loadHealth();
           } else {
             Swal.fire({ icon: 'error', title: 'Upload failed', text: data.error || 'unknown' });
           }
@@ -392,45 +461,6 @@ window.LamparaBuildingApp = createApp({
         }
       };
       reader.readAsDataURL(file);
-    },
-    // The building's photo, shown in the 3D campus map. Like floor plans: online only, and only once the building has
-    // been saved, since a photo is far too big for the offline queue kept on this device.
-    async uploadBuildingPhoto(event) {
-      const file = event.target.files && event.target.files[0];
-      event.target.value = '';                 // picking the same file again still triggers change
-      if (!file) return;
-      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Uploading a photo'); return; }
-      const buildingId = this.editingId;       // fixed now, so switching buildings mid-upload can't misfile it
-      if (!buildingId || AdminOffline.isTemp(buildingId)) { AdminOffline.toast('Save the building first, then add its photo.', 'info'); return; }
-      this.photoBusy = true;
-      try {
-        await this.saveBuildingPhoto(buildingId, await LamparaPhoto.read(file));
-      } catch (e) {
-        Swal.fire({ icon: 'error', title: 'Upload failed', text: e.message || 'unknown' });
-      } finally {
-        this.photoBusy = false;
-      }
-    },
-    async removeBuildingPhoto() {
-      if (!AdminOffline.reachable()) { AdminOffline.guardOnline('Removing a photo'); return; }
-      const result = await Swal.fire({ title: 'Remove this photo?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Remove', confirmButtonColor: '#ff0000', cancelButtonColor: '#6b7280' });
-      if (!result.isConfirmed) return;
-      this.photoBusy = true;
-      try {
-        await this.saveBuildingPhoto(this.editingId, null);
-      } catch (e) {
-        Swal.fire({ icon: 'error', title: 'Could not remove it', text: e.message || 'unknown' });
-      } finally {
-        this.photoBusy = false;
-      }
-    },
-    async saveBuildingPhoto(id, photo) {
-      const res = await fetch('../../../Backend/api/buildings.php?id=' + id, {
-        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'unknown');
-      await this.loadBuildings();              // the row's updated_at changed too: keep offline edits from seeing a stale copy
     },
     async openPathEditor(floor) {
       const plan = this.floorPlans[floor];
@@ -511,17 +541,71 @@ window.LamparaBuildingApp = createApp({
     async addPathNode(event) {
       if (this.pathLockedNow('add points')) return;
       if (await this.needsInternet('Editing walkable paths')) return;
-      const plan = this.floorPlans[this.pathEditorFloor];
       const rect = event.currentTarget.getBoundingClientRect();
       const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
       const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
+      await this.addPathNodeAt(x, y);
+    },
+    async addPathNodeAt(x, y) {
+      const plan = this.floorPlans[this.pathEditorFloor];
       const res = await fetch('../../../Backend/api/floor-plan-graph.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ floor_plan_id: plan.id, x, y, name: PointNames.next([...this.pathNames.values()]) })
       });
       const data = await res.json();
-      if (data.success) this.pathNodes.push({ id: data.id, x, y, name: data.name });
+      if (data.success) {
+        this.pathNodes.push({ id: data.id, x, y, name: data.name });
+        return data.id;
+      }
+      return null;
+    },
+    // ---- keyboard / assistive alternatives to tap and drag ----
+    // Same as tapping the plan, but at its centre; joins the selected point, like tracing a corridor.
+    async addPathNodeAtCenter() {
+      if (this.pathLockedNow('add points') || await this.needsInternet('Editing walkable paths')) return;
+      const prev = this.selectedNodeId;
+      const id = await this.addPathNodeAt(50, 50);
+      if (id === null) return;
+      if (prev !== null) { this.selectedNodeId = prev; await this.selectNode({ id }); }
+      this.selectedNodeId = id;
+      this.loadCrossLinks();
+      this.pathLive = 'Point added at the centre of the plan';
+    },
+    // Same as tapping a second point while one is selected.
+    async connectPathTo(otherId) {
+      if (!otherId || this.selectedNodeId === null) return;
+      await this.selectNode({ id: Number(otherId) });
+      this.pathLive = 'Points connected';
+    },
+    async nudgePath(dir, step) {
+      const node = this.pathNodes.find((n) => n.id === this.selectedNodeId);
+      if (!node || this._nudging || this.pathLockedNow('move points') || await this.needsInternet('Moving a point')) return;
+      this._nudging = true;
+      const was = { x: node.x, y: node.y };
+      node.x = Math.max(0, Math.min(100, Math.round((node.x + (dir === 'e' ? step : dir === 'w' ? -step : 0)) * 10) / 10));
+      node.y = Math.max(0, Math.min(100, Math.round((node.y + (dir === 's' ? step : dir === 'n' ? -step : 0)) * 10) / 10));
+      try {
+        const res = await fetch('../../../Backend/api/floor-plan-graph.php?node_id=' + node.id, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x: node.x, y: node.y })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Could not move that point');
+        this.pathLive = 'Moved ' + { n: 'up', s: 'down', e: 'right', w: 'left' }[dir];
+      } catch (err) {
+        node.x = was.x; node.y = was.y;
+        AdminOffline.toast(err.message || 'Could not move that point', 'error');
+      } finally { this._nudging = false; }
+    },
+    onPathKey(e) {
+      if (this.pathEditorFloor === null || this.selectedNodeId === null) return;
+      const t = e.target, tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+      if (document.querySelector('.modal-overlay.is-open, .swal2-container')) return;
+      if (e.key === 'Escape') { this.selectedNodeId = null; this.crossLinks = []; return; }
+      if (e.key === 'Delete') { e.preventDefault(); this.deleteSelectedNode(); return; }
+      const dir = { ArrowUp: 'n', ArrowDown: 's', ArrowLeft: 'w', ArrowRight: 'e' }[e.key];
+      if (dir && e.altKey) { e.preventDefault(); this.nudgePath(dir, e.shiftKey ? 2 : 0.5); }
     },
     // First click on a node selects it; clicking a SECOND, different node
     // while one is already selected connects the two with an edge instead
@@ -607,6 +691,11 @@ window.LamparaBuildingApp = createApp({
       if (await this.needsInternet('Editing walkable paths')) return;
       const id = this.selectedNodeId;
       const name = this.pathNames.get(String(id)) || 'point';
+      const joins = this.pathEdges.filter((e) => e.node_a_id === id || e.node_b_id === id).length;
+      if ((joins > 0 || this.crossLinks.length > 0) && !(await AdminConfirm({
+        title: 'Delete ' + name + '?',
+        text: 'It is joined to ' + joins + ' other point' + (joins === 1 ? '' : 's') + (this.crossLinks.length ? ' and linked to another floor by stairs' : '') + '. Those connections go with it. You can undo this right afterwards.',
+        confirmText: 'Delete point', danger: true }))) return;
       this.selectedNodeId = null;
       this.crossLinks = [];
       const res = await fetch('../../../Backend/api/floor-plan-graph.php?node_id=' + id, { method: 'DELETE' });
@@ -708,6 +797,7 @@ window.LamparaBuildingApp = createApp({
     async unlinkCrossFloor(link) {
       if (this.pathLockedNow('remove a floor link')) return;
       if (await this.needsInternet('Editing walkable paths')) return;
+      if (!(await AdminConfirm({ title: 'Remove the link to ' + link.floor + '?', text: 'Routes will no longer be able to use these stairs or this elevator to reach that floor.', confirmText: 'Remove link', danger: true }))) return;
       await fetch('../../../Backend/api/floor-plan-graph.php?edge_id=' + link.edgeId, { method: 'DELETE' });
       this.pathUndo = { label: `Removed the link to ${link.floor}`, snapshot: { edges: [{ node_a_id: this.selectedNodeId, node_b_id: link.otherId }] } };
       await this.loadCrossLinks();
@@ -715,6 +805,7 @@ window.LamparaBuildingApp = createApp({
     async deleteEdge(edge) {
       if (this.pathLockedNow('remove a connection')) return;
       if (await this.needsInternet('Editing walkable paths')) return;
+      if (!(await AdminConfirm({ title: 'Remove this connection?', text: (this.pathNames.get(String(edge.node_a_id)) || 'A point') + ' and ' + (this.pathNames.get(String(edge.node_b_id)) || 'a point') + ' will no longer be joined. You can undo this right afterwards.', confirmText: 'Remove', danger: true }))) return;
       await fetch('../../../Backend/api/floor-plan-graph.php?edge_id=' + edge.id, { method: 'DELETE' });
       // Undo for a removed connection draws it again between the same two points.
       this.pathUndo = {
@@ -760,7 +851,7 @@ window.LamparaBuildingApp = createApp({
       this.submitting = true;
       const fields = {
         name: this.form.name, lat: parseFloat(this.form.lat), lng: parseFloat(this.form.lng),
-        floor_count: this.form.floor_count, building_number: this.form.building_number, directory: this.form.directory
+        floor_count: this.form.floor_count, entrance_floor: this.form.entrance_floor || '', building_number: this.form.building_number, directory: this.form.directory
       };
       const editing = this.editingId;
       const seen = editing ? this.baseBuildings.find((x) => String(x.id) === String(editing)) : null;
