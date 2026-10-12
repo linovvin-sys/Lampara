@@ -165,6 +165,12 @@
       const r = { a, b, label: q.get('label') || 'Point B', mode: q.get('mode') === 'paths' ? 'paths' : 'straight', bNode: q.get('node') ? +q.get('node') : null, live: q.get('live') !== '0' };
       const c = parsePair(q.get('c'));                                  // optional second stop: A -> B -> C
       if (c) { r.c = c; r.cLabel = q.get('cl') || 'Point C'; r.cNode = q.get('cnode') ? +q.get('cnode') : null; }
+      // any number of further stops after C: m=lat|lng|node|label~lat|lng|node|label...
+      const more = String(q.get('m') || '').split('~').map((s) => {
+        const f = s.split('|'), p = parsePair(f[0] + ',' + f[1]);
+        return p && f.length >= 2 ? { lat: p.lat, lng: p.lng, node: f[2] ? +f[2] : null, label: f[3] || '' } : null;
+      }).filter(Boolean);
+      if (c && more.length) r.more = more;
       return r;
     }
     try { const r = JSON.parse(localStorage.getItem(KEY) || 'null'); if (r && r.a && r.b) return r; } catch (e) { /* none */ }

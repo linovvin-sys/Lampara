@@ -368,6 +368,8 @@
     const dir = b && b.directory ? String(b.directory).trim() : '';
     bldDir.textContent = dir;
     bldDir.hidden = !dir;
+    const walk = $('bldWalk');
+    if (walk) { walk.hidden = !b; if (b) walk.href = 'guide-ar.php?to=' + encodeURIComponent(b.id); }
     if (b && b.photo_path) { bldPhoto.src = '../../' + b.photo_path; bldPhoto.alt = 'Photo of ' + b.name; bldPhoto.hidden = false; }
     else { bldPhoto.hidden = true; bldPhoto.removeAttribute('src'); }
     setRoomsMessage('Loading rooms…');
@@ -454,6 +456,10 @@
     hours.hidden = !r.hours;
     notes.textContent = r.notes || '';
     notes.hidden = !r.notes;
+    // The two things to do with a room: find it inside the building, or walk to the building first.
+    const find = $('roomDlgFind'), walk = $('roomDlgWalk');
+    if (find) find.href = '../Student/scan.php?room=' + encodeURIComponent(r.id);
+    if (walk) { walk.hidden = !r.building_id; walk.href = 'guide-ar.php?to=' + encodeURIComponent(r.building_id) + '&room=' + encodeURIComponent(r.id); }
     roomDialog.showModal();
   }
   $('roomDlgClose').addEventListener('click', () => roomDialog.close());

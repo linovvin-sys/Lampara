@@ -21,7 +21,7 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 <script src="../../assets/vendor/threex-device-orientation-controls.js"></script>
 <script src="../../assets/vendor/aframe-ar.js"></script>
@@ -35,7 +35,7 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <body>
 <script>LamparaSkeleton.show('guide')</script>
 
-<div id="app" class="ia-root">
+<div id="app" v-cloak class="ia-root">
 
   <!-- AR scene: live camera + compass-aligned view. No GPS indoors — the camera
        is moved along the route by step counting (see indoor-ar.js). Only mounted
@@ -58,7 +58,8 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
       <h1>Can't start the AR guide</h1>
       <p class="ia-muted">{{ error }}</p>
       <ul v-if="errorDetail.length" class="ia-detail"><li v-for="d in errorDetail" :key="d">{{ d }}</li></ul>
-      <button class="ia-btn ia-btn-light" @click="goBack">Back to the map</button>
+      <button class="ia-btn ia-btn-light" @click="goBack">Go back</button>
+      <a class="ia-btn ia-btn-light" href="manual-search.php" style="margin-top:.6rem;text-decoration:none;text-align:center">Search for a room instead</a>
     </div>
 
     <div v-else-if="scanningAnchor" class="ia-center ia-card-dark">

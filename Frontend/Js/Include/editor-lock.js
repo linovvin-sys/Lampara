@@ -1,15 +1,18 @@
-// Remembers whether an editor is locked. A locked editor ignores taps that would add,
-// move, connect or delete points, so an accidental touch can't change the map. Panning,
-// zooming and selecting still work. The choice is kept in this browser per editor.
+// Editor lock. A locked editor ignores taps that would add, move, connect or delete points,
+// so an accidental touch can't change the map. Panning, zooming and selecting still work.
+// Every editor STARTS LOCKED each time its page opens: unlocking is a deliberate choice for
+// the current visit and is not remembered, so nobody opens the editor already "live".
 //
 // Plain <script>; exposes `EditorLock`.
 const EditorLock = (() => {
   const prefix = 'lampara_editor_lock_';
   function get(key) {
-    try { return localStorage.getItem(prefix + key) === '1'; } catch (e) { return false; }
+    // An older version remembered "unlocked" in localStorage; that is ignored on purpose.
+    return true;
   }
   function set(key, locked) {
-    try { localStorage.setItem(prefix + key, locked ? '1' : '0'); } catch (e) { /* storage unavailable: lock just isn't remembered */ }
+    // Nothing is stored any more (see above). Kept so the editors' toggle code stays unchanged.
+    try { localStorage.removeItem(prefix + key); } catch (e) { /* storage unavailable */ }
   }
   // Inline padlock icons (open / closed) so pages don't each carry their own SVG.
   const icon = {

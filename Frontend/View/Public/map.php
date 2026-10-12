@@ -22,6 +22,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
+<link rel="stylesheet" href="../../assets/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="../../Css/Public/map.css?v=<?= $cssVer ?>">
 <script type="importmap">
 { "imports": {
@@ -46,6 +47,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
     <div class="seg" role="tablist" aria-label="Map type">
       <button type="button" role="tab" id="tab-2d" data-kind="2d" aria-selected="true">2D</button>
       <button type="button" role="tab" id="tab-3d" data-kind="3d" aria-selected="false">3D</button>
+      <button type="button" role="tab" id="tab-street" aria-selected="false" title="Streets and buildings">Street</button>
     </div>
   </header>
 
@@ -96,6 +98,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
         <div class="bld-head-text"><strong id="bldName"></strong><span id="bldMeta"></span></div>
         <button type="button" id="bldClose" aria-label="Close building details">&times;</button>
       </div>
+      <a class="bld-walk" id="bldWalk" href="guide-ar.php" hidden>Walk there (outdoor AR guide)</a>
       <p class="bld-dir" id="bldDir" hidden></p>
       <ul id="bldRooms" aria-label="Rooms in this building"></ul>
     </section>
@@ -108,6 +111,8 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
         <p class="room-dlg-line" id="roomDlgHours" hidden></p>
         <p class="room-dlg-line" id="roomDlgNotes" hidden></p>
         <div class="room-dlg-actions">
+          <a class="room-dlg-go" id="roomDlgFind" href="../Student/scan.php">Find inside</a>
+          <a class="room-dlg-go alt" id="roomDlgWalk" href="guide-ar.php">Walk there</a>
           <button type="button" class="room-dlg-close" id="roomDlgClose">Close</button>
         </div>
       </div>
@@ -123,13 +128,20 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
       <button type="button" id="zoomOut" aria-label="Zoom out">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
       </button>
-      <button type="button" id="zoomReset" aria-label="Fit to screen">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      <button type="button" id="zoomReset" aria-label="Fit to screen" title="Fit to screen">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>
       </button>
       <button type="button" id="fullscreen" aria-label="Full screen">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
       </button>
     </div>
+
+    <!-- Street view: OpenStreetMap with a pin per building (js/map-street.js). Covers the 2D and 3D views while open. -->
+    <section class="street" id="streetView" aria-label="Street map of the campus" hidden>
+      <div class="street-map" id="streetMap"></div>
+      <div class="street-chips" id="streetChips" aria-label="Buildings"></div>
+      <div class="street-card" id="streetCard" hidden></div>
+    </section>
 
     <p class="hint" id="hint" hidden>Drag to move &middot; pinch or scroll to zoom &middot; double-tap to zoom in</p>
   </main>
@@ -139,5 +151,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <script src="../../Js/Include/offline-cache.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/offline-cache.js') ?>"></script>
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/map.js?v=<?= $jsVer ?>"></script>
+<script src="../../assets/vendor/leaflet/leaflet.js"></script>
+<script src="../../Js/Public/map-street.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/map-street.js') ?>"></script>
 </body>
 </html>

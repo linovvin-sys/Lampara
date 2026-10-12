@@ -183,7 +183,7 @@
   async function rebase(route, fix) {
     // route.b of a resolved route is the first leg's end (the walkway node or the exact captured spot), which is what the planner needs
     const base = { a: { lat: fix.lat, lng: fix.lng }, b: { lat: route.b.lat, lng: route.b.lng }, label: route.label, mode: route.mode, bNode: route.bNode };
-    if (route.c) { base.c = route.c; base.cLabel = route.cLabel; base.cNode = route.cNode; }
+    if (route.c) { base.c = route.c; base.cLabel = route.cLabel; base.cNode = route.cNode; if (route.more) base.more = route.more; }
     return Object.assign(await ARLab.campus.resolve(base), { live: route.live, liveFix: { lat: fix.lat, lng: fix.lng, acc: fix.acc } });
   }
   async function startFromHere(route, hud) {

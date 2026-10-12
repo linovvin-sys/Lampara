@@ -26,7 +26,7 @@
 // student data fresh is done by Js/Include/student-offline.js.
 
 // Bump this whenever phones must drop their saved copies (old versions' caches are deleted on activate).
-const VERSION = 'lampara-sw-v13';
+const VERSION = 'lampara-sw-v15';
 const CACHE_PAGES = VERSION + '-pages';           // admin pages (private)
 const CACHE_API = VERSION + '-api';               // admin-only API reads (private)
 const CACHE_STUDENT_PAGES = VERSION + '-student-pages'; // public
@@ -46,7 +46,7 @@ const LIB_HOSTS = [
 const TILE_HOSTS = ['tile.openstreetmap.org', 'server.arcgisonline.com'];
 
 // Endpoints that must always hit the network.
-const API_NEVER_CACHE = ['admin_login.php', 'ping.php', 'chat.php', 'scan.php', 'admin-sync.php'];
+const API_NEVER_CACHE = ['admin_login.php', 'ping.php', 'setup-health.php', 'chat.php', 'scan.php', 'admin-sync.php'];
 // Reads that are only meant for a signed-in admin: saved in the private cache.
 const API_PRIVATE = ['flags.php'];
 

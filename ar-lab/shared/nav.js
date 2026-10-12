@@ -25,7 +25,9 @@
    take a few seconds of standing still; it can not be exact. */
 (function () {
   'use strict';
-  const WEAK_GPS_M = 10;        // above this uncertainty, never auto-detect arrival (it could not tell us we are ON the stop)
+  // above this uncertainty, never auto-detect arrival (it could not tell us we are ON the stop). Indoors in a corridor the
+  // phone often reports 15-40 m, so ?weak=30 lets a test there keep auto-advancing (arrival is still only ever within ?arrive=).
+  const WEAK_GPS_M = (() => { try { const v = parseFloat(new URLSearchParams(location.search).get('weak')); if (v >= 5 && v <= 100) return v; } catch (e) { /* default */ } return 10; })();
   const ARM_EXTRA_M = 6;        // how far beyond the arrival distance you must have been to "arm" the stop
 
   function create(o) {

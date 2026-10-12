@@ -113,9 +113,14 @@
     <div class="row" role="radiogroup" aria-label="What a map tap sets" style="gap:14px">
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="tap" value="B" checked> Map taps set B</label>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="tap" value="C"> Map taps set C</label>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="radio" name="tap" value="M"> Map taps add a new stop (D, E, F...)</label>
     </div>
     <div class="row"><button class="b alt" id="btnHereC" type="button">Capture my location as C</button><button class="b alt" id="btnClearC" type="button">Remove C</button></div>
     <div class="readout" id="cInfo">None</div>
+    <h3 style="margin-top:12px">+ More stops <span style="font-weight:400;color:var(--muted);font-size:12px">(as many as you like)</span></h3>
+    <div class="row"><label class="f">Add a building as the next stop<select id="bldgM"><option value="">Choose a building...</option></select></label></div>
+    <div class="row"><button class="b" id="btnAddStop" type="button">+ Add stop at my location</button><button class="b alt" id="btnUndoStop" type="button">Remove last stop</button></div>
+    <div class="readout" id="mInfo">No extra stops. Set C first, then add D, E, F... here or by tapping the map.</div>
   </div>
 </div>
 <label class="note" style="display:flex;gap:6px;align-items:center;margin:10px 0 0"><input type="checkbox" id="showPts"> Show the admin walkway map (its yellow lines and pins). Hidden by default; nothing is changed on the system</label>
@@ -191,13 +196,15 @@
   // ---------- route state
   let A = null, B = null, label = 'Point B', mode = 'paths', bNode = null, graph = null;
   let C = null, cLabel = 'Point C', cNode = null, tap = 'B', liveStart = true;
+  let more = [];   // stops after C: [{ lat, lng, node, label }] named D, E, F...
+  const stopName = (i) => 'Point ' + String.fromCharCode(68 + i);
   const saved = ARLab.route.get();
-  if (saved) { A = saved.a; B = saved.b; label = saved.label || label; mode = saved.mode || 'straight'; bNode = saved.bNode || null; liveStart = saved.live !== false; C = saved.c || null; cLabel = saved.cLabel || cLabel; cNode = saved.cNode || null; ARLab.route.set(saved); }
-  const cur = () => Object.assign({ a: A, b: B, label, mode, bNode, live: liveStart }, C ? { c: C, cLabel, cNode } : {});
+  if (saved) { A = saved.a; B = saved.b; label = saved.label || label; mode = saved.mode || 'straight'; bNode = saved.bNode || null; liveStart = saved.live !== false; C = saved.c || null; cLabel = saved.cLabel || cLabel; cNode = saved.cNode || null; more = C && saved.more ? saved.more.map((m) => ({ lat: m.lat, lng: m.lng, node: m.node || null, label: m.label || '' })) : []; ARLab.route.set(saved); }
+  const cur = () => Object.assign({ a: A, b: B, label, mode, bNode, live: liveStart }, C ? Object.assign({ c: C, cLabel, cNode }, more.length ? { more } : {}) : {});
 
   function persist() { if (A && B) ARLab.route.set(cur()); refresh(); }
   function fmt(p) { return p ? p.lat.toFixed(6) + ', ' + p.lng.toFixed(6) : 'Not set'; }
-  function q() { return A && B ? '?a=' + A.lat.toFixed(6) + ',' + A.lng.toFixed(6) + '&b=' + B.lat.toFixed(6) + ',' + B.lng.toFixed(6) + '&label=' + encodeURIComponent(label) + '&mode=' + mode + (liveStart ? '' : '&live=0') + (bNode ? '&node=' + bNode : '') + (C ? '&c=' + C.lat.toFixed(6) + ',' + C.lng.toFixed(6) + '&cl=' + encodeURIComponent(cLabel) + (cNode ? '&cnode=' + cNode : '') : '') : ''; }
+  function q() { return A && B ? '?a=' + A.lat.toFixed(6) + ',' + A.lng.toFixed(6) + '&b=' + B.lat.toFixed(6) + ',' + B.lng.toFixed(6) + '&label=' + encodeURIComponent(label) + '&mode=' + mode + (liveStart ? '' : '&live=0') + (bNode ? '&node=' + bNode : '') + (C ? '&c=' + C.lat.toFixed(6) + ',' + C.lng.toFixed(6) + '&cl=' + encodeURIComponent(cLabel) + (cNode ? '&cnode=' + cNode : '') + (more.length ? '&m=' + more.map((m) => m.lat.toFixed(6) + '|' + m.lng.toFixed(6) + '|' + (m.node || '') + '|' + encodeURIComponent(m.label || '').replace(/~/g, '%7E')).join('~') : '') : '') : ''; }
 
   // ---------- map: same base layers and walkway styling as the admin "Campus Paths" page
   const map = L.map('map').setView(A ? [A.lat, A.lng] : [14.3279, 120.9408], A ? 18 : 17);
@@ -233,6 +240,7 @@
   function pickNode(n, doorName) {
     if (!A) { $('bInfo').textContent = 'Set A first (use your location).'; return; }
     mode = 'paths'; setRadio();
+    if (tap === 'M') { addStop({ lat: n.lat, lng: n.lng }, n.id, doorName || n.name || ''); return; }
     if (tap === 'C') {
       if (!B) { $('cInfo').textContent = 'Set B first.'; return; }
       C = { lat: n.lat, lng: n.lng }; cNode = n.id; cLabel = doorName || n.name || 'Point C'; persist(); return;
@@ -242,10 +250,18 @@
   map.on('click', (e) => {
     if (!A) { $('bInfo').textContent = 'Set A first (use your location).'; return; }
     if (mode === 'paths' && graph) { const n = ARLab.campus.nearestNode({ lat: e.latlng.lat, lng: e.latlng.lng }, graph); if (n) return pickNode(n.node); }
+    if (tap === 'M') { addStop({ lat: e.latlng.lat, lng: e.latlng.lng }, null, ''); return; }
     if (tap === 'C') { if (!B) { $('cInfo').textContent = 'Set B first.'; return; } C = { lat: e.latlng.lat, lng: e.latlng.lng }; cNode = null; cLabel = 'Point C'; persist(); return; }
     B = { lat: e.latlng.lat, lng: e.latlng.lng }; bNode = null; label = 'Point B'; persist();
   });
   document.querySelectorAll('input[name=tap]').forEach((r) => r.addEventListener('change', () => { tap = r.value; }));
+
+  // Add the next stop after the last one (D, then E, ...). Needs A, B and C first.
+  function addStop(p, node, name) {
+    if (!A || !B || !C) { $('mInfo').textContent = 'Set A, B and C first, then add more stops.'; return false; }
+    more.push({ lat: p.lat, lng: p.lng, node: node || null, label: name || stopName(more.length) });
+    persist(); return true;
+  }
 
   let seq = 0;
   async function refresh() {
@@ -258,32 +274,35 @@
     if (A) L.marker([A.lat, A.lng], { icon: pin('A', '#ffd100') }).addTo(pinLayer);
     if (B) L.marker([B.lat, B.lng], { icon: pin('B', '#ffffff') }).addTo(pinLayer);
     if (C) L.marker([C.lat, C.lng], { icon: pin('C', '#7ee8fa') }).addTo(pinLayer);
+    $('mInfo').textContent = more.length ? more.map((m, i) => String.fromCharCode(68 + i) + ': ' + m.label + ' (' + fmt(m) + ')').join('\n') : 'No extra stops. Set C first, then add D, E, F... here or by tapping the map.';
+    $('mInfo').style.whiteSpace = 'pre-line';
+    if (C) more.forEach((m, i) => L.marker([m.lat, m.lng], { icon: pin(String.fromCharCode(68 + i), '#ffb3c7') }).addTo(pinLayer));
     if (A && B) {
       const r = await ARLab.campus.resolve(cur()); if (my !== seq) return;
-      const colours = ['#2e3192', '#0a8aa6'];
+      const colours = ['#2e3192', '#0a8aa6', '#c2185b', '#e08600'];
       let all = [];
       r.legs.forEach((leg, i) => {
         const pts = leg.points.map((p) => [p.lat, p.lng]); all = all.concat(pts);
         L.polyline(pts, { color: '#ffffff', weight: 10, opacity: .95, interactive: false }).addTo(routeLayer);
-        L.polyline(pts, { color: colours[i % 2], weight: 5, interactive: false }).addTo(routeLayer);
+        L.polyline(pts, { color: colours[i % colours.length], weight: 5, interactive: false }).addTo(routeLayer);
       });
       map.fitBounds(L.latLngBounds(all).pad(0.35), { maxZoom: 19 });
       const along = mode === 'paths' && !r.fallback;
       $('sumDist').textContent = r.legs.length > 1
-        ? Math.round(r.legs[0].length) + ' m to ' + label + ' + ' + Math.round(r.legs[1].length) + ' m to ' + cLabel + ' = ' + Math.round(r.total) + ' m'
+        ? r.legs.map((l, i) => Math.round(l.length) + ' m to ' + l.label).join(' + ') + ' = ' + Math.round(r.total) + ' m'
         : Math.round(r.total) + ' m ' + (along ? 'along walkways' : 'A to B');
       $('sumBrg').textContent = 'A to B straight line ' + Math.round(geo.distance(A, B)) + ' m \u00b7 heading ' + Math.round(geo.bearing(A, B)) + '\u00b0';
       let msg = '';
       if (r.fallback) msg = r.fallback;
       else if (mode === 'paths') msg = r.snapDist > 25 ? 'You are ' + Math.round(r.snapDist) + ' m from the nearest walkway, so the path starts with a straight connector to it.' : 'Path joins the walkway ' + Math.round(r.snapDist) + ' m from you.';
-      if (r.legs.length > 1) msg += ' The arrow shows B first, then switches to C once you are standing on B (within ' + ARLab.cfg.arrive + ' m, GPS better than 10 m).';
+      if (r.legs.length > 1) msg += ' The arrow shows B first, then switches to each next stop in order once you are standing on the current one (within ' + ARLab.cfg.arrive + ' m, GPS better than 10 m).';
       $('routeInfo').textContent = msg;
     } else { $('sumDist').textContent = 'No route'; $('sumBrg').textContent = '-'; $('routeInfo').textContent = ''; if (A) map.setView([A.lat, A.lng], 18); }
     renderEngines();
   }
   $('liveStart').addEventListener('change', (e) => { liveStart = e.target.checked; persist(); });
   function setRadio() { document.querySelectorAll('input[name=mode]').forEach((r) => { r.checked = r.value === mode; }); }
-  document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', () => { mode = r.value; if (mode === 'straight') bNode = cNode = null; persist(); }));
+  document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', () => { mode = r.value; if (mode === 'straight') { bNode = cNode = null; more.forEach((m) => { m.node = null; }); } persist(); }));
 
   // ---------- controls
   $('btnHere').addEventListener('click', async (ev) => {
@@ -329,8 +348,25 @@
     B = geo.destination(A, parseFloat($('dropDir').value), m); bNode = null; label = 'Point B'; persist();
     if (m < 25) { $('bInfo').textContent += '\nOnly ' + Math.round(m) + ' m: GPS error is usually 5-20 m, so use 30 m or more to see the arrow working.'; $('bInfo').style.whiteSpace = 'pre-line'; }
   });
-  $('btnClear').addEventListener('click', () => { A = B = C = null; bNode = cNode = null; ARLab.route.clear(); refresh(); });
-  $('btnClearC').addEventListener('click', () => { C = null; cNode = null; $('bldgC').value = ''; persist(); });
+  $('btnClear').addEventListener('click', () => { A = B = C = null; bNode = cNode = null; more = []; ARLab.route.clear(); refresh(); });
+  $('btnClearC').addEventListener('click', () => { C = null; cNode = null; more = []; $('bldgC').value = ''; persist(); });
+  $('btnUndoStop').addEventListener('click', () => { more.pop(); persist(); });
+  $('btnAddStop').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, info = $('mInfo'), text = btn.textContent;
+    if (!A || !B || !C) { info.textContent = 'Set A, B and C first, then add more stops.'; return; }
+    btn.disabled = true; btn.textContent = 'Getting a GPS fix...';
+    try {
+      const f = await ARLab.sensors.bestFix(20000, 8, (best, n) => { info.textContent = 'Reading GPS... best ±' + Math.round(best.acc) + ' m (' + n + ' readings)'; });
+      addStop({ lat: f.lat, lng: f.lng }, null, 'My location (' + String.fromCharCode(68 + more.length) + ')');
+      if (f.acc > 25) info.textContent += '\nGPS is weak (±' + Math.round(f.acc) + ' m): capture again outdoors with open sky.';
+    } catch (e) { info.textContent = e.message + (window.isSecureContext ? '' : ' (page is not HTTPS)'); }
+    btn.disabled = false; btn.textContent = text;
+  });
+  $('bldgM').addEventListener('change', (e) => {
+    const b = graph && graph.buildings.find((x) => String(x.id) === e.target.value); e.target.value = ''; if (!b) return;
+    const n = b.entrance_node_id ? graph.nodes.find((x) => x.id === +b.entrance_node_id) : null;
+    if (n) { mode = 'paths'; setRadio(); addStop({ lat: n.lat, lng: n.lng }, n.id, b.name); } else addStop({ lat: +b.lat, lng: +b.lng }, null, b.name);
+  });
   $('btnCopy').addEventListener('click', async () => {
     if (!A || !B) { $('copyNote').textContent = 'Set A and B first.'; return; }
     const url = location.origin + location.pathname + q();
@@ -348,6 +384,7 @@
     }).join('');
     $('bldg').innerHTML = '<option value="">Choose a building...</option>' + opts;
     $('bldgC').innerHTML = '<option value="">No second stop</option>' + opts;
+    $('bldgM').innerHTML = '<option value="">Choose a building...</option>' + opts;
     if (!A && g.nodes.length) map.fitBounds(g.nodes.map((n) => [n.lat, n.lng]), { padding: [30, 30], maxZoom: 18 });
     refresh();
   }).catch(() => { $('bldg').innerHTML = '<option value="">Walkway data not reachable: straight-line only</option>'; mode = 'straight'; setRadio(); });
@@ -360,7 +397,7 @@
     label = b.name; persist();
   });
   $('bldgC').addEventListener('change', (e) => {
-    if (!e.target.value) { C = null; cNode = null; persist(); return; }
+    if (!e.target.value) { C = null; cNode = null; more = []; persist(); return; }
     const b = graph && graph.buildings.find((x) => String(x.id) === e.target.value); if (!b) return;
     if (!A || !B) { $('cInfo').textContent = 'Set A and B first.'; e.target.value = ''; return; }
     const n = b.entrance_node_id ? graph.nodes.find((x) => x.id === +b.entrance_node_id) : null;

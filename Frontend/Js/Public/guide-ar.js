@@ -2,28 +2,7 @@ const { createApp } = Vue;
 
 // Shown on the start screen and in AR debug, so you can tell at a glance whether the phone is
 // running this version or an old cached copy. Change it with each AR fix.
-const AR_BUILD = 'AR build: v18 (building outlines)';
-
-// Movement comes from your STEPS, not raw GPS: GPS jumps 5-20 m on its own (worst near walls
-// and indoors), which moved you even while standing still. Each detected step moves you this
-// far in the direction you face, kept on the drawn path; standing still = not moving.
-const STEP_LENGTH_M = 0.75;       // starting guess; learned from GPS while you walk (learnStride)
-const STRIDE_MIN_M = 0.5, STRIDE_MAX_M = 1.1;
-const STRIDE_LEARN_MAX_ACC_M = 15; // only learn from fixes at least this accurate
-const STRIDE_LEARN_MIN_M = 15;     // ...and over at least this much walking
-const STEP_SNAP_M = 8;            // a step follows a drawn path only if one is this close
-const ROUTE_HEADING_TOL_DEG = 75;  // facing within this of the route = walk along the route
-const GRAPH_HEADING_TOL_DEG = 70;  // same, for any drawn walkway
-const CORNER_TURN_DEG = 55;        // a heading change this big while walking = you took a corner
-const CORNER_SNAP_M = 12;          // ...and you are put on a corner/junction node this close
-const CORNER_COOLDOWN_STEPS = 8;
-const CONSIST_FIXES = 5;           // GPS must disagree the same way this many fixes in a row...
-const CONSIST_MIN_M = 4;           // ...by at least this much (average)...
-const CONSIST_ACC_M = 20;          // ...using only fixes at least this accurate
-const CONSIST_PULL = 0.5;          // then you are moved this fraction of the way to it
-// GPS is then only a safety net for big drift: ignored while it agrees within this distance...
-const GPS_TRUST_MIN_M = 8;
-const GPS_PULL = 0.25;            // ...otherwise you are pulled this fraction of the way toward it per fix
+const AR_BUILD = 'AR build: v29 (clear navigation + switch destination)';
 
 // How far below the phone the ground is, in meters (phone held up in front of you while
 // walking ~1.4; default set a little lower, 1.6, so it never looks like it floats). The path is laid exactly this far below the camera. If it looks like it
@@ -32,114 +11,61 @@ const EYE_HEIGHT_M = (() => {
   try { const v = parseFloat(new URLSearchParams(location.search).get('h')); if (v > 0.5 && v < 2.5) return v; } catch (e) { /* default */ }
   return 1.6;
 })();
-// Entity Y for a ribbon so its surface sits EYE_HEIGHT_M below the camera. The ribbon's own
-// geometry is already raised by ArRibbon.GROUND_Y, so that is subtracted here (it used to be
-// counted twice, leaving the path ~0.2 m above the real ground).
-function ribbonEntityY(camY) { return camY - EYE_HEIGHT_M - ArRibbon.GROUND_Y; }
 
 // Top-down mini-map (north up) — lets you check, anywhere, that the drawn paths and your
 // position/heading are what the AR scene is using. Tap it to zoom out/in.
-const MINIMAP_RADII_M = [40, 120];
-const MAP_BG_MAX_SIDE = 2400;     // largest side (px) the campus map picture is drawn at under the mini-map
-const MAP_FIT_MAX_ERR_M = 40;     // skip the picture if the entrance pins fit it worse than this
-const MINIMAP_EASE = 0.3;        // fraction of the gap the drawn dot closes each redraw (smooth gliding)
+const MINIMAP_RADII_M = [40, 120, 300];
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';   // the mini-map's base: OpenStreetMap
+const OSM_MIN_ZOOM = 14, OSM_MAX_ZOOM = 19;
+const OSM_CACHE_MAX = 150;        // tiles kept in memory
+const MINIMAP_EASE = 0.6;        // fraction of the gap the drawn dot closes each redraw (smooth gliding)
 
 // The 3D camera must see the same slice of the world as the phone camera, or the paths slide
-// against the video when you turn (A-Frame's default is 80 deg; phone cameras see less).
-// This is the phone camera's view across its LONG side, in degrees — ~65-70 on most phones.
-// Tune per phone without editing code by adding ?fov=NN to the page URL.
+// against the video when you turn. This is the phone camera's view across its LONG side, in
+// degrees — ~65-70 on most phones. Tune per phone without editing code by adding ?fov=NN to the page URL.
 const CAMERA_LONG_FOV_DEG = (() => {
   try { const v = parseFloat(new URLSearchParams(location.search).get('fov')); if (v > 20 && v < 120) return v; } catch (e) { /* default */ }
   return 67;
 })();
 
-// Genuine extruded 3D text needs a loaded font mesh (three.js TextGeometry +
-// a font file) — heavier than this needs. This is the standard lightweight
-// fake: stack several copies of the same text slightly behind each other in
-// depth, each darker than the last, so it reads as solid extruded letters
-// instead of one flat plane. The whole stack moves as a rigid group (one
-// look-at on the parent) so the layers never drift out of alignment.
-const LABEL_DEPTH_LAYERS = 4;
-const LABEL_LAYER_STEP = 0.02;
-
-function darkenHex(hex, amount) {
-  const n = parseInt(hex.replace('#', ''), 16);
-  const r = Math.max(0, Math.round(((n >> 16) & 255) * (1 - amount)));
-  const g = Math.max(0, Math.round(((n >> 8) & 255) * (1 - amount)));
-  const b = Math.max(0, Math.round((n & 255) * (1 - amount)));
-  return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
-}
-
-function createLabelGroup(text) {
-  const group = document.createElement('a-entity');
-  group.setAttribute('look-at', '[gps-new-camera]');
-  const layers = [];
-  // Built back-to-front: layers[0] is the furthest-back copy, the last one
-  // pushed (i=0, z=0) is the front-most, brightest, actually-readable copy.
-  for (let i = LABEL_DEPTH_LAYERS; i >= 0; i--) {
-    const t = document.createElement('a-text');
-    t.setAttribute('value', text);
-    t.setAttribute('align', 'center');
-    // wrap-count (not width — width scales the base font size itself) is
-    // what actually controls when text wraps to a new line.
-    t.setAttribute('wrap-count', '30');
-    t.setAttribute('position', `0 0 ${-i * LABEL_LAYER_STEP}`);
-    t.classList.add('ar-clickable');
-    group.appendChild(t);
-    layers.push(t);
-  }
-  return { group, layers };
-}
-function setLabelValue(entry, value) {
-  entry.labelLayers.forEach((t) => t.setAttribute('value', value));
-}
-function setLabelColor(entry, frontColor, opacity) {
-  const layers = entry.labelLayers;
-  const frontIdx = layers.length - 1;
-  layers.forEach((t, idx) => {
-    const depthFromFront = frontIdx - idx;
-    const color = depthFromFront === 0 ? frontColor : darkenHex(frontColor, Math.min(0.75, depthFromFront * 0.22));
-    t.setAttribute('color', color);
-    t.setAttribute('material', `opacity: ${opacity}; transparent: true`);
-  });
-}
-
-// Ground ribbon rendering lives in Include/ar-ribbon.js (shared with the indoor
-// guide); these are just the outdoor page's own route thresholds.
-const RIBBON_VISIBLE_METERS = 300;   // the whole route in practice; only a very long walk is cut (and then fades out)
 const ARRIVED_METERS = 8;
-const FAR_BOOST_FROM = 100;        // from here the destination marker is enlarged...
-const FAR_BOOST_TO = 300;          // ...reaching its largest at this distance
-const FAR_BOOST_MAX = 1.9;         // ...which is this many times the normal size
-const ARROW_TIP_Y = 0.2;           // the destination arrow's tip stays this high above the building's spot, however far away you are
-const OFF_PATH_METERS = 60;        // farther from any walkway than this -> no ribbon
-// Raw phone GPS while walking is typically only accurate to 3-10m, worse
-// near buildings, and jitters between fixes — this can't be eliminated
-// (it's the hardware's real accuracy, not a bug), only smoothed so the
-// ribbon/arrow don't visibly jump with every noisy fix. Doesn't touch
-// AR.js's own separate internal camera GPS tracking.
-const GPS_MAX_ACCURACY_M = 30;    // a fix worse than this is dropped outright, keeping the last good position
-const GPS_SMOOTH_ALPHA = 0.35;    // how much each new fix moves the smoothed position (0-1, lower = calmer but slower to follow real movement)
+const OFF_PATH_METERS = 60;        // farther from any walkway than this: the banner says to head to the nearest one
+const ROUTE_MAX_M = 1500;
+// Leaving the campus and coming back: you count as OUTSIDE once you are more than OUTSIDE_M beyond the campus edge, and as
+// inside again within OUTSIDE_BACK_M of it (the gap stops it flipping back and forth right at the fence).
+// Which buildings are outside the gates, which point is the main way in and which gate is a vehicle gate: see CampusRoute
+// (Js/Public/campus-route.js), shared with the Campus Paths admin page.
+// ---- text directions ("Turn left in 23 m") ----
+const NAV_REACH_M = 3;             // a turn / gate counts as reached when you are this close to it (the route is also rebuilt from where you stand every second or two, which drops a corner you have passed)
+const NAV_TURN_NEAR_M = 30;        // from this close the instruction becomes "Turn left in N m"; farther it is "Continue straight for N m"
+const NAV_TURN_MIN_DEG = 30;       // a change of direction at least this big is a turn
+const NAV_WALK_M_PER_MIN = 78;     // walking pace for the time estimate (about 1.3 m/s)
+const NAV_FACING_DEG = 70;         // facing more than this away from the path: tell the user to turn
+// The words and the arrow for a turn. angle > 0 = to the right.
+function turnWord(angle) {
+  const a = Math.abs(angle), side = angle < 0 ? 'left' : 'right';
+  if (a >= 165) return { word: 'Turn around', icon: 'uturn' };
+  if (a >= 120) return { word: 'Make a sharp ' + side, icon: 'sharp-' + side };
+  if (a >= 60) return { word: 'Turn ' + side, icon: side };
+  return { word: 'Bear ' + side, icon: 'slight-' + side };
+}
+const NAV_ICON_DEG = { straight: 0, 'slight-left': -45, left: -90, 'sharp-left': -135, uturn: 180, 'slight-right': 45, right: 90, 'sharp-right': 135 };
 
-// AR.js's default projection is spherical Web Mercator, whose "meters" are stretched by
-// 1/cos(latitude) — at this campus (~14.3 N) every distance in the scene was ~3% too long
-// (a 200 m walk drawn as ~206 m), and the ribbon/buildings looked farther than they are.
-// Swapped in for a true local metric projection (same flat-earth maths campus-route.js uses).
+const OUTSIDE_SNAP_M = 40;         // you are "on the outside walkways" when the nearest walkway is an outside one within this
+const OUTSIDE_M = 25;
+const OUTSIDE_BACK_M = 5;
+// Choosing which gate to come back through: the walk to the gate is outside the drawn walkways (no street data), so it is
+// the straight distance times this to allow for turns and crossings.
+const OUTSIDE_DETOUR = 1.3;
+// A vehicle gate is for vehicles; on foot it is only chosen when it clearly saves this much over the main gate.
+const VEHICLE_GATE_PENALTY_M = 40;          // a building farther away than this (you are not on campus) gets no path
 const PROJ_M_PER_DEG = 111320;
 const DEFAULT_CAMPUS_LAT = 14.3283;
+const DEFAULT_CAMPUS_LNG = 120.9408;
 // The building's own pin is usually mid-building, tens of meters past the door. The ribbon
 // stops at the entrance; it is only carried on to the marker when that is this close.
 const MARKER_EXTEND_MAX_M = 12;
-// Automatic heading alignment (see autoAlignHeading): how far you must walk along a drawn
-// path before that movement is trusted as a compass reference, and how loosely the samples
-// must agree before one is applied.
-const ALIGN_MIN_WALK_M = 6;
-const ALIGN_MAX_WINDOW_MS = 25000;
-const ALIGN_SAMPLES_NEEDED = 3;
-const ALIGN_MAX_SPREAD_DEG = 25;
-const ALIGN_STEP = 0.35;         // fraction of the remaining error corrected per accepted sample
-const ALIGN_DEADBAND_DEG = 2;
-// Scanning the anchor QR (inside the AR view, so the AR camera's own heading is known at that
+// Scanning the anchor QR (inside the AR view, so the camera's own heading is known at that
 // exact moment): any successful read counts; heading samples are taken for up to ANCHOR_MAX_WAIT_MS.
 const ANCHOR_HFOV_DEG = 55;       // typical portrait back-camera horizontal field of view
 const ANCHOR_HITS_NEEDED = 2;
@@ -147,14 +73,29 @@ const ANCHOR_MAX_WAIT_MS = 1200;  // after the first read, finish within this ev
 // Students walk on the walkways, so your position is pinned onto the nearest drawn path when
 // it is this close (removes GPS's sideways error, the "path runs beside the road" effect).
 const SNAP_TO_PATH_M = 15;
-const CAM_FOLLOW_MS = 600;        // how quickly the camera glides to a new position (no teleporting)
-function makeLocalProjection(lat0) {
-  const kx = PROJ_M_PER_DEG * Math.cos(lat0 * Math.PI / 180);
-  return {
-    project: (lon, lat) => [lon * kx, lat * PROJ_M_PER_DEG],
-    unproject: (p) => [p[0] / kx, p[1] / PROJ_M_PER_DEG],
-    getID: () => 'local-metric'
-  };
+
+// ---- campus edge: the convex hull of everything drawn (building outlines, walkway points, building pins), in metres
+function hullXY(pts) {
+  const p = pts.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+  if (p.length < 3) return p;
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = [], upper = [];
+  p.forEach((q) => { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); });
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  upper.pop(); lower.pop();
+  return lower.concat(upper);
+}
+// How far a point is OUTSIDE a convex polygon (0 when inside).
+function outsideDistXY(pt, poly) {
+  let inside = true, best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    if ((b.x - a.x) * (pt.y - a.y) - (b.y - a.y) * (pt.x - a.x) < 0) inside = false;     // hull is counter-clockwise
+    const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((pt.x - a.x) * dx + (pt.y - a.y) * dy) / l2));
+    best = Math.min(best, Math.hypot(pt.x - (a.x + t * dx), pt.y - (a.y + t * dy)));
+  }
+  return inside ? 0 : best;
 }
 
 function haversineMeters(a, b) {
@@ -183,6 +124,7 @@ function relativeAngle(fromDeg, toDeg) {
   return ((toDeg - fromDeg + 540) % 360) - 180;
 }
 
+
 createApp({
   data() {
     return {
@@ -192,7 +134,7 @@ createApp({
       quickStart: false,
       statusText: '',
       statusOk: false,
-      headingInit: false, // set true once AR.js's own gps-new-camera reports a heading-driven update
+      headingInit: false, // set true once the compass is delivering a heading
       // Independent compass reading (same technique guide.php uses), for
       // the "turn left/right" off-screen indicator only — not connected to
       // AR.js's own internal compass driving the 3D scene.
@@ -202,22 +144,22 @@ createApp({
       // markup for why these can't be full stop/start like guide.php's.
       cameraOn: true,
       locationOn: true,
-      gpsWatchId: null,
       buildings: [],
       // Outdoor walkway graph (Campus Paths admin page) — the ground ribbon
       // routes over this. Empty graph = no ribbon, the arrow marker still works.
       campusGraph: { nodes: [], edges: [] },
       // Banner state for the route: null | { status: 'ok'|'arrived'|'off-path', dir, turnDistance, remaining }
       routeInfo: null,
-      myPos: null,
+      myPos: null,            // reactive, updated about once a second (drives routing and the banner)
+      gateNote: '',           // what the start screen is waiting for
       searchQuery: '',
       showAllBuildings: false, // toggled by the dropdown-browse button, independent of searchQuery
+      searchOpen: false,       // the search box has focus: show the building list even before anything is typed
       target: null,
       chatOpenFor: null,
       chatMessages: [],
       chatInput: '',
       chatLoading: false,
-      arEntities: {}, // building.id -> {wrapper, label, arrow}
       // The campus's one registered AR anchor (Campus Paths admin page), or
       // null if none is set — gates whether starting requires scanning it
       // first. Mirrors indoor-ar.js's floor anchor, same idea: fix the real
@@ -228,6 +170,25 @@ createApp({
       anchorScanned: false,
       anchorScanError: '',
       anchorScanHint: '',
+      refreshing: false, // "Refresh path" in progress
+      // text directions
+      guidance: null,         // what to do right now: { icon, title, dist, detail, badge, facing, totalM, etaMin, step }
+      stepList: [],           // every instruction on the way, for the Directions list
+      directionsOpen: false,
+      menuOpen: false,        // the "more" menu at the top
+      miniMapOn: (() => { try { return localStorage.getItem('lampara_ar_minimap') !== '0'; } catch (e) { return true; } })(),
+      voiceOn: (() => { try { return localStorage.getItem('lampara_ar_voice') === '1'; } catch (e) { return false; } })(),
+      // start screen
+      gateQuery: '',          // search box on the start screen
+      gateAll: false,         // show every building on the start screen (4 by default, so the button stays in view on a small phone)
+      debugUi: /[?&]debug\b/.test(location.search), // the build label is for testers only
+      rooms: [],              // the directory, so the start screen and the search bar can find offices and rooms, not only buildings
+      pendingRoom: null,      // a room picked by name: its building is the outdoor destination, and 'Find inside' opens that room afterwards
+      pendingTarget: null,    // the building picked on the start screen (chosen as soon as the AR view is up)
+      gateStage: '',          // what start-up is doing: 'map' | 'camera' | 'gps' | 'ready'
+      gateAcc: null,          // GPS accuracy while waiting for a fix
+      clearNav: (() => { try { return localStorage.getItem('lampara_ar_clear') !== '0'; } catch (e) { return true; } })(),   // clear navigation switch (on by default)
+      refreshNote: '',   // what it is doing right now (shown on the button)
       anchorNote: '',   // short confirmation after the scan: what the QR fixed
       headingLocked: false, // true once walking along a drawn path has auto-corrected the compass heading
       anchorPos: null, // lat/lng of the scanned anchor — what the GPS-error correction is measured against
@@ -239,6 +200,22 @@ createApp({
     };
   },
   computed: {
+    // The buildings listed on the start screen: matches for what was typed, or all of them.
+    gateList() {
+      const q = this.gateQuery.trim().toLowerCase();
+      const list = q ? this.buildings.filter((b) => b.name.toLowerCase().includes(q)) : this.buildings.slice();
+      return list.sort((a, b) => a.name.localeCompare(b.name)).slice(0, q || this.gateAll ? 12 : 4);
+    },
+    gateRooms() { return this.findRooms(this.gateQuery); },
+    ddRooms() { return this.findRooms(this.searchQuery); },
+    // The 'Find inside' button: opens the picked room when it is in the building being walked to, otherwise the sign scanner.
+    insideHref() {
+      const r = this.pendingRoom;
+      return r && this.target && String(r.building_id) === String(this.target.id) ? '../Student/scan.php?room=' + r.id : '../Student/scan.php';
+    },
+    insideLabel() { return this.insideHref.indexOf('room=') !== -1 ? 'Find ' + this.pendingRoom.room_name + ' inside' : 'Scan room sign'; },
+    // Clear navigation is in effect: a building is chosen and the switch is on. Everything but the search bar, Ask Lampara and the path is hidden.
+    clearActive() { return this.clearNav && !!this.target; },
     searchMatches() {
       const q = this.searchQuery.trim().toLowerCase();
       if (q.length < 2) return [];
@@ -247,9 +224,15 @@ createApp({
     // What the dropdown actually shows: filtered matches while typing, or
     // every registered building when browsing via the toggle button with
     // nothing typed — two entry points into the same list UI.
+    // While a destination is set the list still opens, so you can switch to another building before reaching the first one;
+    // nearest first when your position is known.
     dropdownList() {
-      if (this.searchQuery.trim().length >= 2) return this.searchMatches;
-      return this.showAllBuildings ? this.buildings : [];
+      let list = [];
+      if (this.searchQuery.trim().length >= 2) list = this.searchMatches;
+      else if (this.showAllBuildings || this.searchOpen) list = this.buildings;
+      const here = this._pos || this.myPos;
+      if (!here || list.length < 2) return list;
+      return list.slice().sort((a, b) => haversineMeters(here, a) - haversineMeters(here, b));
     },
     // null while facing the target closely enough that it should already be
     // visible in the 3D scene; 'left'/'right' once it's far enough outside
@@ -261,20 +244,6 @@ createApp({
       if (rel > 35) return 'right';
       if (rel < -35) return 'left';
       return null;
-    }
-  },
-  watch: {
-    // Typing never auto-selects anymore, even down to exactly one match —
-    // a short, distinctive name (like "Test AR") used to lock in as the
-    // target the instant it became unique, before you'd necessarily
-    // finished typing or meant to select it yet. Always requires an
-    // explicit tap from the dropdown below. This only clears the current
-    // target if it's no longer among the matches (e.g. you changed the
-    // search text away from it) — it doesn't set one on its own.
-    searchMatches(matches) {
-      if (this.target && !matches.some(b => b.id === this.target.id)) {
-        this.setTarget(null);
-      }
     }
   },
   async mounted() {
@@ -290,16 +259,35 @@ createApp({
     } catch (e) { /* Permissions API unsupported for 'camera' — fall back to the full gate */ }
     this.checking = false;
   },
+  async created() {
+    // Buildings are loaded up front so a destination can be picked on the start screen before anything is asked of the phone.
+    try {
+      this.buildings = await LamparaCache.loadBuildings('../../../Backend/api/buildings.php');
+      // The landing page links here with ?to=<building id>: that building is already chosen on the start screen.
+      const to = new URLSearchParams(location.search).get('to');
+      const b = to ? this.buildings.find((x) => String(x.id) === to) : null;
+      if (b) this.pendingTarget = b;
+    } catch (e) { /* loaded again on start */ }
+    // The directory loads on its own: a slow or missing one only means no room results.
+    await this.loadRooms();
+    // Manual Search links here with ?room=<id> (and ?to=<its building>): remember the room for the 'Find inside' button.
+    const rid = new URLSearchParams(location.search).get('room');
+    const room = rid ? this.rooms.find((x) => String(x.id) === rid) : null;
+    if (room) { this.pendingRoom = room; if (!this.pendingTarget) this.pendingTarget = this.buildings.find((x) => String(x.id) === String(room.building_id)) || null; }
+  },
   methods: {
     async start() {
       this.checking = true;
       this.quickStart = false;
-      // iPhone only grants step counting (motion) from inside the tap that started this.
-      try {
-        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-          DeviceMotionEvent.requestPermission().catch(() => {});
-        }
-      } catch (e) { /* not available: GPS-only movement */ }
+      this.statusText = '';
+      this.gateStage = 'map';
+      if (!window.LamparaLocar) {
+        this.statusText = 'The AR engine could not load. Check your connection and reload.';
+        this.checking = false;
+        return;
+      }
+      // iPhone only grants compass/motion from inside the tap that started this, so ask before any await.
+      const motion = LamparaLocar.requestMotion();
 
       if (!navigator.geolocation) {
         this.statusText = 'Geolocation not supported.';
@@ -319,13 +307,19 @@ createApp({
       } catch (e) { this.campusAnchor = null; }
 
       this.loadFootprints(); // building outlines + roads under the mini-map; never blocks starting AR
+      this.gateStage = 'camera';
+      if (await motion === 'denied') {
+        this.statusText = 'Motion and compass permission was denied. Allow it in the browser settings and try again.';
+        this.checking = false;
+        return;
+      }
+      await this.proceedToAr();
       this.checking = false;
-      this.proceedToAr();
     },
     // Scanning the campus's one registered AR anchor fixes where you stand AND which way you
-    // face. It happens inside the AR view (frames are read from AR.js's own camera video) so the
+    // face. It happens inside the AR view (frames are read from LocAR's own camera video) so the
     // AR camera's heading is known at the instant the code is seen:
-    //   position  -> ensureAnchorShift(): the anchor's real spot vs where GPS put the camera
+    //   position  -> the anchor's real spot replaces where GPS put the camera (and its GPS error is remembered)
     //   direction -> the anchor's stored scan_heading (the bearing you face toward the sign, set
     //                from the map in Campus Paths) minus how far off-center the code is in view,
     //                compared with where the AR camera thinks it points. The difference is the
@@ -348,8 +342,8 @@ createApp({
       if (!this._anchorCanvas) this._anchorCanvas = document.createElement('canvas');
       const canvas = this._anchorCanvas;
       while (this.scanningAnchor) {
-        // AR.js owns the camera; its <video> is what we read (a second getUserMedia would fight it).
-        const video = document.querySelector('#arjs-video') || document.querySelector('video');
+        // LocAR owns the camera; its <video> is what we read (a second getUserMedia would fight it).
+        const video = LamparaLocar.video() || document.querySelector('video');
         if (video && video.readyState >= 2 && video.videoWidth && typeof jsQR !== 'undefined') {
           const scale = Math.min(1, 640 / video.videoWidth);
           canvas.width = Math.round(video.videoWidth * scale);
@@ -405,14 +399,14 @@ createApp({
       this.stopAnchorScan();
       this.anchorPos = { lat: info.lat, lng: info.lng };
       this.myPos = { lat: info.lat, lng: info.lng };
+      this._pos = this.myPos;
       this.statusOk = true;
       this.anchorScanned = true;
       this.showAllPaths = true;
       if (info.scan_heading != null && this._anchorHits.length) {
         const hits = this._anchorHits.slice().sort((a, b) => a - b);
-        this._alignOffsetDeg = hits[Math.floor(hits.length / 2)];
+        LamparaLocar.setHeadingOffset(hits[Math.floor(hits.length / 2)]);
         this.headingLocked = true;
-        this._headingSamples = [];
         this.anchorNote = 'Position and direction set from the QR';
       } else if (info.scan_heading != null) {
         this.anchorNote = 'Position set. Direction will line up after a few steps along the path.';
@@ -420,267 +414,145 @@ createApp({
         this.anchorNote = 'Position set. This QR has no direction yet (Admin → Campus Paths).';
       }
       setTimeout(() => { this.anchorNote = ''; }, 6000);
-      this._shiftDone = false;
-      this.ensureAnchorShift();
-      this.applyWorldTransform();
-      if (this.showAllPaths) { this._forceRebuildPaths = true; this.renderAllPaths(); }
+      // Raw GPS is typically 5-20 m off. The QR tells us where you REALLY are, so (raw fix at the sign - anchor) is the
+      // GPS error; the engine subtracts it from every later fix. Needs a fresh reading, otherwise the next one is used.
+      const raw = LamparaLocar.lastRawFix();
+      if (raw && Date.now() - raw.t < 15000) {
+        this._anchorCorr = { lat: raw.lat - info.lat, lng: raw.lng - info.lng };
+        LamparaLocar.resetPosition(info.lat, info.lng, this._anchorCorr);
+      } else {
+        LamparaLocar.resetPosition(info.lat, info.lng);
+        this._pendingAnchorCorr = true;
+      }
+      this.renderAllPaths();
       return true;
     },
     skipAnchorScan() {
       this.stopAnchorScan();
       this.anchorScanned = true;
     },
-    proceedToAr() {
-      // AR.js requests the camera itself once <a-scene> mounts, right after
-      // the original tap — not before the user knows why.
+    // LocAR starts the camera (permission prompt) and the GPS/compass itself; the page only reacts to its fixes.
+    async proceedToAr() {
+      const mid = (arr) => arr.length ? arr.reduce((a, v) => a + v, 0) / arr.length : null;
+      const nodes = this.campusGraph.nodes;
+      const bl = this.buildings.map((b) => b.lat).filter((v) => typeof v === 'number');
+      const bg = this.buildings.map((b) => b.lng).filter((v) => typeof v === 'number');
+      const origin = {
+        lat: mid(bl) ?? mid(nodes.map((n) => n.lat)) ?? DEFAULT_CAMPUS_LAT,
+        lng: mid(bg) ?? mid(nodes.map((n) => n.lng)) ?? DEFAULT_CAMPUS_LNG
+      };
+      try {
+        await LamparaLocar.start({
+          origin,
+          eyeHeight: EYE_HEIGHT_M,
+          fov: CAMERA_LONG_FOV_DEG,
+          onFix: (raw, ff) => this.onFix(raw, ff),
+          onHeadingLock: () => { this.headingLocked = true; },
+          onError: (m) => { this.statusText = m; },
+          onTap: (b) => { this.selectBuilding(b); this.openChat(b); }
+        });
+      } catch (e) {
+        const msg = e && e.message ? e.message : String(e);
+        this.statusText = /denied|permission|notallowed/i.test(msg) ? 'The camera was blocked. Allow camera access for this site in your browser settings, then try again.' : 'Could not start the camera: ' + msg;
+        return;
+      }
+      // Like the AR Lab, lay the path only once there is a good GPS fix: the position filter starts from it, so the
+      // chevrons do not slide about while it settles. Gives up after 12 s and carries on with the best it has.
+      this.gateStage = 'gps';
+      const fix = await LamparaLocar.waitForFix(12000, 15, (best) => { this.gateAcc = Math.round(best.acc); });
+      this.gateStage = 'ready';
+      if (fix) { this.myPos = { lat: fix.lat, lng: fix.lng }; this._pos = this.myPos; this._posAt = Date.now(); this.statusOk = true; }
       this.started = true;
-      this.startLocationWatch();
-      this.startCompassWatch();
+      LamparaLocar.setGraph(this.campusGraph);
+      LamparaLocar.setBuildings(this.buildings);          // the name labels first, so choosing a building below can swap its label for the marker
+      if (this.pendingTarget) { const b = this.buildings.find((x) => x.id === this.pendingTarget.id); if (b) this.selectBuilding(b); }
       this.startMiniMap();
-      this.startSteps();
+      // Feeds the "turn left/right" hint and the status chip.
+      this._guideTimer = setInterval(() => this.updateGuidance(), 300);
+      this._compassTimer = setInterval(() => {
+        const h = LamparaLocar.heading(0);
+        if (h === null) return;
+        if (!this.compassReady || Math.abs(relativeAngle(this.compassHeading, h)) >= 1) this.compassHeading = h;
+        this.compassReady = true;
+        this.headingInit = true;
+      }, 250);
 
-      // Defined immediately, before anything that could throw and silently
-      // stop the rest of this setup — the button that calls this should
-      // never just do nothing with no visible error either way.
+      // Defined immediately, so the button that calls this never just does nothing with no visible error.
       window.__arDebug = () => {
         try {
-          const scene2 = this.$refs.arScene || document.querySelector('a-scene');
-          if (!scene2) { alert('No <a-scene> found in the DOM at all.'); return; }
-          const camEl = scene2.querySelector('[gps-new-camera]');
-          const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
-          const vid = document.querySelector('#arjs-video');
-          let report = AR_BUILD + '\nmovement: ' + (this._stepsActive ? 'steps (' + (this.stepCount || 0) + ' so far)' : 'GPS only (no motion sensor)') + '\nground ' + EYE_HEIGHT_M + ' m below phone (?h=)' + '\ncamera fov=' + (scene2.camera ? scene2.camera.fov.toFixed(1) : '?') + ' (long-side ' + CAMERA_LONG_FOV_DEG + ', video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none') + ')' + '\ngps-new-camera found: ' + !!camComp;
-          if (camComp) {
-            // originCoords/currentCoords belong to AR.js's OLDER gps-camera
-            // component — gps-new-camera (what we actually use) never has
-            // those properties at all, so checking them always silently
-            // read undefined and reported "null" regardless of real state.
-            // The real state lives in initialPosition (set once, only if
-            // initialPositionAsOrigin:true was passed — see the <a-camera>
-            // tag) and _currentPosition (updated on every GPS fix).
-            report += '\ninitialPositionAsOrigin option=' + camComp.data.initialPositionAsOrigin;
-            // setWorldOrigin() lives on the inner threeLoc (H.LocationBased)
-            // object, not on the component itself — it sets
-            // threeLoc.initialPosition, so that's what actually needs
-            // checking, not camComp.initialPosition (always undefined).
-            const originVal = camComp.threeLoc && camComp.threeLoc.initialPosition;
-            report += '\norigin established (threeLoc.initialPosition)=' + !!originVal + (originVal ? ' [' + originVal.join(', ') + ']' : '');
-            report += '\norigin override attempted and succeeded (_originOverrideDone)=' + !!this._originOverrideDone;
-            report += '\n_currentPosition=' + (camComp._currentPosition ? JSON.stringify(camComp._currentPosition) : 'null (no GPS fix accurate enough yet)');
-            // AR.js's OWN internal GPS watch silently discards any fix with
-            // accuracy worse than 100m before it updates _currentPosition or
-            // sets the origin — separate from our own distance-tracking
-            // watch below, which has no such filter and will keep updating
-            // regardless. Showing the live accuracy number here is the only
-            // way to tell whether you're actually close to clearing AR.js's
-            // threshold or not.
+          const vid = LamparaLocar.video();
+          const p = LamparaLocar.position();
+          let report = AR_BUILD + '\nengine: LocAR 0.2.12 (three.js)\nground ' + EYE_HEIGHT_M + ' m below phone (?h=)\ncamera long-side fov=' + CAMERA_LONG_FOV_DEG + ' (?fov=), video ' + (vid ? vid.videoWidth + 'x' + vid.videoHeight : 'none');
+          report += '\nfiltered position: ' + (p ? p.lat.toFixed(6) + ', ' + p.lng.toFixed(6) + ' (±' + Math.round(p.acc) + ' m)' : 'none yet');
+          report += '\nheading auto-aligned=' + this.headingLocked + ' offset=' + LamparaLocar.headingOffset.toFixed(1) + ' deg';
+          report += '\nGPS correction from QR=' + (this._anchorCorr ? Math.round(haversineMeters({ lat: 0, lng: 0 }, this._anchorCorr)) + ' m' : 'none') + ' snapped to path=' + (this._snapDist != null ? this._snapDist.toFixed(1) + ' m away' : 'no');
+          const here = this._pos || this.myPos;
+          if (here) {
+            const od = this.outsideMeters(here);
+            report += '\nside: ' + (this.isOutside(here) ? 'OUTSIDE the campus' : 'inside the campus') + (od === null ? '' : ' (' + Math.round(od) + ' m from the campus edge)');
+            const R = this.regions();
+            report += '\nmain entrance: ' + (R.mainEntrance ? R.mainEntrance.name : 'none found (name a point "Main Entrance")') + '; outside buildings: ' + (this.buildings.filter((b) => R.outsideBuildingIds.has(String(b.id))).map((b) => b.name).join(', ') || 'none') + '; outside walkway points: ' + R.outsideNodes.size;
           }
-          // What the camera's own Y actually is (gps-new-camera never sets
-          // altitude — if this isn't ~1.6, the ribbon's ground-tracking
-          // (setGroundY = ribbonEntityY(camY)) should be compensating for it).
-          if (camEl && camEl.object3D) {
-            const cp = camEl.object3D.position;
-            report += '\n\nCamera scene position: x=' + cp.x.toFixed(2) + ' y=' + cp.y.toFixed(2) + ' z=' + cp.z.toFixed(2);
+          report += '\ngates: ' + (this.gates().map((g) => g.name + ' (' + g.kind + ')').join(', ') || 'none drawn (set a point to type Gate in Campus Paths)');
+          if (this._gateCalc && this._gateCalc.length) {
+            this._gateCalc.forEach((o, i) => { report += '\n  ' + (i ? '  ' : '> ') + o.gate.name + ': ' + Math.round(o.toGate) + ' m to the gate + ' + Math.round(o.walk) + ' m walk' + (o.penalty ? ' + ' + o.penalty + ' vehicle' : '') + ' = ' + Math.round(o.cost) + ' m'; });
           }
-          if (this._ribbon && this._ribbon.active) {
-            report += '\nSingle-route ribbon entity Y offset=' + this._ribbon.getGroundY();
-          }
-          if (this._allPathRibbons && this._allPathRibbons.length) {
-            report += '\nAll-paths ribbons built: ' + this._allPathRibbons.length + ' segment(s), first entity Y offset=' + this._allPathRibbons[0].getGroundY();
-          } else {
-            report += '\nAll-paths ribbons built: 0 (either no edges loaded, or latLonToWorld is still failing — see campusGraph line below)';
-          }
-          report += '\nheading auto-aligned=' + this.headingLocked + ' offset=' + (this._alignOffsetDeg || 0).toFixed(1) + ' deg';
-          report += '\nprojection swapped to true-metric=' + !!this._projInstalled + ' GPS correction=' + (this._gpsCorr ? Math.round(haversineMeters({ lat: 0, lng: 0 }, this._gpsCorr)) + ' m' : 'none') + ' snapped to path=' + (this._snapDist != null ? this._snapDist.toFixed(1) + ' m away' : 'no');
+          const off = LamparaLocar.routeOffMeters();
+          report += '\nroute on ground=' + (off !== null) + (off !== null ? ' (' + off.toFixed(1) + ' m off it)' : '');
+          if (off === null) report += '\n  why not: ' + this.routeWhyNot();
           report += '\ncampusGraph loaded: ' + this.campusGraph.nodes.length + ' node(s), ' + this.campusGraph.edges.length + ' edge(s)';
           report += '\nshowAllPaths=' + this.showAllPaths + ' anchorScanned=' + this.anchorScanned;
-          if (this.target && this.arEntities[this.target.id]) {
-            const entry = this.arEntities[this.target.id];
-            const pos = entry.wrapper.object3D.position;
-            report += '\n\nTarget (' + this.target.name + ') entity position: x=' + pos.x.toFixed(1) + ' y=' + pos.y.toFixed(1) + ' z=' + pos.z.toFixed(1);
-            report += '\nvisible=' + entry.wrapper.object3D.visible + ' has arrow=' + !!entry.arrow;
-          } else {
-            report += '\n\nNo target selected yet — search a building first, then tap this button again.';
-          }
-          navigator.geolocation.getCurrentPosition(
-            (p) => {
-              report += '\n\nRaw GPS right now: accuracy=' + Math.round(p.coords.accuracy) + 'm (AR.js needs ≤100m to lock on)';
-              alert(report);
-            },
-            (err) => { report += '\n\nRaw GPS error: ' + err.message; alert(report); },
-            { enableHighAccuracy: true }
-          );
+          if (!this.showAllPaths) report += '\n  why not: ' + (this.target ? 'a building is chosen, so only its route is shown' : !this.campusAnchor ? 'no campus QR anchor is registered (Admin → Campus Paths)' : !this.anchorScanned ? 'the campus QR has not been scanned yet' : 'the QR scan was skipped; only a completed scan shows the whole network');
+          report += this.target ? '\n\nTarget: ' + this.target.name + ' (' + this.target.distance + ' m)' : '\n\nNo target selected yet: search a building first, then tap this button again.';
+          alert(report);
         } catch (e) {
           alert('AR debug threw an error: ' + e.message);
         }
       };
 
-      this.$nextTick(() => {
-        const scene = this.$refs.arScene;
-        if (!scene) return;
-
-        // Wins the race against AR.js's own GPS watch: gps-new-camera only
-        // sets its origin from a real fix if initialPosition is still null
-        // at that point (see aframe-ar.js's _gpsReceived). A single
-        // synchronous attempt at scene-ready time turned out to be
-        // unreliable — threeLoc isn't guaranteed to exist that exact
-        // instant — so this polls every 150ms until it actually succeeds
-        // (or AR.js's own GPS beats us to it, in which case initialPosition
-        // is already set and we correctly back off instead of clobbering
-        // it). Setting this means the scanned QR's precise lat/lng becomes
-        // the scene's actual coordinate origin — not just a separate
-        // variable (myPos) used only for our own route math, which never
-        // touched what AR.js uses to place anything in 3D space. THIS is
-        // what was actually causing the path to render tens of meters off.
-        // Polls until AR.js's location object exists (it isn't guaranteed to at scene-ready),
-        // then (1) swaps in the true-metric projection and (2) if a QR was scanned, wins the race
-        // against AR.js's own GPS watch to make the QR's lat/lng the scene origin (gps-new-camera
-        // only takes a real fix as origin while initialPosition is still null — if its GPS beat
-        // us, we back off and the shift in ensureAnchorShift() covers it instead).
-        if (!this._originOverrideDone) {
-          let tries = 0;
-          const tryInit = () => {
-            tries++;
-            try {
-              const camEl0 = scene.querySelector('[gps-new-camera]');
-              const camComp0 = camEl0 && camEl0.components && camEl0.components['gps-new-camera'];
-              if (camComp0 && camComp0.threeLoc) {
-                this.installLocalProjection(camComp0);
-                if (this.anchorScanned && this.anchorPos && !camComp0.threeLoc.initialPosition) {
-                  camComp0.threeLoc.setWorldOrigin(this.anchorPos.lng, this.anchorPos.lat);
-                }
-                this._originOverrideDone = true;
-                return;
-              }
-            } catch (e) { /* threeLoc not fully ready yet — retry */ }
-            if (tries < 40) setTimeout(tryInit, 150); // ~6s ceiling
-          };
-          tryInit();
-        }
-
-        // Everything GPS-placed (buildings, ribbons) hangs off this one group instead of the
-        // scene directly, so the anchor shift and the automatic compass correction
-        // (applyWorldTransform) move and turn all of it together.
-        if (!this._worldGroup) {
-          const group = document.createElement('a-entity');
-          scene.appendChild(group);
-          this._worldGroup = group;
-        }
-
-        const onSceneReady = () => {
-          this.forceArSize();
-          this.buildAllEntities();
-          this.setupTapSelection(scene);
-          if (this.campusAnchor && !this.anchorScanned) this.startAnchorScan();
-        };
-        if (scene.hasLoaded) {
-          onSceneReady();
-        } else {
-          scene.addEventListener('loaded', onSceneReady, { once: true });
-        }
-        window.addEventListener('resize', this.forceArSize);
-        window.addEventListener('arjs-video-loaded', () => setTimeout(this.forceArSize, 50));
-        setTimeout(this.forceArSize, 800);
-        setTimeout(this.forceArSize, 2000);
-
-        // Bypasses AR.js's own internal render sizing every frame — the
-        // confirmed fix from ar-test.php's per-frame reassertion test.
-        AFRAME.registerComponent('force-ar-size-every-frame', { tick: () => this.forceArSize() });
-        scene.setAttribute('force-ar-size-every-frame', '');
-
-        // Pins the camera to OUR position (corrected + snapped to the walkway), gliding to each
-        // new one, instead of AR.js's raw-GPS placement. Runs every frame, so AR.js's own
-        // writes on its GPS fixes never show.
-        const app = this;
-        if (!AFRAME.components['lampara-cam-pin']) {
-          AFRAME.registerComponent('lampara-cam-pin', {
-            tick(time, dt) {
-              const cur = app._camPos, tgt = app._camTarget;
-              if (!cur || !tgt) return;
-              const k = Math.min(1, (dt || 16) / CAM_FOLLOW_MS);
-              cur.x += (tgt.x - cur.x) * k;
-              cur.z += (tgt.z - cur.z) * k;
-              const camEl2 = this.el.querySelector('[gps-new-camera]');
-              if (camEl2 && camEl2.object3D) { camEl2.object3D.position.x = cur.x; camEl2.object3D.position.z = cur.z; }
-            }
-          });
-        }
-        scene.setAttribute('lampara-cam-pin', '');
-
-        // A rough proxy for "compass is working": AR.js's rotation-reader
-        // starts updating the camera's own rotation once device orientation
-        // events arrive — poll for a nonzero rotation as a simple signal.
-        const camEl = scene.querySelector('[gps-new-camera]');
-        const checkHeading = setInterval(() => {
-          if (camEl && camEl.object3D && (camEl.object3D.rotation.y !== 0 || this.headingInit)) {
-            this.headingInit = true;
-            clearInterval(checkHeading);
-          }
-        }, 500);
-        setTimeout(() => clearInterval(checkHeading), 15000);
-      });
+      if (this.campusAnchor && !this.anchorScanned) this.startAnchorScan();
     },
-    installLocalProjection(camComp) {
-      const loc = camComp.threeLoc;
-      if (this._projInstalled || !loc || !loc._proj) return;
-      const lats = this.buildings.map((b) => b.lat).filter((v) => typeof v === 'number');
-      const nodeLat = this.campusGraph.nodes.length ? this.campusGraph.nodes[0].lat : null;
-      const refLat = lats.length ? lats.reduce((a, b) => a + b, 0) / lats.length : (nodeLat || DEFAULT_CAMPUS_LAT);
-      const proj = makeLocalProjection(refLat);
-      // If AR.js already took an origin / placed the camera under Mercator, redo both
-      // in the new projection so nothing is left in the old units.
-      if (loc.initialPosition) {
-        const ll = loc._proj.unproject(loc.initialPosition);
-        loc.initialPosition = proj.project(ll[0], ll[1]);
+    // Every filtered GPS reading from the engine (the camera itself already moves every frame inside the engine).
+    onFix(raw, ff) {
+      // Right after a QR scan with no fresh reading yet: the first one measures the GPS error at the sign.
+      if (this._pendingAnchorCorr && this.anchorPos) {
+        this._pendingAnchorCorr = false;
+        this._anchorCorr = { lat: raw.lat - this.anchorPos.lat, lng: raw.lng - this.anchorPos.lng };
+        LamparaLocar.resetPosition(this.anchorPos.lat, this.anchorPos.lng, this._anchorCorr);
+        return;
       }
-      loc.setProjection(proj);
-      this._proj = proj;
-      this._projInstalled = true;
-      if (loc._lastCoords) loc.setWorldPosition(loc._camera, loc._lastCoords.longitude, loc._lastCoords.latitude);
-      Object.values(this.arEntities).forEach((entry) => {
-        const comp = entry.wrapper.components['gps-new-entity-place'];
-        if (comp) comp.update();
-      });
-    },
-    // Raw GPS is typically 5-20 m off. The QR tells us where you REALLY are (the anchor), so
-    // (raw fix at the sign - anchor) is the GPS error; it is subtracted from every later fix.
-    ensureAnchorShift() {
-      if (this._shiftDone || !this.anchorPos || !this._lastRaw) return;
-      if (Date.now() - this._lastRaw.t > 15000) return; // stale fix — wait for a fresh one at the sign
-      this._gpsCorr = { lat: this._lastRaw.lat - this.anchorPos.lat, lng: this._lastRaw.lng - this.anchorPos.lng };
-      this._shiftDone = true;
-      this.myPos = { lat: this.anchorPos.lat, lng: this.anchorPos.lng };
-      this.refreshCamera(true);
-    },
-    // The heading correction turns the whole GPS world group about the scene origin. The camera
-    // is placed by us (refreshCamera) with the same rotation, so every bearing from you to the
-    // path and buildings is corrected by exactly that amount.
-    applyWorldTransform() {
-      const g = this._worldGroup;
-      if (!g) return;
-      g.object3D.rotation.y = -(this._alignOffsetDeg || 0) * Math.PI / 180;
-      g.object3D.position.set(0, 0, 0);
-      this.refreshCamera(true);
+      this.statusOk = true;
+      this._pos = { lat: ff.lat, lng: ff.lng };           // live, not reactive: the mini-map reads this every redraw
+      if (!this.locationOn) return;
+      // Vue-tracked position and the route search behind it only move about once a second (or on a real step), so GPS
+      // readings do not each trigger a re-render and a route search while the AR camera is being moved.
+      const now = Date.now();
+      if (!this.myPos || now - (this._posAt || 0) > 1000 || haversineMeters(this.myPos, this._pos) > 3) {
+        this.myPos = this._pos;
+        this._posAt = now;
+        this.updateTargetDistance();
+      }
     },
     // Where you are drawn: the corrected GPS position, pinned onto the nearest drawn walkway when
     // you are close to one.
     displayPos() {
-      if (!this.myPos) return null;
+      const here = this._pos || this.myPos;
+      if (!here) return null;
       // With a route active, stay on the route itself so a parallel walkway can't steal the dot.
       if (this.target && this._routePts && this._routePts.length > 1) {
-        const rs = this.snapToPolyline(this.myPos, this._routePts);
+        const rs = this.snapToPolyline(here, this._routePts);
         if (rs && rs.dist <= SNAP_TO_PATH_M) { this._snapDist = rs.dist; return { lat: rs.lat, lng: rs.lng }; }
       }
       if (this.campusGraph.edges.length) {
-        const snap = CampusRoute.snapToGraph(this.myPos, this.campusGraph.nodes, this.campusGraph.edges);
+        const snap = CampusRoute.snapToGraph(here, this.campusGraph.nodes, this.campusGraph.edges);
         if (snap && snap.dist <= SNAP_TO_PATH_M) { this._snapDist = snap.dist; return { lat: snap.lat, lng: snap.lng }; }
       }
       this._snapDist = null;
-      return this.myPos;
+      return here;
     },
     // Building outlines and road lines (imported from the campus map export, already in GPS
-    // coordinates). Kept in localStorage so the mini-map still has them offline. If none exist, the
-    // uploaded map picture is fitted under the mini-map instead (loadMapBackdrop).
+    // coordinates). Kept in localStorage so the mini-map still has them offline. They are only drawn when the
+    // OpenStreetMap tiles are not available (offline); with the tiles showing, only the chosen building is outlined.
     async loadFootprints() {
       let list = null;
       try {
@@ -701,97 +573,45 @@ createApp({
         });
       } else {
         this._footprints = [];
-        this.loadMapBackdrop();
       }
     },
-    // Puts the uploaded campus map (Campus Map admin page) under the mini-map. The map has no GPS
-    // data, so it is lined up using the entrance pins: each pin sits at a known spot on the picture
-    // and its building has a known GPS entrance. A least-squares rotate+scale+shift fits them.
-    async loadMapBackdrop() {
-      if (this._footprints && this._footprints.length) return; // real outlines are better than a fitted picture
-      try {
-        const [mr, kr] = await Promise.all([
-          fetch('../../../Backend/api/static-maps.php').then((r) => r.json()),
-          fetch('../../../Backend/api/static-map-markers.php?kind=2d').then((r) => r.json()),
-        ]);
-        const map = mr.success && mr.maps && mr.maps['2d'];
-        if (!map || !kr.success) return;
-        const nodeById = new Map(this.campusGraph.nodes.map((n) => [n.id, n]));
-        const pairs = [];
-        kr.markers.forEach((m) => {
-          if (m.marker_type !== 'entrance') return;
-          const b = this.buildings.find((x) => x.id === m.building_id);
-          if (!b) return;
-          const en = b.entrance_node_id != null && nodeById.get(b.entrance_node_id);
-          pairs.push({ lat: en ? en.lat : b.lat, lng: en ? en.lng : b.lng, px: m.x, py: m.y });
-        });
-        if (pairs.length < 3) return; // need at least 3 known points to line the map up
-        const canvas = await this.renderMapImage(map);
-        if (!canvas) return;
-        const W = canvas.width, H = canvas.height;
-        const ref = { lat: pairs.reduce((a, p) => a + p.lat, 0) / pairs.length, lng: pairs.reduce((a, p) => a + p.lng, 0) / pairs.length };
-        const kx = PROJ_M_PER_DEG * Math.cos(ref.lat * Math.PI / 180);
-        // z = meters (east, north) from ref; w = picture pixels (x right, y up). Fit w = a*z + b (complex).
-        const Z = pairs.map((p) => ({ x: (p.lng - ref.lng) * kx, y: (p.lat - ref.lat) * PROJ_M_PER_DEG }));
-        const Wp = pairs.map((p) => ({ x: p.px / 100 * W, y: -(p.py / 100 * H) }));
-        const mean = (arr, k) => arr.reduce((a, v) => a + v[k], 0) / arr.length;
-        const zc = { x: mean(Z, 'x'), y: mean(Z, 'y') }, wc = { x: mean(Wp, 'x'), y: mean(Wp, 'y') };
-        const num = { x: 0, y: 0 };
-        let den = 0;
-        Z.forEach((z, i) => {
-          const zx = z.x - zc.x, zy = z.y - zc.y, wx = Wp[i].x - wc.x, wy = Wp[i].y - wc.y;
-          num.x += zx * wx + zy * wy; num.y += zx * wy - zy * wx; den += zx * zx + zy * zy; // conj(z)*w
-        });
-        if (!den) return;
-        const a = { x: num.x / den, y: num.y / den };
-        const b = { x: wc.x - (a.x * zc.x - a.y * zc.y), y: wc.y - (a.x * zc.y + a.y * zc.x) };
-        // Residual: how far (m) the fitted map puts each pin from its real spot. Too big = don't trust it.
-        const a2 = a.x * a.x + a.y * a.y;
-        const inv = { x: a.x / a2, y: -a.y / a2 }; // 1/a
-        let worst = 0;
-        Z.forEach((z, i) => {
-          const wx = Wp[i].x - b.x, wy = Wp[i].y - b.y;
-          const ex = inv.x * wx - inv.y * wy, ey = inv.x * wy + inv.y * wx;
-          worst = Math.max(worst, Math.hypot(ex - z.x, ey - z.y));
-        });
-        if (worst > MAP_FIT_MAX_ERR_M) { console.warn('Campus map backdrop skipped: pins fit only to ' + worst.toFixed(0) + ' m'); return; }
-        this._mapBg = { canvas, ref, kx, inv, b, fitErr: worst };
-      } catch (e) { /* no map, offline, or no pdf.js: the mini-map just stays plain */ }
-    },
-    // The uploaded map as a canvas: pictures directly, PDFs via pdf.js (loaded only when needed).
-    async renderMapImage(map) {
-      const url = '../../' + map.image_path + '?v=' + encodeURIComponent(map.updated_at || '');
-      const fmt = (map.format || '').toLowerCase();
-      const canvas = document.createElement('canvas');
-      if (fmt === 'pdf') {
-        const base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
-        if (!window.pdfjsLib) {
-          await new Promise((resolve, reject) => {
-            const el = document.createElement('script');
-            el.src = base + 'pdf.min.js'; el.crossOrigin = 'anonymous';
-            el.onload = resolve; el.onerror = reject; document.head.appendChild(el);
-          });
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+    // OpenStreetMap tiles under the mini-map. The zoom is picked so one tile pixel is about one mini-map pixel; tiles are
+    // fetched on demand, kept in a small cache (the service worker also keeps them for offline) and drawn as they arrive.
+    // Returns true when at least one tile was drawn, so the caller knows whether the map base is showing.
+    drawOsmTiles(ctx, S, me, radius, k) {
+      const cache = this._osm || (this._osm = new Map());
+      const latR = me.lat * Math.PI / 180;
+      const mpp = (2 * radius) / S;                                   // metres per mini-map pixel
+      const z = Math.max(OSM_MIN_ZOOM, Math.min(OSM_MAX_ZOOM, Math.round(Math.log2(156543.03 * Math.cos(latR) / mpp))));
+      const n = Math.pow(2, z);
+      const xc = (me.lng + 180) / 360 * n;
+      const yc = (1 - Math.log(Math.tan(latR) + 1 / Math.cos(latR)) / Math.PI) / 2 * n;
+      const tpx = 40075016.686 * Math.cos(latR) / n * k;              // one tile, in mini-map pixels
+      const half = S / 2 / tpx;
+      let drawn = false;
+      for (let ty = Math.floor(yc - half); ty <= Math.floor(yc + half); ty++) {
+        for (let tx = Math.floor(xc - half); tx <= Math.floor(xc + half); tx++) {
+          if (ty < 0 || ty >= n) continue;
+          const wx = ((tx % n) + n) % n;
+          const key = z + '/' + wx + '/' + ty;
+          let t = cache.get(key);
+          if (!t) {
+            const img = new Image();
+            t = { img, ok: false };
+            img.onload = () => { t.ok = true; };
+            img.onerror = () => { t.failed = Date.now(); };
+            img.src = OSM_TILE_URL.replace('{z}', z).replace('{x}', wx).replace('{y}', ty);
+            cache.set(key, t);
+            if (cache.size > OSM_CACHE_MAX) cache.delete(cache.keys().next().value);
+          } else if (t.failed && Date.now() - t.failed > 20000) {       // a failed tile is retried now and then
+            t.failed = 0; t.img.src = t.img.src;
+          }
+          if (!t.ok) continue;
+          ctx.drawImage(t.img, S / 2 + (tx - xc) * tpx - 0.5, S / 2 + (ty - yc) * tpx - 0.5, tpx + 1, tpx + 1);
+          drawn = true;
         }
-        const buf = await (await fetch(url)).arrayBuffer();
-        const doc = await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-        const page = await doc.getPage(1);
-        const b0 = page.getViewport({ scale: 1 });
-        const vp = page.getViewport({ scale: MAP_BG_MAX_SIDE / Math.max(b0.width, b0.height) });
-        canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport: vp }).promise;
-        return canvas;
       }
-      if (fmt === 'obj') return null;
-      const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
-      const sc = Math.min(1, MAP_BG_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-      canvas.width = Math.round(img.naturalWidth * sc); canvas.height = Math.round(img.naturalHeight * sc);
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      return canvas;
+      return drawn;
     },
     // Closest point on a lat/lng polyline: { lat, lng, dist }.
     snapToPolyline(pos, pts) {
@@ -805,385 +625,232 @@ createApp({
       }
       return best;
     },
-    // We place the camera ourselves instead of letting AR.js put it at raw GPS. A tick component
-    // (see proceedToAr) glides it to _camTarget every frame, overriding AR.js's own writes.
-    refreshCamera(jump) {
-      const scene = this.$refs.arScene;
-      const camEl = scene && scene.querySelector('[gps-new-camera]');
-      const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
-      const pos = this.displayPos();
-      if (!camComp || !camComp.threeLoc || !pos || !this._projInstalled) return;
-      // No accurate AR.js fix yet (common near buildings)? Our own position is good enough as origin.
-      if (!camComp.threeLoc.initialPosition) {
-        camComp.threeLoc.setWorldOrigin(pos.lng, pos.lat);
-        // Buildings placed before an origin existed are stuck at 0,0 — place them now.
-        Object.values(this.arEntities).forEach((entry) => {
-          const comp = entry.wrapper.components['gps-new-entity-place'];
-          if (comp) comp.update();
-        });
-        this._forceRebuildPaths = true;
-        if (this.showAllPaths) setTimeout(() => this.renderAllPaths(), 0);
-      }
-      let x, z;
-      try { [x, z] = camComp.latLonToWorld(pos.lat, pos.lng); } catch (e) { return; }
-      const th = -(this._alignOffsetDeg || 0) * Math.PI / 180;
-      const cos = Math.cos(th), sin = Math.sin(th);
-      this._camTarget = { x: x * cos + z * sin, z: -x * sin + z * cos };
-      if (jump || !this._camPos) this._camPos = { ...this._camTarget };
-    },
-    // Where the AR camera believes it is facing (compass degrees), or null when the phone is
-    // pointed too far up/down for the heading to mean anything.
+    // Where the camera is facing (compass degrees, WITHOUT the automatic correction: what the QR scan compares
+    // against), or null when the phone is pointed too far up/down for the heading to mean anything.
     cameraHeadingDeg(minHorizontal = 0.5) {
-      const scene = this.$refs.arScene;
-      if (!scene || !scene.camera) return null;
-      const THREE = window.AFRAME.THREE;
-      const dir = new THREE.Vector3();
-      scene.camera.getWorldDirection(dir);
-      if (dir.x * dir.x + dir.z * dir.z < minHorizontal * minHorizontal) return null;
-      return (Math.atan2(dir.x, -dir.z) * 180 / Math.PI + 360) % 360;
-    },
-    // Automatic compass correction — no user input. The compass the AR scene is built on is
-    // off by an amount that differs by phone, place and moment. A drawn walkway has a known
-    // true bearing, though. When you walk a few meters along one with the phone held up, your
-    // direction of travel IS that path's bearing, so (camera heading - path bearing) is the
-    // compass error. Samples are medianed so glancing sideways doesn't skew it, and applied in
-    // small steps so the world never snaps.
-    autoAlignHeading() {
-      const track = this._track;
-      if (!track || track.length < 2 || !this.campusGraph.edges.length) return;
-      const cur = track[track.length - 1];
-      let ref = null;
-      for (let i = track.length - 2; i >= 0; i--) {
-        if (cur.t - track[i].t > ALIGN_MAX_WINDOW_MS) break;
-        if (haversineMeters(track[i], cur) >= ALIGN_MIN_WALK_M) { ref = track[i]; break; }
-      }
-      if (!ref) return;
-      this._track = [cur]; // each sample comes from fresh movement
-      const course = bearingDeg(ref, cur);
-      const mid = { lat: (ref.lat + cur.lat) / 2, lng: (ref.lng + cur.lng) / 2 };
-      const snap = CampusRoute.snapToGraph(mid, this.campusGraph.nodes, this.campusGraph.edges);
-      if (!snap || snap.dist > 25) return; // not on a drawn walkway: no trustworthy reference
-      const fwd = bearingDeg(snap.nodeA, snap.nodeB), back = (fwd + 180) % 360;
-      let pathBearing;
-      if (Math.abs(relativeAngle(course, fwd)) <= 40) pathBearing = fwd;
-      else if (Math.abs(relativeAngle(course, back)) <= 40) pathBearing = back;
-      else return; // cut a corner / wandered: movement doesn't match the path
-      const cam = this.cameraHeadingDeg();
-      if (cam === null) return; // phone not held up
-      const samples = this._headingSamples = (this._headingSamples || []).concat(relativeAngle(pathBearing, cam)).slice(-7);
-      if (samples.length < ALIGN_SAMPLES_NEEDED) return;
-      // Circular median: express everything relative to the first sample, take the median, add back.
-      const base = samples[0];
-      const rel = samples.map((v) => relativeAngle(base, v)).sort((a, b) => a - b);
-      const med = rel[Math.floor(rel.length / 2)];
-      const spread = rel.map((v) => Math.abs(v - med)).sort((a, b) => a - b)[Math.floor(rel.length / 2)];
-      if (spread > ALIGN_MAX_SPREAD_DEG) return; // user looking around: samples disagree
-      const target = base + med;
-      const current = this._alignOffsetDeg || 0;
-      const err = relativeAngle(current, target);
-      if (this.headingLocked && Math.abs(err) < ALIGN_DEADBAND_DEG) return;
-      const next = this.headingLocked ? current + err * ALIGN_STEP : target;
-      this._alignOffsetDeg = ((next + 540) % 360) - 180;
-      this.headingLocked = true;
-      this.applyWorldTransform();
-    },
-    // Camera position in the world group's own frame (what route/ribbon points are expressed in).
-    camLocal() {
-      const scene = this.$refs.arScene;
-      const camEl = scene && scene.querySelector('[gps-new-camera]');
-      if (!camEl || !camEl.object3D) return null;
-      const c = camEl.object3D.position;
-      const th = -(this._alignOffsetDeg || 0) * Math.PI / 180;
-      const cos = Math.cos(th), sin = Math.sin(th);
-      return { x: c.x * cos - c.z * sin, y: c.y, z: c.x * sin + c.z * cos };
-    },
-    forceArSize() {
-      const scene = this.$refs.arScene;
-      if (!scene || !scene.renderer) return;
-      const vv = window.visualViewport;
-      const w = vv ? vv.width : window.innerWidth;
-      const h = vv ? vv.height : window.innerHeight;
-      scene.renderer.setSize(w, h, true);
-      if (scene.camera) {
-        const fov = this.matchedFov(w, h);
-        if (scene.camera.aspect !== w / h || (fov && Math.abs(scene.camera.fov - fov) > 0.05)) {
-          scene.camera.aspect = w / h;
-          if (fov) scene.camera.fov = fov;
-          scene.camera.updateProjectionMatrix();
-        }
-      }
-    },
-    // Vertical field of view of what is actually on screen: the camera video is shown with
-    // object-fit: cover, so part of it is cropped off. Returns null until the video is ready.
-    matchedFov(sw, sh) {
-      const video = document.querySelector('#arjs-video');
-      if (!video || !video.videoWidth || !video.videoHeight) return null;
-      const vw = video.videoWidth, vh = video.videoHeight;
-      const t = Math.tan(CAMERA_LONG_FOV_DEG * Math.PI / 360);
-      // tan(half-angle) of the video's own vertical extent; the long side gets CAMERA_LONG_FOV_DEG.
-      const tanV = vh >= vw ? t : t * vh / vw;
-      const scale = Math.max(sw / vw, sh / vh);   // cover
-      const visible = sh / (vh * scale);           // fraction of the video's height left on screen
-      return 2 * Math.atan(tanV * visible) * 180 / Math.PI;
-    },
-    // A-Frame's cursor="rayOrigin: mouse" component (used on the <a-camera>
-    // tag) is built for actual mouse/gaze input — on mobile it depends on
-    // the browser translating a touch into a synthetic mouse event on the
-    // canvas, which AR.js's own touch handling frequently swallows before
-    // it gets there. Doing the raycast ourselves, directly off the real
-    // touchend/click event, sidesteps that unreliable translation entirely.
-    setupTapSelection(scene) {
-      if (this._tapSelectionBound) return;
-      const canvas = scene.canvas;
-      if (!canvas) { setTimeout(() => this.setupTapSelection(scene), 200); return; }
-      this._tapSelectionBound = true;
-
-      const THREE = window.AFRAME.THREE;
-      const raycaster = new THREE.Raycaster();
-      const pointer = new THREE.Vector2();
-
-      const handleTap = (clientX, clientY) => {
-        const rect = canvas.getBoundingClientRect();
-        pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        if (!scene.camera) return;
-        raycaster.setFromCamera(pointer, scene.camera);
-
-        const meshToBuilding = new Map();
-        const meshes = [];
-        this.buildings.forEach((b) => {
-          const entry = this.arEntities[b.id];
-          if (!entry) return;
-          const roots = [entry.label, entry.arrow].filter(Boolean);
-          roots.forEach((root) => {
-            root.object3D.traverse((node) => {
-              if (node.isMesh) { meshes.push(node); meshToBuilding.set(node, b); }
-            });
-          });
-        });
-
-        const hits = raycaster.intersectObjects(meshes, false);
-        if (hits.length) {
-          const building = meshToBuilding.get(hits[0].object);
-          if (building) {
-            this.selectBuilding(building);
-            this.openChat(building);
-          }
-        }
-      };
-
-      canvas.addEventListener('click', (e) => handleTap(e.clientX, e.clientY));
-      // touchend fires even where the browser doesn't bother synthesizing a
-      // click on canvas elements — the actual reliable path on mobile.
-      canvas.addEventListener('touchend', (e) => {
-        const t = e.changedTouches && e.changedTouches[0];
-        if (t) handleTap(t.clientX, t.clientY);
-      });
-    },
-    buildAllEntities() {
-      const scene = this.$refs.arScene;
-      if (!scene || !this.buildings.length) return;
-
-      // gps-new-entity-place computes its 3D position exactly ONCE, the
-      // instant the entity is created — using whatever origin (or lack of
-      // one) exists at that exact moment. If that happens before AR.js's
-      // own GPS watch has received its first accurate fix (extremely likely
-      // — entities get built as soon as the scene loads, origin arrives
-      // whenever GPS catches up), every entity is permanently stuck at
-      // (0,0,0), right on top of the camera, and NEVER recomputed again —
-      // AR.js fires "gps-camera-update-position" on every later fix, but
-      // gps-new-entity-place only uses that event to update its `distance`
-      // property, not to reposition itself. Forcing update() ourselves on
-      // every fix is what actually re-anchors it once the origin is ready.
-      const camEl = scene.querySelector('[gps-new-camera]');
-      if (camEl && !camEl.__lamparaRepositionBound) {
-        camEl.__lamparaRepositionBound = true;
-        camEl.addEventListener('gps-camera-update-position', () => {
-          Object.values(this.arEntities).forEach((entry) => {
-            const comp = entry.wrapper.components['gps-new-entity-place'];
-            if (comp) comp.update();
-          });
-          // Camera just moved in the scene — the ribbon starts at its feet.
-          this.updateRoute(true);
-          if (this.showAllPaths) this.renderAllPaths();
-        });
-      }
-
-      this.buildings.forEach(b => {
-        const wrapper = document.createElement('a-entity');
-        wrapper.setAttribute('gps-new-entity-place', `latitude: ${b.lat}; longitude: ${b.lng};`);
-
-        const { group: label, layers: labelLayers } = createLabelGroup(b.name);
-        label.setAttribute('scale', '1 1 1');
-        // Sits above the arrow (which points down at the building from
-        // below it) — like a map-pin balloon with its pointer tip below.
-        label.setAttribute('position', '0 2.1 0');
-        wrapper.appendChild(label);
-
-        // Tap-to-select: the camera's cursor+raycaster (see the <a-camera>
-        // tag) raycasts from wherever you tap and fires 'click' on whatever
-        // .ar-clickable mesh it hits — bubbles up to this wrapper via normal
-        // DOM event bubbling (A-Frame entities are real DOM elements).
-        // Lets you tap ANY visible building (not just your current search
-        // target) to pull up its info directly, not just the searched one.
-        wrapper.addEventListener('click', () => {
-          this.selectBuilding(b);
-          this.openChat(b);
-        });
-
-        (this._worldGroup || scene).appendChild(wrapper);
-        this.arEntities[b.id] = { wrapper, label, labelLayers, arrow: null };
-        setLabelColor(this.arEntities[b.id], '#ffffff', 0.55);
-      });
+      return window.LamparaLocar && LamparaLocar.ready ? LamparaLocar.rawHeading(minHorizontal) : null;
     },
     setTarget(building) {
-      if (this.target && this.arEntities[this.target.id]) {
-        const prev = this.arEntities[this.target.id];
-        setLabelValue(prev, this.target.name);
-        setLabelColor(prev, '#ffffff', 0.55);
-        if (prev.arrow) { prev.wrapper.removeChild(prev.arrow); prev.arrow = null; }
-      }
       this.target = building ? { ...building } : null;
       if (this.target && this.showAllPaths) {
         this.showAllPaths = false;
-        this.removeAllPathsRibbons();
+        LamparaLocar.clearNetwork();
       }
-      if (!this.target) { this.clearRoute(); return; }
-
-      const entry = this.arEntities[this.target.id];
+      LamparaLocar.setTarget(this.target);
+      if (!this.target) { this._miniMapZoom = 0; this.clearRoute(); return; }
       this.updateTargetDistance();
-      this.updateRoute(true);
-      if (!entry) return;
-
-      setLabelColor(entry, '#ffd100', 1);
-
-      // A genuine 3D arrow (cylinder shaft + cone head), not a flat
-      // billboard — has real depth/volume so it reads as an actual arrow
-      // from any viewing angle, the way a real navigation arrow would.
-      // Low segment count (6) gives it a deliberate faceted/low-poly look
-      // (matches modern AR wayfinding UI conventions, and is lighter on
-      // mobile GPUs than a smooth-shaded high-poly mesh) instead of looking
-      // like a generic default-settings primitive.
-      // Sits below the label now (map-pin layout: name balloon on top,
-      // pointer tip below it aiming down at the building). Its own rotation
-      // stays free for the continuous Y-spin below — the downward-pointing
-      // flip is baked into the head's own LOCAL rotation instead (see head,
-      // further down), so the two animations don't fight each other.
-      const arrow = document.createElement('a-entity');
-      arrow.setAttribute('position', '0 0.4 0');
-      // Slower + a gentler ease (was 650ms, snappy enough to feel like a
-      // twitch) reads as a soft, floaty bob instead of a rigid back-and-forth.
-      // No bobbing: a marker moving up and down reads as an unstable position.
-      arrow.setAttribute('animation__spin', 'property: rotation; dur: 4000; easing: linear; loop: true; to: 0 360 0');
-
-      const shaft = document.createElement('a-cylinder');
-      shaft.setAttribute('radius', '0.08');
-      shaft.setAttribute('height', '0.55');
-      shaft.setAttribute('radius-segments', '6');
-      // Now on top, connecting up toward the label above it.
-      shaft.setAttribute('position', '0 0.32 0');
-      // Emissive glow ties it into the same "lamp-glow" green look used
-      // everywhere else in the app (the CTA buttons, the gate screen icon)
-      // instead of a flat, lifeless material.
-      shaft.setAttribute('material', 'color: #0d9668; emissive: #0d9668; emissiveIntensity: 0.35; shader: standard; metalness: 0.1; roughness: 0.4');
-      shaft.classList.add('ar-clickable');
-      arrow.appendChild(shaft);
-
-      const head = document.createElement('a-cone');
-      head.setAttribute('radius-bottom', '0.26');
-      head.setAttribute('radius-top', '0');
-      head.setAttribute('height', '0.55');
-      head.setAttribute('segments-radial', '6');
-      // Cone points up by default (radius-top: 0 = apex at top) — flipped
-      // via its own LOCAL rotation (not the parent's) so it points down at
-      // the building, without fighting the parent's Y-spin animation.
-      head.setAttribute('rotation', '180 0 0');
-      head.setAttribute('position', '0 -0.22 0');
-      head.setAttribute('material', 'color: #ffd100; emissive: #ffd100; emissiveIntensity: 0.5; shader: standard; metalness: 0.1; roughness: 0.3');
-      head.classList.add('ar-clickable');
-      arrow.appendChild(head);
-
-      entry.wrapper.appendChild(arrow);
-      entry.arrow = arrow;
-      this.applyTargetScale();
-    },
-    // gps-new-entity-place positions entities in real-world METERS, so a
-    // fixed native size reads as either invisible (too far) or gigantic
-    // (too close). Size both proportionally to distance instead — tuned
-    // down hard from an earlier pass that used a 30x/15x floor, which was
-    // still enormous at anything under ~25m (a label filling most of the
-    // screen, a cone towering over the actual target at 21m away).
-    applyTargetScale() {
-      if (!this.target) return;
-      const entry = this.arEntities[this.target.id];
-      if (!entry) return;
-      const d = this.target.distance || 10;
-      // Size grows in step with distance so the marker looks the same size at any range, and
-      // between FAR_BOOST_FROM and FAR_BOOST_TO meters it is boosted up to FAR_BOOST_MAX times
-      // more, so at 300 m it is still clearly readable instead of a speck. Past 300 m the
-      // boost stays at its maximum.
-      const boost = 1 + (FAR_BOOST_MAX - 1) * Math.max(0, Math.min(1, (d - FAR_BOOST_FROM) / (FAR_BOOST_TO - FAR_BOOST_FROM)));
-      const labelScale = Math.max(5, Math.round(d * 0.05 * boost * 10) / 10);
-      entry.label.setAttribute('scale', `${labelScale} ${labelScale} ${labelScale}`);
-      if (entry.arrow) {
-        const arrowScale = Math.max(1.2, Math.round(d * 0.1 * boost * 10) / 10);
-        entry.arrow.setAttribute('scale', `${arrowScale} ${arrowScale} ${arrowScale}`);
-        // The arrow's parts are offset from its origin in LOCAL units, so changing its scale used to slide its
-        // tip up (as you got closer) or down (as you walked away): it looked like it was slowly flying.
-        // Instead the TIP is pinned at a fixed spot and the arrow, then the label, grow upward from it.
-        const ARROW_TIP_LOCAL = 0.495, ARROW_TOP_LOCAL = 0.595, LABEL_GAP_LOCAL = 0.9;
-        const originY = ARROW_TIP_Y + ARROW_TIP_LOCAL * arrowScale;
-        entry.arrow.setAttribute('position', `0 ${originY} 0`);
-        entry.label.setAttribute('position', `0 ${originY + ARROW_TOP_LOCAL * arrowScale + LABEL_GAP_LOCAL * labelScale} 0`);
+      if (this.myPos) {                                    // the smallest mini-map view that still holds the building
+        const d = haversineMeters(this.myPos, this.target) * 1.15;
+        const i = MINIMAP_RADII_M.findIndex((r) => r >= d);
+        this._miniMapZoom = i < 0 ? MINIMAP_RADII_M.length - 1 : i;
       }
+      this.updateRoute(true);
     },
     updateTargetDistance() {
       if (!this.target || !this.myPos) return;
       this.target = { ...this.target, distance: Math.round(haversineMeters(this.myPos, this.target)) };
-      this.applyTargetScale();
       this.updateRoute();
     },
-    // Routes from where you're standing to the target building's entrance along
-    // the drawn walkways, then draws the ground ribbon + fills the turn banner.
+    // ---- coming back into the campus ----
+    // The two sides of the campus gates, worked out from the drawn walkways. The "portals" are the gate points and the main
+    // entrance. The OUTSIDE walkways are the ones reachable from an outside building (Heritage, JEG) without going through a
+    // portal; everything else is inside. Cached until the drawn data changes.
+    regions() {
+      const g = this.campusGraph;
+      const key = g.nodes.length + ':' + g.edges.length + ':' + this.buildings.length;
+      if (this._regKey === key && this._regions) return this._regions;
+      this._regKey = key;
+      return (this._regions = CampusRoute.regions(g, this.buildings));
+    },
+    // A copy of the walkway graph limited to some points (and the connections between them).
+    subGraph(ids) { return CampusRoute.subGraph(this.campusGraph, ids); },
+    // How far outside the campus edge a position is, in metres (0 = inside); null when there is not enough drawn to tell.
+    // The edge is the convex hull of the INSIDE building outlines, walkway points and building pins.
+    outsideMeters(p) {
+      const R = this.regions(), fps = this._footprints || [];
+      const key = fps.length + ':' + this._regKey;
+      if (this._edgeKey !== key) {
+        const ll = [];
+        fps.forEach((f) => { if (f.kind === 'building' && f.building_id != null && !R.outsideBuildingIds.has(String(f.building_id))) f.points.forEach((q) => ll.push({ lat: q[0], lng: q[1] })); });
+        this.campusGraph.nodes.forEach((n) => { if (!R.outsideNodes.has(n.id)) ll.push({ lat: n.lat, lng: n.lng }); });
+        this.buildings.forEach((b) => { if (typeof b.lat === 'number' && !R.outsideBuildingIds.has(String(b.id))) ll.push({ lat: b.lat, lng: b.lng }); });
+        this._edgeKey = key;
+        this._edgeRef = ll.length ? ll[0] : null;
+        this._edge = ll.length >= 3 ? hullXY(ll.map((q) => CampusRoute.toXY(q, this._edgeRef))) : null;
+      }
+      if (!this._edge || this._edge.length < 3) return null;
+      return outsideDistXY(CampusRoute.toXY(p, this._edgeRef), this._edge);
+    },
+    // Updates and returns whether you are outside the campus now (with hysteresis, see OUTSIDE_M).
+    updateOutside(p) {
+      const d = this.outsideMeters(p);
+      this._outsideDist = d;
+      if (d === null) return false;
+      if (this._outside) { if (d <= OUTSIDE_BACK_M) this._outside = false; }
+      else if (d > OUTSIDE_M) this._outside = true;
+      return !!this._outside;
+    },
+    // Which side of the gates you are on: true = outside the campus. You are outside when the nearest walkway is one of the
+    // outside ones, or when you are well beyond the campus edge.
+    isOutside(me) {
+      const R = this.regions(), g = this.campusGraph;
+      let onOutsideWalkway = false;
+      if (R.outsideNodes.size && g.edges.length) {
+        const snap = CampusRoute.snapToGraph(me, g.nodes, g.edges);
+        onOutsideWalkway = !!snap && snap.dist <= OUTSIDE_SNAP_M && (R.outsideNodes.has(snap.nodeA.id) || R.outsideNodes.has(snap.nodeB.id));
+      }
+      return this.updateOutside(me) || onOutsideWalkway;
+    },
+    // Crossing the campus edge. Returns null when the normal route is right, else { points, info }:
+    //   inside  -> an OUTSIDE building (Heritage, JEG): leave through an exit gate first (the cheaper of the main and vehicle
+    //              exit), then walk to the building.
+    //   outside -> a building INSIDE the campus (Main, Annex, Gymnasium, Multipurpose ...): go in through the main entrance first,
+    //              then on to the building along the inside walkways. The way in is never an exit gate.
+    // A route is built leg by leg so that it really passes the gate or the entrance, even where a shorter path skips it.
+    crossPlan(me, goal, entrance) {
+      const g = this.campusGraph;
+      if (!g.edges.length) return null;
+      const R = this.regions();
+      const destOutside = R.outsideBuildingIds.has(String(this.target.id));
+      const outside = this.isOutside(me);
+      const dest = entrance !== null && entrance !== undefined ? entrance : goal;
+      const nodePt = (n) => ({ lat: n.lat, lng: n.lng, id: n.id, name: n.name || '' });
+      const legPts = (r, from) => { const pts = r.points.slice(); if (r.snapDist > 2) pts.unshift(from); return pts; };
+      const legLen = (r) => r.length + (r.snapDist > 2 ? r.snapDist : 0);
+      // keeps the second leg's points after the join (its first point is the gate/entrance itself)
+      const after = (r, at) => r.points.filter((q) => haversineMeters(q, at) > 2);
+
+      if (!outside && destOutside) {                               // INSIDE -> outside building: out through an exit gate
+        const outer = this.subGraph(new Set([...R.outsideNodes]));
+        const options = [];
+        this.gates().forEach((gt) => {
+          const withGate = this.subGraph(new Set([...R.outsideNodes, gt.id]));
+          const leg1 = CampusRoute.findRoute(g, me, gt.id);
+          const leg2 = CampusRoute.findRoute(withGate, { lat: gt.lat, lng: gt.lng }, dest) || CampusRoute.findRoute(g, { lat: gt.lat, lng: gt.lng }, dest);
+          if (!leg1 || !leg2) return;
+          const penalty = gt.kind === 'vehicle' ? VEHICLE_GATE_PENALTY_M : 0;
+          const toGate = legLen(leg1), walk = legLen(leg2);
+          options.push({ gate: gt, leg1, leg2, toGate, walk, penalty, cost: toGate + walk + penalty });
+        });
+        this._gateCalc = options.sort((a, b) => a.cost - b.cost);
+        const best = this._gateCalc[0];
+        if (!best) return null;
+        const gt = best.gate;
+        const points = legPts(best.leg1, me).concat(after(best.leg2, gt));
+        return { points, kind: 'x' + gt.id, info: { status: 'via-gate', phase: 'exit', gateName: gt.name, gateKind: gt.kind, toGate: Math.round(best.toGate), rest: Math.round(best.walk), remaining: Math.round(best.toGate + best.walk) }, routePts: null };
+      }
+
+      if (outside && !destOutside) {                               // OUTSIDE -> a building inside: in through the main entrance
+        const portal = R.mainEntrance;
+        if (!portal) return null;
+        const outerG = this.subGraph(new Set([...R.outsideNodes, portal.id]));
+        const innerG = this.subGraph(new Set([...R.insideNodes]));     // the inside walkways (the portals are part of them)
+        const leg2 = CampusRoute.findRoute(innerG, { lat: portal.lat, lng: portal.lng }, dest);
+        if (!leg2) return null;
+        let leg1 = outerG.edges.length ? CampusRoute.findRoute(outerG, me, portal.id) : null;
+        let head, toPortal;
+        if (leg1 && leg1.snapDist <= OFF_PATH_METERS) { head = legPts(leg1, me); toPortal = legLen(leg1); }
+        else { head = [me, nodePt(portal)]; toPortal = haversineMeters(me, portal); }       // far outside: straight to the entrance
+        const rest = legLen(leg2);
+        this._gateCalc = [{ gate: { name: portal.name, kind: 'main' }, toGate: toPortal, walk: rest, penalty: 0, cost: toPortal + rest }];
+        const points = head.concat(after(leg2, portal));
+        return { points, kind: 'e' + portal.id, info: { status: 'via-gate', phase: 'enter', gateName: portal.name || 'the main entrance', gateKind: 'main', toGate: Math.round(toPortal), rest: Math.round(rest), remaining: Math.round(toPortal + rest) }, routePts: null };
+      }
+      this._gateCalc = null;
+      return null;
+    },
+    // The campus gates: every walkway point of type "Gate". One whose name says vehicle / car / truck / service / delivery is a
+    // vehicle gate (e.g. "Vehicle Exit"); any other is a main gate (e.g. "Main Exit").
+    gates() {
+      return this.campusGraph.nodes.filter((n) => n.node_type === 'gate').map((n) => ({
+        id: n.id, name: n.name || 'Gate', lat: n.lat, lng: n.lng,
+        kind: CampusRoute.gateKind(n.name)
+      }));
+    },
+    // The calculation behind "go back to the entrance first". For every gate:
+    //   cost = straight distance from you to the gate x OUTSIDE_DETOUR   (outside the drawn walkways)
+    //        + the walkway distance from that gate to the building       (Dijkstra over the drawn walkways)
+    //        + VEHICLE_GATE_PENALTY_M when it is a vehicle gate
+    // Returns every usable gate cheapest first: [{ gate, route, toGate, walk, penalty, cost }].
+    pickGate(me, dest) {
+      const out = [];
+      this.gates().forEach((g) => {
+        const r = CampusRoute.findRoute(this.campusGraph, { lat: g.lat, lng: g.lng }, dest);
+        if (!r) return;                                          // this gate does not connect to the building
+        const toGate = haversineMeters(me, g) * OUTSIDE_DETOUR;
+        const walk = r.length + (r.snapDist > 2 ? r.snapDist : 0);
+        const penalty = g.kind === 'vehicle' ? VEHICLE_GATE_PENALTY_M : 0;
+        out.push({ gate: g, route: r, toGate, walk, penalty, cost: toGate + walk + penalty });
+      });
+      return out.sort((a, b) => a.cost - b.cost);
+    },
+    // Routes from where you're standing to the target building and draws it on the ground, the way the AR Lab does:
+    //   - along the drawn walkways to the building's entrance, with a short straight connector from where you stand to the
+    //     walkway (and, for a building with NO entrance set, to the walkway point nearest the building);
+    //   - if there is no usable walkway at all, a straight line to the building, so a chosen building always gets a path.
     // Throttled (GPS fixes can arrive faster than the geometry is worth rebuilding).
     updateRoute(force) {
       const now = Date.now();
-      if (!force && now - (this._lastRouteAt || 0) < 800) return;
+      if (!force && now - (this._lastRouteAt || 0) < 1500) return;
       this._lastRouteAt = now;
 
-      if (!this.target || !this.myPos || !this.target.entrance_node_id || !this.campusGraph.edges.length) {
-        this.clearRoute();
+      if (!this.target || !this.myPos) { this.clearRoute(); return; }
+      const me = { lat: this.myPos.lat, lng: this.myPos.lng };
+      const goal = { lat: this.target.lat, lng: this.target.lng };
+      const crow = haversineMeters(me, goal);
+      if (crow > ROUTE_MAX_M) {      // not on campus: a path this long means nothing
+        this._routePts = null;
+        this._miniRoute = null;
+        LamparaLocar.clearRoute();
+        this.routeInfo = { status: 'far', remaining: Math.round(crow) };
         return;
       }
-      const route = CampusRoute.findRoute(this.campusGraph, this.myPos, this.target.entrance_node_id);
-      this._routePts = route && route.snapDist <= OFF_PATH_METERS ? route.points : null; // steps follow this
-      if (!route) { this.clearRoute(); return; }
+      const entrance = this.target.entrance_node_id;
+      // Crossing the campus edge (see crossPlan): out through an exit gate to an outside building, or in through the main entrance.
+      const cross = this.crossPlan(me, goal, entrance);
+      if (cross) {
+        this._routePts = cross.routePts;
+        this._miniRoute = cross.points;
+        this.routeInfo = cross.info;
+        this.buildSteps(cross.points, cross.info);
+        this.renderRibbon(cross.points, cross.kind);
+        return;
+      }
+      let route = this.campusGraph.edges.length ? CampusRoute.findRoute(this.campusGraph, me, entrance || goal) : null;
+      if (!route && entrance) route = CampusRoute.findRoute(this.campusGraph, me, goal);   // entrance node unreachable: walk to the nearest path
+      let points, length;
+      if (route) {
+        points = route.points.slice();
+        length = route.length;
+        if (route.snapDist > 2) { points.unshift(me); length += route.snapDist; }   // straight connector from you to the walkway
+      } else {
+        points = [me, goal];
+        length = crow;
+      }
+      this._routePts = route && route.snapDist <= OFF_PATH_METERS ? route.points : null;
+      this._miniRoute = points;                     // what the mini-map traces (your position, the walkway points, the building)
+      this._stepsPoints = points;
 
-      if (route.snapDist > OFF_PATH_METERS) {
-        this.removeRibbon();
-        this.routeInfo = { status: 'off-path', remaining: Math.round(route.snapDist) };
-        return;
-      }
-      if (route.length <= ARRIVED_METERS) {
-        this.removeRibbon();
+      if (length <= ARRIVED_METERS) {
+        LamparaLocar.clearRoute();
         this.routeInfo = { status: 'arrived' };
         return;
       }
-
-      const turn = CampusRoute.nextTurn(route.points);
-      this.routeInfo = {
-        status: 'ok',
-        dir: turn.dir,
-        turnDistance: Math.round(turn.distance),
-        remaining: Math.round(route.length + route.snapDist)
-      };
-      this._routePts = route.points;
-      this.renderRibbon(route);
+      if (!route) {
+        this.routeInfo = { status: 'direct', remaining: Math.round(length) };
+      } else if (route.snapDist > OFF_PATH_METERS) {
+        this.routeInfo = { status: 'off-path', remaining: Math.round(route.snapDist) };
+      } else {
+        const turn = CampusRoute.nextTurn(route.points);
+        this.routeInfo = { status: 'ok', dir: turn.dir, turnDistance: Math.round(turn.distance), remaining: Math.round(length) };
+      }
+      this.buildSteps(points, this.routeInfo);
+      this.renderRibbon(points, route ? 'w' : 'd');
     },
     startMiniMap() {
       if (this._miniMapTimer) return;
       this._miniMapZoom = 0;
-      this._miniMapTimer = setInterval(() => this.drawMiniMap(), 100);
+      this._miniMapTimer = setInterval(() => this.drawMiniMap(), 333);
     },
     toggleMiniMapZoom() {
       this._miniMapZoom = (this._miniMapZoom + 1) % MINIMAP_RADII_M.length;
@@ -1219,64 +886,42 @@ createApp({
         const k = (S / 2) / radius;
         const kx = PROJ_M_PER_DEG * Math.cos(me.lat * Math.PI / 180);
         const P = (p) => ({ x: S / 2 + (p.lng - me.lng) * kx * k, y: S / 2 - (p.lat - me.lat) * PROJ_M_PER_DEG * k });
-        const byId = new Map(this.campusGraph.nodes.map((n) => [String(n.id), n]));
-        const fps = this._footprints;
-        if (fps && fps.length) {
-          const mLat = radius * 1.5 / PROJ_M_PER_DEG, mLng = radius * 1.5 / kx;
-          const targetId = this.target ? this.target.id : null;
-          ctx.lineJoin = 'round';
-          fps.forEach((f) => {
-            if (f.maxLat < me.lat - mLat || f.minLat > me.lat + mLat || f.maxLng < me.lng - mLng || f.minLng > me.lng + mLng) return;
-            ctx.beginPath();
-            f.points.forEach((pt, i) => { const Q = P({ lat: pt[0], lng: pt[1] }); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); });
-            if (f.kind === 'road') {
-              ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1; ctx.stroke();
-            } else {
-              const isTarget = targetId != null && f.building_id === targetId;
+        this.drawOsmTiles(ctx, S, me, radius, k);
+        // Until a building is chosen the mini-map shows only you (the dot and the way you face) on the base map. Once one is
+        // chosen it traces the path to it: the route's points joined by a line, a dot on each point, and a marker on the
+        // building, which is also outlined.
+        if (this.target) {
+          const fps = this._footprints;
+          if (fps && fps.length) {
+            const mLat = radius * 1.5 / PROJ_M_PER_DEG, mLng = radius * 1.5 / kx;
+            ctx.lineJoin = 'round';
+            fps.forEach((f) => {
+              if (f.building_id == null || f.building_id !== this.target.id) return;
+              if (f.maxLat < me.lat - mLat || f.minLat > me.lat + mLat || f.maxLng < me.lng - mLng || f.minLng > me.lng + mLng) return;
+              ctx.beginPath();
+              f.points.forEach((pt, i) => { const Q = P({ lat: pt[0], lng: pt[1] }); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); });
               ctx.closePath();
-              ctx.fillStyle = isTarget ? 'rgba(250,204,21,0.55)' : 'rgba(148,163,184,0.35)'; ctx.fill();
-              ctx.strokeStyle = isTarget ? '#facc15' : 'rgba(203,213,225,0.7)'; ctx.lineWidth = isTarget ? 2 : 1; ctx.stroke();
-            }
-          });
-        }
-        const bg = this._mapBg;
-        if (bg) {
-          // Map pixel (X,Y) -> meters from ref: e = cr*X + ci*Y + e0, n = ci*X - cr*Y + n0; then to the canvas.
-          const cr = bg.inv.x, ci = bg.inv.y;
-          const e0 = -cr * bg.b.x + ci * bg.b.y, n0 = -ci * bg.b.x - cr * bg.b.y;
-          const em = (me.lng - bg.ref.lng) * bg.kx, nm = (me.lat - bg.ref.lat) * PROJ_M_PER_DEG;
-          ctx.save();
-          ctx.transform(k * cr, -k * ci, k * ci, k * cr, S / 2 + k * (e0 - em), S / 2 - k * (n0 - nm));
-          ctx.globalAlpha = 0.9;
-          ctx.drawImage(bg.canvas, 0, 0);
-          ctx.restore();
-        }
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = bg ? 'rgba(30,64,175,0.9)' : 'rgba(255,255,255,0.75)'; ctx.lineWidth = bg ? 3 : 2;
-        this.campusGraph.edges.forEach((e) => {
-          const a = byId.get(String(e.node_a_id)), b = byId.get(String(e.node_b_id));
-          if (!a || !b) return;
-          const A = P(a), B = P(b);
-          ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
-        });
-        if (this.target && this._routePts && this._routePts.length > 1) {
-          ctx.strokeStyle = '#ffd100'; ctx.lineWidth = 4;
-          ctx.beginPath();
-          this._routePts.forEach((p, i) => { const Q = P(p); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); });
-          ctx.stroke();
-        }
-        ctx.fillStyle = '#60a5fa';
-        this.buildings.forEach((b) => { const Q = P(b); ctx.fillRect(Q.x - 3, Q.y - 3, 6, 6); });
-        const anchorNode = this.campusAnchor && byId.get(String(this.campusAnchor.campus_node_id));
-        if (anchorNode) {
-          const Q = P(anchorNode);
-          ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(Q.x, Q.y, 5, 0, Math.PI * 2); ctx.stroke();
+              ctx.fillStyle = 'rgba(250,204,21,0.45)'; ctx.fill();
+              ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.stroke();
+            });
+          }
+          const route = this._miniRoute;
+          if (route && route.length > 1) {
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            const trace = () => { ctx.beginPath(); route.forEach((p, i) => { const Q = P(p); if (i) ctx.lineTo(Q.x, Q.y); else ctx.moveTo(Q.x, Q.y); }); ctx.stroke(); };
+            ctx.strokeStyle = '#161850'; ctx.lineWidth = 7; trace();          // dark edge so it reads on the light map
+            ctx.strokeStyle = '#ffd100'; ctx.lineWidth = 4; trace();
+            ctx.fillStyle = '#fff'; ctx.strokeStyle = '#161850'; ctx.lineWidth = 1.5;
+            route.slice(1, -1).forEach((p) => { const Q = P(p); ctx.beginPath(); ctx.arc(Q.x, Q.y, 2.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+          }
+          const D = P(this._miniRoute && this._miniRoute.length > 1 ? this._miniRoute[this._miniRoute.length - 1] : this.target);
+          ctx.fillStyle = '#ffd100'; ctx.strokeStyle = '#161850'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(D.x, D.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#161850'; ctx.beginPath(); ctx.arc(D.x, D.y, 2, 0, Math.PI * 2); ctx.fill();
         }
         // You + the direction you face in the real world (AR camera heading minus the correction).
-        const cam = this.cameraHeadingDeg(0.05);
-        if (cam !== null) {
-          const rawH = cam - (this._alignOffsetDeg || 0);
+        const rawH = window.LamparaLocar && LamparaLocar.ready ? LamparaLocar.heading(0.05) : null;
+        if (rawH !== null) {
           this._mmHdg = this._mmHdg == null ? rawH : (this._mmHdg + relativeAngle(this._mmHdg, rawH) * 0.25 + 360) % 360;
           const h = this._mmHdg * Math.PI / 180;
           ctx.fillStyle = 'rgba(96,165,250,0.35)';
@@ -1287,403 +932,290 @@ createApp({
         ctx.beginPath(); ctx.arc(S / 2, S / 2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
       ctx.restore();
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('N', S / 2, 11);
-      ctx.font = '9px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillText(radius + ' m', S / 2, S - 5);
+      ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif';
+      ctx.strokeText('N', S / 2, 11); ctx.fillText('N', S / 2, 11);
+      ctx.font = '9px sans-serif';
+      ctx.strokeText(radius + ' m', S / 2, S - 5); ctx.fillText(radius + ' m', S / 2, S - 5);
+      ctx.font = '7px sans-serif'; ctx.lineWidth = 2;
+      ctx.strokeText('\u00a9 OpenStreetMap', S / 2, S - 15); ctx.fillText('\u00a9 OpenStreetMap', S / 2, S - 15);
     },
     clearRoute() {
       this._routePts = null;
-      this.removeRibbon();
+      this._miniRoute = null;
+      this._steps = []; this.stepList = [];
+      if (window.LamparaLocar && LamparaLocar.ready) LamparaLocar.clearRoute();
       this.routeInfo = null;
     },
-    removeRibbon() {
-      if (this._ribbon) this._ribbon.remove();
-    },
-    // Shows the WHOLE walkway graph in AR right after a successful anchor
-    // scan — every edge, not just a route to a destination — since no
-    // destination is known yet at that point. Disappears the moment a
-    // building is picked (see setTarget), replaced by the normal single
-    // route. Built once (edges don't move); retried on each GPS fix only
-    // until AR.js's origin is established, same pattern as renderRibbon.
-    // Heading correction is applied by rotating the whole world group around the camera
-    // (applyWorldTransform), so points are handed through unrotated here — buildings, the
-    // all-paths network and the route ribbon all turn together.
-    rotateAroundCamera(x, z) {
-      return { x, z };
-    },
+    // Shows the WHOLE walkway graph in AR right after a successful anchor scan: every edge, not just a route to a
+    // destination, since no destination is known yet at that point. Disappears the moment a building is picked.
     renderAllPaths() {
-      if (!this._allPathRibbons) this._allPathRibbons = [];
-      const scene = this.$refs.arScene;
-      const camEl = scene && scene.querySelector('[gps-new-camera]');
-      const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
-      if (!camComp || !camEl.object3D) return;
-      const camPos = this.camLocal();
-      if (!camPos) return;
-      if (this._allPathRibbons.length && !this._forceRebuildPaths) {
-        // Already built — just keep tracking the camera's real height,
-        // since gps-new-camera's Y can still settle/shift after the
-        // first fix.
-        const y = ribbonEntityY(camPos.y);
-        this._allPathRibbons.forEach((r) => r.setGroundY(y));
-        return;
-      }
-      this.removeAllPathsRibbons();
-      this._forceRebuildPaths = false;
-      if (!this.campusGraph.edges.length) return;
-
-      const nodeById = new Map(this.campusGraph.nodes.map((n) => [String(n.id), n]));
-      this.campusGraph.edges.forEach((edge) => {
-        const a = nodeById.get(String(edge.node_a_id));
-        const b = nodeById.get(String(edge.node_b_id));
-        if (!a || !b) return;
-        try {
-          let [ax, az] = camComp.latLonToWorld(a.lat, a.lng);
-          let [bx, bz] = camComp.latLonToWorld(b.lat, b.lng);
-          ({ x: ax, z: az } = this.rotateAroundCamera(ax, az, camPos.x, camPos.z));
-          ({ x: bx, z: bz } = this.rotateAroundCamera(bx, bz, camPos.x, camPos.z));
-          const ribbon = ArRibbon.create(this._worldGroup || scene);
-          // Solid, not fading — this is the whole network, not a route
-          // leading somewhere specific yet.
-          ribbon.update([{ x: ax, y: az }, { x: bx, y: bz }], { fadeEnd: false });
-          // See renderRibbon's comment: gps-new-camera never sets altitude.
-          ribbon.setGroundY(ribbonEntityY(camPos.y));
-          this._allPathRibbons.push(ribbon);
-        } catch (e) { /* no origin yet — retried on the next GPS fix */ }
-      });
+      if (this.campusGraph.edges.length) LamparaLocar.setNetwork(this.campusGraph);
     },
-    removeAllPathsRibbons() {
-      if (this._allPathRibbons) this._allPathRibbons.forEach((r) => r.remove());
-      this._allPathRibbons = [];
+    // Chevrons on the ground along the route (points start at your own feet), laid once like in the AR Lab, one stretch at a time:
+    // only the path to the next point is drawn, and reaching it reveals the next stretch. They are
+    // only laid again when the target changes, the kind of route changes (walkway or straight line), you stray more than
+    // 15 m from them (the engine checks that), or you tap Refresh path. The part already walked fades away by itself.
+    // The destination marker moves to the end of the route, so the path and the marker meet.
+    renderRibbon(points, kind) {
+      // Walkway points (the lettered ones, Point B, Point D ...) are the stops: reach one and the next stretch appears.
+      const pts = points.map((p) => ({ lat: p.lat, lng: p.lng, stop: p.id !== undefined && p.id !== null, name: p.name || '' }));
+      pts[pts.length - 1].stop = true;
+      pts[pts.length - 1].name = this.target.name;
+      LamparaLocar.setRoute(pts, this.target.id + ':' + kind);
+      const last = pts[pts.length - 1];
+      LamparaLocar.moveTarget(last.lat, last.lng);
     },
-    renderRibbon(route) {
-      const scene = this.$refs.arScene;
-      const camEl = scene && scene.querySelector('[gps-new-camera]');
-      const camComp = camEl && camEl.components && camEl.components['gps-new-camera'];
-      if (!camComp || !camEl.object3D) return;
-      const camPos0 = this.camLocal();
-      if (!camPos0) return;
-
-      // GPS -> scene coordinates (x east, z south). Throws until AR.js has
-      // established its origin from the first accurate fix — just retry next fix.
-      let world;
-      try {
-        world = route.points.map((p) => {
-          let [x, z] = camComp.latLonToWorld(p.lat, p.lng);
-          ({ x, z } = this.rotateAroundCamera(x, z, camPos0.x, camPos0.z));
-          return { x, y: z };
-        });
-      } catch (e) { return; }
-
-      // The route ends at the building's entrance point, but the arrow and name you see in AR
-      // hang at the building's own location. Carry the ribbon on to that marker so the path
-      // visibly connects to it instead of stopping short.
-      const t = this.target;
-      if (t && typeof t.lat === 'number' && typeof t.lng === 'number') {
-        try {
-          let [ax, az] = camComp.latLonToWorld(t.lat, t.lng);
-          ({ x: ax, z: az } = this.rotateAroundCamera(ax, az, camPos0.x, camPos0.z));
-          const last = world[world.length - 1];
-          const gap = last ? Math.hypot(ax - last.x, az - last.y) : Infinity;
-          if (gap > 1.5 && gap <= MARKER_EXTEND_MAX_M) world.push({ x: ax, y: az });
-        } catch (e) { /* no origin yet: the ribbon still draws to the entrance */ }
-      }
-
-      // Starts at the camera's own scene position (your feet), so the ribbon is
-      // attached to you even when GPS says the walkway is a few meters away.
-      const cam = this.camLocal();
-      let pts = [{ x: cam.x, y: cam.z }, ...world];
-      pts = CampusRoute.smooth(pts);
-      let length = 0;
-      for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-      const reachesMarker = length <= RIBBON_VISIBLE_METERS;
-      pts = CampusRoute.truncate(pts, RIBBON_VISIBLE_METERS);
-      if (pts.length < 2) return;
-
-      if (!this._ribbon) this._ribbon = ArRibbon.create(this._worldGroup || scene);
-      // Solid right up to the marker; only a route too long to show in full fades out at its far end.
-      this._ribbon.update(pts, { fadeEnd: !reachesMarker });
-      // gps-new-camera never sets altitude — cam.y isn't the assumed 1.6 the
-      // ribbon's baked-in height expects, so track wherever it actually is.
-      this._ribbon.setGroundY(ribbonEntityY(cam.y));
-    },
-    selectBuilding(building) { this.setTarget(building); },
-    // Shared by start() and by toggleLocation() re-enabling.
-    startLocationWatch() {
-      this.gpsWatchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const acc = pos.coords.accuracy;
-          if (acc == null || acc <= GPS_MAX_ACCURACY_M) this._lastRaw = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now() };
-          this.ensureAnchorShift();
-          const corr = this._gpsCorr || { lat: 0, lng: 0 };
-          const fix = { lat: pos.coords.latitude - corr.lat, lng: pos.coords.longitude - corr.lng };
-          // A fix GPS itself isn't confident in is worse than no update at
-          // all — keep the last good (or scanned) position instead of
-          // snapping to it.
-          if (acc != null && acc > GPS_MAX_ACCURACY_M && this.myPos) return;
-          if (!this.myPos) {
-            this.myPos = fix;
-          } else if (this._stepsActive) {
-            // Steps move you; GPS only pulls you back when it disagrees by more than its own
-            // noise, so standing still never drifts.
-            this.learnStride(fix, acc);
-            const off = haversineMeters(this.myPos, fix);
-            if (off <= Math.max(GPS_TRUST_MIN_M, acc || 0)) this.checkConsistentGps(fix, acc);
-            else this._gpsDiffs = [];
-            if (off > Math.max(GPS_TRUST_MIN_M, acc || 0)) {
-              this.myPos = {
-                lat: this.myPos.lat + (fix.lat - this.myPos.lat) * GPS_PULL,
-                lng: this.myPos.lng + (fix.lng - this.myPos.lng) * GPS_PULL,
-              };
-            }
-          } else {
-            // Ease toward the new fix instead of jumping straight to it, so
-            // normal jitter between consecutive noisy fixes doesn't visibly
-            // teleport the ribbon/arrow. If the scanned anchor seeded myPos,
-            // this is also what keeps that correction from being wiped out
-            // the instant the next raw fix arrives.
-            this.myPos = {
-              lat: this.myPos.lat + (fix.lat - this.myPos.lat) * GPS_SMOOTH_ALPHA,
-              lng: this.myPos.lng + (fix.lng - this.myPos.lng) * GPS_SMOOTH_ALPHA,
-            };
-          }
-          this.statusOk = true;
-          if (!this._stepsActive) this.afterMove();
-          else { this.refreshCamera(false); this.updateTargetDistance(); }
-        },
-        (err) => { this.statusText = 'GPS error: ' + err.message; },
-        { enableHighAccuracy: true }
-      );
-    },
-    // Shared tail of every position change (a step, or a GPS fix when there is no step counter).
-    afterMove() {
-      const track = this._track = this._track || [];
-      track.push({ lat: this.myPos.lat, lng: this.myPos.lng, t: Date.now() });
-      if (track.length > 60) track.shift();
-      this.autoAlignHeading();
-      this.refreshCamera(false);
-      this.updateTargetDistance();
-    },
-    startSteps() {
-      if (this._steps || typeof IndoorNav === 'undefined') return;
-      this._steps = new IndoorNav.StepDetector(() => this.onStep());
-      // Switch to step-based movement once the phone actually delivers motion readings.
-      this._motionProbe = (e) => {
-        const a = e.accelerationIncludingGravity;
-        if (a && a.x !== null) { this._stepsActive = true; window.removeEventListener('devicemotion', this._motionProbe); }
-      };
-      window.addEventListener('devicemotion', this._motionProbe);
-      this._steps.start();
-    },
-    onStep() {
-      if (!this.myPos) return;
-      const cam = this.cameraHeadingDeg(0.05);
-      if (cam !== null) this._walkHeading = cam - (this._alignOffsetDeg || 0);
-      if (this._walkHeading == null) return;
-      const stride = this._stride || STEP_LENGTH_M;
-      // 1) On the route to the chosen building and facing roughly along it: slide along the route.
-      // The compass only decides forward/back, so its error can't push you sideways off the path.
-      let next = this.stepAlongPath(this._routePts, stride, this._walkHeading, ROUTE_HEADING_TOL_DEG);
-      // 2) Otherwise, on any drawn walkway: follow that edge (and onward through junctions).
-      if (!next && this.campusGraph.edges.length) next = this.stepAlongGraph(stride, this._walkHeading);
-      // 3) Off every path: plain dead reckoning.
-      if (!next) {
-        const h = this._walkHeading * Math.PI / 180;
-        const kx = PROJ_M_PER_DEG * Math.cos(this.myPos.lat * Math.PI / 180);
-        next = {
-          lat: this.myPos.lat + stride * Math.cos(h) / PROJ_M_PER_DEG,
-          lng: this.myPos.lng + stride * Math.sin(h) / kx,
-        };
-      }
-      this.myPos = next;
-      this.stepCount = (this.stepCount || 0) + 1;
-      this._strideSteps = (this._strideSteps || 0) + 1;
-      this.checkCorner();
-      this.afterMove();
-    },
-    // Moves `dist` meters along a lat/lng polyline starting at your position, but only if your
-    // heading is within `tol` degrees of the polyline's first segment.
-    stepAlongPath(pts, dist, headingDeg, tol) {
-      if (!pts || pts.length < 2) return null;
-      const here = this.myPos;
-      if (haversineMeters(here, pts[0]) > STEP_SNAP_M) return null;
-      let i = 1;
-      while (i < pts.length - 1 && haversineMeters(pts[i - 1], pts[i]) < 0.3) i++;
-      if (Math.abs(relativeAngle(headingDeg, bearingDeg(pts[0], pts[i]))) > tol) return null;
-      let cur = pts[0], left = dist;
-      for (; i < pts.length; i++) {
-        const seg = haversineMeters(cur, pts[i]);
-        if (seg >= left) {
-          const t = seg === 0 ? 0 : left / seg;
-          return { lat: cur.lat + (pts[i].lat - cur.lat) * t, lng: cur.lng + (pts[i].lng - cur.lng) * t };
-        }
-        left -= seg;
-        cur = pts[i];
-      }
-      return { lat: cur.lat, lng: cur.lng }; // reached the end of the route
-    },
-    // Walks `dist` meters along the drawn walkways in the direction you face. At each junction it
-    // takes the branch that best matches your heading; stops if nothing is within the tolerance.
-    stepAlongGraph(dist, headingDeg) {
-      const { nodes, edges } = this.campusGraph;
-      const snap = CampusRoute.snapToGraph(this.myPos, nodes, edges);
-      if (!snap || snap.dist > STEP_SNAP_M) return null;
-      const fwd = bearingDeg(snap.nodeA, snap.nodeB);
-      const toB = Math.abs(relativeAngle(headingDeg, fwd)) <= Math.abs(relativeAngle(headingDeg, (fwd + 180) % 360));
-      let from = toB ? snap.nodeA : snap.nodeB, to = toB ? snap.nodeB : snap.nodeA;
-      if (Math.abs(relativeAngle(headingDeg, bearingDeg(from, to))) > GRAPH_HEADING_TOL_DEG) return { lat: snap.lat, lng: snap.lng };
-      let cur = { lat: snap.lat, lng: snap.lng }, left = dist;
-      for (let hops = 0; hops < 6; hops++) {
-        const seg = haversineMeters(cur, to);
-        if (seg >= left) {
-          const t = seg === 0 ? 0 : left / seg;
-          return { lat: cur.lat + (to.lat - cur.lat) * t, lng: cur.lng + (to.lng - cur.lng) * t };
-        }
-        left -= seg;
-        cur = { lat: to.lat, lng: to.lng };
-        // Junction: pick the onward edge closest to the current travel direction.
-        const travel = bearingDeg(from, to);
-        let best = null, bestAng = GRAPH_HEADING_TOL_DEG;
-        edges.forEach((e) => {
-          const other = e.node_a_id === to.id ? e.node_b_id : e.node_b_id === to.id ? e.node_a_id : null;
-          if (other === null || other === from.id) return;
-          const n = nodes.find((x) => x.id === other);
-          if (!n) return;
-          const ang = Math.abs(relativeAngle(headingDeg, bearingDeg(to, n)));
-          const turn = Math.abs(relativeAngle(travel, bearingDeg(to, n)));
-          if (ang < bestAng && turn < 100) { best = n; bestAng = ang; }
-        });
-        if (!best) return cur; // dead end or no branch you are facing
-        from = to; to = best;
-      }
-      return cur;
-    },
-    // GPS is noisy, but noise averages out: when the last few good fixes ALL put you in about the
-    // same direction from the dot, the dot is wrong (steps drifted), so move it part of the way.
-    checkConsistentGps(fix, acc) {
-      if (acc == null || acc > CONSIST_ACC_M) return;
-      const d = CampusRoute.toXY(fix, this.myPos);
-      const buf = this._gpsDiffs = (this._gpsDiffs || []).concat({ x: d.x, y: d.y }).slice(-CONSIST_FIXES);
-      if (buf.length < CONSIST_FIXES) return;
-      const mx = buf.reduce((a, b) => a + b.x, 0) / buf.length, my = buf.reduce((a, b) => a + b.y, 0) / buf.length;
-      const mag = Math.hypot(mx, my);
-      if (mag < CONSIST_MIN_M) return;
-      // Every fix must lean the same way as the average and not be wildly different in size.
-      const same = buf.every((b) => (b.x * mx + b.y * my) / (Math.hypot(b.x, b.y) * mag || 1) > 0.5 && Math.hypot(b.x - mx, b.y - my) < Math.max(4, mag * 0.7));
-      if (!same) return;
-      this._gpsDiffs = [];
-      const kx = PROJ_M_PER_DEG * Math.cos(this.myPos.lat * Math.PI / 180);
-      this.myPos = {
-        lat: this.myPos.lat + (my * CONSIST_PULL) / PROJ_M_PER_DEG,
-        lng: this.myPos.lng + (mx * CONSIST_PULL) / kx,
-      };
-    },
-    // Detects a corner from your walking heading and, when you are near a corner/junction on the
-    // drawn paths, puts you exactly on it. Clears the distance error built up on the straight part.
-    checkCorner() {
-      const hist = this._hdgHist = (this._hdgHist || []).concat(this._walkHeading).slice(-10);
-      if (hist.length < 8 || (this.stepCount || 0) - (this._lastCornerStep || -99) < CORNER_COOLDOWN_STEPS) return;
-      const avg = (arr) => {
-        const x = arr.reduce((a, h) => a + Math.sin(h * Math.PI / 180), 0), y = arr.reduce((a, h) => a + Math.cos(h * Math.PI / 180), 0);
-        return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
-      };
-      const turn = Math.abs(relativeAngle(avg(hist.slice(0, 4)), avg(hist.slice(-3))));
-      if (turn < CORNER_TURN_DEG || !this.campusGraph.edges.length) return;
-      const { nodes, edges } = this.campusGraph;
-      const nbrs = new Map();
-      edges.forEach((e) => {
-        (nbrs.get(e.node_a_id) || nbrs.set(e.node_a_id, []).get(e.node_a_id)).push(e.node_b_id);
-        (nbrs.get(e.node_b_id) || nbrs.set(e.node_b_id, []).get(e.node_b_id)).push(e.node_a_id);
-      });
-      const byId = new Map(nodes.map((n) => [n.id, n]));
-      let best = null, bestD = CORNER_SNAP_M;
-      nodes.forEach((n) => {
-        const list = nbrs.get(n.id) || [];
-        if (list.length < 2) return; // ends of a path are not corners
-        // A bend (two edges not in line) or a fork (3+ edges) counts.
-        let corner = list.length >= 3;
-        if (!corner) {
-          const a = byId.get(list[0]), b = byId.get(list[1]);
-          corner = a && b && Math.abs(relativeAngle(bearingDeg(n, a), (bearingDeg(n, b) + 180) % 360)) >= 30;
-        }
-        const d = haversineMeters(this.myPos, n);
-        if (corner && d < bestD) { best = n; bestD = d; }
-      });
-      if (!best) return;
-      this.myPos = { lat: best.lat, lng: best.lng };
-      this._lastCornerStep = this.stepCount || 0;
-      this._hdgHist = [];
-    },
-    // Learns your real stride from GPS: over a long enough good-GPS stretch, stride = GPS distance / steps.
-    // Averaged in slowly and clamped, so one bad fix can't wreck it.
-    learnStride(fix, acc) {
-      if (acc == null || acc > STRIDE_LEARN_MAX_ACC_M) { this._strideRef = null; this._strideSteps = 0; return; }
-      const ref = this._strideRef;
-      if (!ref) { this._strideRef = { lat: fix.lat, lng: fix.lng }; this._strideSteps = 0; return; }
-      const d = haversineMeters(ref, fix);
-      if (d < STRIDE_LEARN_MIN_M) return;
-      if (this._strideSteps >= 12) {
-        const measured = Math.max(STRIDE_MIN_M, Math.min(STRIDE_MAX_M, d / this._strideSteps));
-        this._stride = (this._stride || STEP_LENGTH_M) * 0.7 + measured * 0.3;
-      }
-      this._strideRef = { lat: fix.lat, lng: fix.lng };
-      this._strideSteps = 0;
-    },
-    // Independent compass watch (same technique as guide.php's own) purely
-    // for the "turn left/right" off-screen indicator — deliberately NOT
-    // wired into AR.js's own internal compass, which keeps driving the 3D
-    // scene exactly as before, unaffected by this.
-    startCompassWatch() {
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().catch(() => {});
-      }
-      const primaryEvent = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
-      window.addEventListener(primaryEvent, this.onCompassOrientation, true);
-      // Same fallback as guide.php: some Android OEM browsers claim to
-      // support the "absolute" event but never actually dispatch it.
-      setTimeout(() => {
-        if (!this.compassReady && primaryEvent === 'deviceorientationabsolute') {
-          window.removeEventListener('deviceorientationabsolute', this.onCompassOrientation, true);
-          window.addEventListener('deviceorientation', this.onCompassOrientation, true);
-        }
-      }, 2500);
-    },
-    onCompassOrientation(e) {
-      const raw = e.webkitCompassHeading != null ? e.webkitCompassHeading : (360 - e.alpha) % 360;
-      if (!this.compassReady) {
-        this.compassHeading = raw;
-        this.compassReady = true;
-      } else {
-        const delta = relativeAngle(this.compassHeading, raw);
-        this.compassHeading = (this.compassHeading + delta * 0.15 + 360) % 360;
-      }
-    },
-    // Visual-only — see the overlay markup for why this can't fully stop
-    // AR.js's own internal camera stream the way guide.php's toggle does.
+    // Visual-only: LocAR's camera feed has no clean public "stop", so this just covers it (see the overlay markup).
     toggleCamera() {
       this.cameraOn = !this.cameraOn;
     },
-    // Manually twists everything GPS-placed (buildings, ribbons) to
-    // counteract compass drift — tap until it visually lines up with the
-    // real street. Simpler and more reliable than deriving a correction
-    // from the same sensor that's drifting in the first place.
-    rotateWorld(deg) {
-      this._alignOffsetDeg = (this._alignOffsetDeg || 0) + deg;
-      this.applyWorldTransform();
-    },
-    // Pauses only OUR OWN distance-tracking GPS watch (used for the 2D
-    // card). AR.js's own internal gps-new-camera tracking for the 3D
-    // entities keeps running regardless — disclosed in the UI, not silently
-    // pretended to be a full location toggle.
-    toggleLocation() {
-      if (this.locationOn) {
-        if (this.gpsWatchId !== null) navigator.geolocation.clearWatch(this.gpsWatchId);
-        this.gpsWatchId = null;
-        this.locationOn = false;
-      } else {
-        this.locationOn = true;
-        this.startLocationWatch();
+    // ---- text directions: "Turn left in 23 m" ----
+    // Turns the route's points (your position first, the building last) into instructions. A turn is a change of direction of
+    // at least NAV_TURN_MIN_DEG; the gate you must pass (exit or main entrance) is an instruction of its own.
+    buildSteps(points, info) {
+      const pts = [];
+      points.forEach((p) => {
+        const last = pts[pts.length - 1];
+        if (!last || haversineMeters(last, p) >= 1.5) pts.push({ lat: p.lat, lng: p.lng, name: p.name || '' });
+        else if (p.name && !last.name) last.name = p.name;
+      });
+      if (pts.length < 2 || !this.target) { this._steps = []; this.stepList = []; return; }
+      const cum = [0];
+      for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversineMeters(pts[i - 1], pts[i]));
+      const gateName = info && info.status === 'via-gate' ? info.gateName : null;
+      const man = [];
+      for (let i = 1; i < pts.length - 1; i++) {
+        const ang = relativeAngle(bearingDeg(pts[i - 1], pts[i]), bearingDeg(pts[i], pts[i + 1]));
+        if (gateName && pts[i].name === gateName) man.push({ i, kind: 'gate', angle: ang, ...(Math.abs(ang) >= NAV_TURN_MIN_DEG ? turnWord(ang) : { word: '', icon: 'gate' }) });
+        else if (Math.abs(ang) >= NAV_TURN_MIN_DEG) man.push({ i, kind: 'turn', angle: ang, ...turnWord(ang) });
       }
+      man.push({ i: pts.length - 1, kind: 'arrive', icon: 'arrive', word: '' });
+      const label = (m) => (m.kind === 'arrive' ? this.target.name : (pts[m.i].name || 'the corner'));
+      const exit = info && info.phase === 'exit';
+      const steps = man.map((m, k) => {
+        const next = man[k + 1];
+        return {
+          ...m, point: { lat: pts[m.i].lat, lng: pts[m.i].lng }, name: label(m),
+          leg: Math.round(cum[m.i] - cum[k ? man[k - 1].i : 0]),
+          after: next ? Math.round(cum[next.i] - cum[m.i]) : 0,
+          nextName: next ? label(next) : '',
+          gateWord: m.kind === 'gate' ? (exit ? 'Leave through ' : 'Go in through ') + pts[m.i].name : ''
+        };
+      });
+      // the Directions list: item k is "what to do at the previous point, then walk to point k"
+      this.stepList = steps.map((m, k) => {
+        const prev = k ? steps[k - 1] : null;
+        let title;
+        if (!prev) title = m.kind === 'arrive' ? 'Walk to ' + m.name : 'Head toward ' + m.name;
+        else if (prev.kind === 'gate') title = prev.gateWord + (prev.word ? ', then ' + prev.word.toLowerCase() : '');
+        else title = prev.word + ' at ' + prev.name;
+        return { key: k, icon: prev ? (prev.kind === 'gate' && !prev.word ? 'gate' : prev.icon) : 'straight', title, detail: !prev ? 'Walk straight ahead' : (m.kind === 'arrive' ? 'then ' + m.leg + ' m to ' + m.name + ', where you arrive' : 'then ' + m.leg + ' m to ' + m.name), meters: m.leg };
+      });
+      this._steps = steps;
+      this._stepIdx = 0;
+    },
+    // Runs a few times a second: works out the instruction for where you are and which way you face right now.
+    updateGuidance() {
+      const tgt = this.target, ri = this.routeInfo, here = this._pos || this.myPos;
+      if (!tgt || !ri || !here) { this.guidance = null; return; }
+      const eta = (m) => Math.max(1, Math.round(m / NAV_WALK_M_PER_MIN));
+      if (ri.status === 'arrived') { this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name, badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
+      if (ri.status === 'far') { this.guidance = { icon: 'warn', title: 'Too far to guide you', dist: '', detail: ri.remaining + ' m from ' + tgt.name + '. Are you on campus?', badge: '', facing: null, totalM: ri.remaining, etaMin: 0, step: -1 }; return; }
+      const steps = this._steps || [];
+      if (!steps.length) { this.guidance = { icon: 'straight', title: 'Finding your route', dist: '', detail: tgt.name, badge: '', facing: null, totalM: ri.remaining || 0, etaMin: 0, step: -1 }; return; }
+      let idx = Math.min(this._stepIdx || 0, steps.length - 1);
+      while (idx < steps.length - 1 && haversineMeters(here, steps[idx].point) < NAV_REACH_M) idx++;
+      this._stepIdx = idx;
+      const m = steps[idx], d = Math.round(haversineMeters(here, m.point)), near = d <= NAV_TURN_NEAR_M;
+      let icon, title, dist, detail;
+      if (m.kind === 'arrive') {
+        icon = d <= 12 ? 'arrive' : 'straight'; title = d <= 12 ? 'Arriving' : 'Continue straight'; dist = d <= 12 ? '' : 'for ' + d + ' m'; detail = 'to ' + tgt.name;
+      } else if (m.kind === 'gate') {
+        icon = near ? (m.word ? m.icon : 'gate') : 'straight';
+        title = near ? m.gateWord : 'Continue straight'; dist = near ? (d <= 10 ? 'now' : 'in ' + d + ' m') : 'for ' + d + ' m';
+        detail = near ? (m.word ? 'then ' + m.word.toLowerCase() + ' · ' : '') + 'then ' + m.after + ' m to ' + m.nextName : 'to ' + m.gateWord.toLowerCase();
+      } else {
+        icon = near ? m.icon : 'straight'; title = near ? m.word : 'Continue straight'; dist = near ? (d <= 10 ? 'now' : 'in ' + d + ' m') : 'for ' + d + ' m';
+        detail = near ? 'at ' + m.name + ' · then ' + m.after + ' m to ' + m.nextName : 'then ' + m.word.toLowerCase() + ' at ' + m.name;
+      }
+      // facing the wrong way: say so (the arrow in the AR view is off screen then)
+      let facing = null;
+      if (this.compassReady && d > 12) {
+        const rel = relativeAngle(this.compassHeading, bearingDeg(here, m.point));
+        if (Math.abs(rel) > NAV_FACING_DEG) facing = Math.abs(rel) > 150 ? { side: 'around', text: 'Turn around: the path is behind you' } : { side: rel > 0 ? 'right' : 'left', text: 'Turn ' + (rel > 0 ? 'right' : 'left') + ' to face the path' };
+      }
+      const badge = ri.status === 'via-gate' ? (ri.phase === 'exit' ? 'Out through ' : 'In through ') + ri.gateName : ri.status === 'off-path' ? 'Off the walkways' : ri.status === 'direct' ? 'No walkway here: straight line' : '';
+      const totalM = ri.remaining || 0;
+      this.guidance = { icon, title, dist, detail, badge, facing, totalM, etaMin: eta(totalM), step: idx };
+      if (!this._tipShown && !this.headingLocked) {            // once: how the compass gets lined up
+        this._tipShown = true;
+        this.anchorNote = 'Walk a few steps along the path to line up the compass';
+        setTimeout(() => { this.anchorNote = ''; }, 6000);
+      }
+      this.announce(idx, m, d, title);
+    },
+    // Voice and a buzz as a turn comes up: once at about 60 m, once at about 20 m, once at the turn. Only when the voice switch is on.
+    announce(idx, m, d, title) {
+      if (!this.voiceOn) return;
+      const key = idx + ':' + m.point.lat.toFixed(5) + ',' + m.point.lng.toFixed(5);
+      if (this._annKey !== key) { this._annKey = key; this._ann = {}; }
+      const a = this._ann, word = m.kind === 'arrive' ? 'You have arrived' : (m.kind === 'gate' ? m.gateWord : m.word);
+      if (d <= 60 && d > 25 && !a.far) { a.far = true; this.say(m.kind === 'arrive' ? 'Continue straight for ' + Math.round(d / 10) * 10 + ' meters' : 'In ' + Math.round(d / 10) * 10 + ' meters, ' + word.toLowerCase()); }
+      else if (d <= 25 && d > 10 && !a.near) { a.near = true; this.say(word + ' in ' + Math.round(d / 5) * 5 + ' meters'); this.buzz(120); }
+      else if (d <= 10 && !a.now) { a.now = true; this.say(word); this.buzz([150, 80, 150]); }
+    },
+    say(text) {
+      try {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 1; u.lang = 'en';
+        window.speechSynthesis.speak(u);
+      } catch (e) { /* no speech on this phone */ }
+    },
+    buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* no vibration */ } },
+    toggleVoice() {
+      this.voiceOn = !this.voiceOn;
+      try { localStorage.setItem('lampara_ar_voice', this.voiceOn ? '1' : '0'); } catch (e) { /* not remembered */ }
+      if (this.voiceOn) { this._annKey = ''; this.say('Voice directions on'); } else { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+    },
+    iconDeg(icon) { return NAV_ICON_DEG[icon] || 0; },
+    // done / doing / todo for a line of the start-up list
+    stageClass(stage) {
+      const order = ['map', 'camera', 'gps', 'ready'], cur = order.indexOf(this.gateStage), me = order.indexOf(stage);
+      return me < cur ? 'done' : me === cur ? 'doing' : 'todo';
+    },
+    pickDestination(b) {
+      this.pendingTarget = this.pendingTarget && this.pendingTarget.id === b.id ? null : b;
+      if (this.pendingRoom && (!this.pendingTarget || String(this.pendingRoom.building_id) !== String(this.pendingTarget.id))) this.pendingRoom = null;
+    },
+    async loadRooms() {
+      try { this.rooms = LamparaCache.getRooms() || []; } catch (e) { this.rooms = []; }
+      if (!navigator.onLine) return;
+      try {
+        const res = await fetch('../../../Backend/api/rooms.php');
+        const data = await res.json();
+        if (data && data.success) { this.rooms = data.rooms; LamparaCache.setRooms(data.rooms); }
+      } catch (e) { /* the cached copy stays */ }
+    },
+    // Rooms and offices matching what was typed: every word must appear in the name, number, floor or building. Best matches first.
+    findRooms(query) {
+      const words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+      if (!this.rooms.length || !words.length || String(query).trim().length < 2) return [];
+      const compact = (t) => String(t || '').toLowerCase().replace(/[\s\-\u2013\u2014]+/g, '');
+      const out = [];
+      this.rooms.forEach((r) => {
+        const name = String(r.room_name || '').toLowerCase(), hay = name + ' ' + String(r.subtitle || '').toLowerCase() + ' ' + String(r.building_name || '').toLowerCase() + ' ' + String(r.floor || '').toLowerCase();
+        let score = 0;
+        for (const w of words) {
+          if (compact(r.room_number) === compact(w)) score += 9;
+          else if (name === w) score += 8;
+          else if (name.split(/[^a-z0-9]+/).some((x) => x.startsWith(w))) score += 6;
+          else if (hay.indexOf(w) !== -1) score += 3;
+          else return;
+        }
+        out.push({ r, score });
+      });
+      return out.sort((a, b) => b.score - a.score || String(a.r.room_name).localeCompare(String(b.r.room_name))).slice(0, 5).map((x) => x.r);
+    },
+    roomLabel(r) { return (r.room_number ? r.room_number + ' \u2014 ' : '') + r.room_name + (r.subtitle ? ' (' + r.subtitle + ')' : ''); },
+    // Picking a room on the start screen: its building becomes the destination.
+    pickRoomGate(r) {
+      const b = this.buildings.find((x) => String(x.id) === String(r.building_id));
+      if (!b) return;
+      this.pendingRoom = r;
+      this.pendingTarget = b;
+    },
+    // Picking a room in the search bar: walk to its building, and remember the room for 'Find inside'.
+    pickRoomHud(r) {
+      const b = this.buildings.find((x) => String(x.id) === String(r.building_id));
+      if (!b) return;
+      this.pendingRoom = r;
+      this.pickFromList(b);
+    },
+    selectBuilding(building) { this.setTarget(building); },
+    // Choosing a building from the list: switches the destination (even while another one is still active) and closes the list.
+    pickFromList(b) {
+      if (this.pendingRoom && String(this.pendingRoom.building_id) !== String(b.id)) this.pendingRoom = null;
+      this.selectBuilding(b);
+      this.searchQuery = '';
+      this.showAllBuildings = false;
+      this.searchOpen = false;
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    },
+    closeSearchSoon() { setTimeout(() => { this.searchOpen = false; }, 200); },
+    // Distance from you to a building, for the list ("120 m", "1.2 km"); '' until there is a position.
+    distLabel(b) {
+      const here = this._pos || this.myPos;
+      if (!here) return '';
+      const d = haversineMeters(here, b);
+      return d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m';
+    },
+    // Clear navigation: stop navigating and take the path away (the route, the chevrons, the directions, the markers).
+    clearNavigation() {
+      this.pendingRoom = null;
+      this.menuOpen = false;
+      this.directionsOpen = false;
+      this.searchQuery = '';
+      this.showAllBuildings = false;
+      this.searchOpen = false;
+      this.setTarget(null);
+      this.guidance = null;
+      this.stepList = [];
+      this._steps = [];
+      if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+    },
+    // "Refresh path": for when the chevrons have drifted off the walkway or float above/below the ground. Restarts the
+    // position from fresh GPS readings and lays everything again at ground height; the walking-based compass correction
+    // and any QR correction are kept.
+    async refreshPath() {
+      if (this.refreshing || !window.LamparaLocar || !LamparaLocar.ready) return;
+      this.refreshing = true;
+      try {
+        this.refreshNote = 'Recapturing your location…';
+        const p = await LamparaLocar.refresh((best, n) => { this.refreshNote = 'Recapturing your location… ±' + Math.round(best.acc) + ' m'; });
+        this.refreshNote = '';
+        this._mmPos = null;                                  // the mini-map dot jumps to the new spot instead of gliding there
+        this._pos = { lat: p.lat, lng: p.lng };
+        if (this.locationOn) this.myPos = this._pos;
+        LamparaLocar.setBuildings(this.buildings);          // labels first: setTarget hides the chosen building's own label
+        if (this.showAllPaths) this.renderAllPaths();
+        if (this.target) {
+          LamparaLocar.setTarget(this.target);
+          this.updateTargetDistance();
+          this.updateRoute(true);
+        }
+        this.anchorNote = !p.fresh ? 'No new GPS reading yet. Try again in a moment.'
+          : p.acc > 25 ? 'Path refreshed, but GPS is weak (±' + Math.round(p.acc) + ' m). Move into open sky and refresh again.'
+          : 'Location recaptured, path refreshed (±' + Math.round(p.acc) + ' m)';
+      } catch (e) {
+        this.anchorNote = 'Could not refresh the path.';
+      }
+      this.refreshing = false;
+      this.refreshNote = '';
+      setTimeout(() => { this.anchorNote = ''; }, 4000);
+    },
+    // Plain-words reason the ground route is missing, for AR debug.
+    routeWhyNot() {
+      if (!this.target) return 'no building chosen yet. Search one and pick it from the list.';
+      if (!this.myPos) return 'no GPS position yet.';
+      const crow = Math.round(haversineMeters(this.myPos, this.target));
+      if (crow > ROUTE_MAX_M) return 'you are ' + crow + ' m from ' + this.target.name + ' (a path is only drawn within ' + ROUTE_MAX_M + ' m). Are you on campus?';
+      if (crow <= ARRIVED_METERS) return 'you are already there.';
+      return 'a route to ' + this.target.name + ' exists (' + (this.routeInfo ? this.routeInfo.status : '?') + ') but is not on the ground yet. Tap Refresh path.';
+    },
+    toggleMiniMap() {
+      this.miniMapOn = !this.miniMapOn;
+      try { localStorage.setItem('lampara_ar_minimap', this.miniMapOn ? '1' : '0'); } catch (e) { /* not remembered */ }
+    },
+    toggleClearNav() {
+      this.clearNav = !this.clearNav;
+      try { localStorage.setItem('lampara_ar_clear', this.clearNav ? '1' : '0'); } catch (e) { /* not remembered */ }
+    },
+    // Turns only the 2D distance readout off; the AR view itself always needs GPS to place the path.
+    toggleLocation() {
+      this.locationOn = !this.locationOn;
     },
     runArDebug() {
       if (typeof window.__arDebug === 'function') {

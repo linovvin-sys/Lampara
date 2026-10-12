@@ -97,3 +97,6 @@
   .sk::after { animation: none; opacity: 0; }
   .sk-page, .sk-slow { transition: none; }
 }
+
+/* Vue roots stay hidden until the app mounts, so raw {{ templates }} never flash (or stay) on screen. */
+[v-cloak] { display: none !important; }

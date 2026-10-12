@@ -53,3 +53,6 @@
 
 /* Keyboard focus: one clear ring everywhere, using the brand yellow on dark and blue on light */
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Vue roots stay hidden until the app mounts, so raw {{ templates }} never flash (or stay) on screen. */
+[v-cloak] { display: none !important; }

@@ -17,7 +17,7 @@ createApp({
   data() {
     return {
       stage: 'scan', scanning: false, manualNumber: '', room: null, reported: false,
-      cameraReady: false, detectedNumber: null, aiReadFailed: false, cameraStream: null,
+      cameraReady: false, cameraFailed: false, detectedNumber: null, aiReadFailed: false, cameraStream: null,
       onCampus: null, // null = still checking, true/false once GPS resolves
       liveBox: null, // screen-space {left, top, width, height} of the currently detected text, or null
       destQuery: '', destResults: [], destination: null, destResultsTruncated: false,
@@ -26,7 +26,7 @@ createApp({
       // the whole "You're at X" scanned framing is wrong here. Swaps the
       // result screen to "where are you now, then here's the route" instead.
       planningMode: false,
-      originQuery: '', originResults: [],
+      originQuery: '', originResults: [], nearbyRooms: [], nearbyLabel: '', nearbyTitle: 'Rooms on',
       // Keyed by 'room' / 'destination' -> the floor_plans row for that
       // room's building+floor, or null once we've checked and there isn't
       // one. Only ever populated once a destination is picked — no map to
@@ -65,6 +65,15 @@ createApp({
       this.destination = await this.lookupRoomById(roomIdParam);
       this.scanning = false;
       this.stage = 'result';
+      // Quick picks: the rooms on the floor you were last on (saved from a scan or Manual Search), nothing to type.
+      const mine = LamparaCache.getMyFloor();
+      if (mine && this.destination) {
+        this.nearbyRooms = LamparaCache.getRooms()
+          .filter((r) => String(r.building_id) === String(mine.building_id) && r.floor === mine.floor && r.id !== this.destination.id)
+          .sort((a, b) => String(a.room_number || '').localeCompare(String(b.room_number || ''), undefined, { numeric: true }))
+          .slice(0, 8);
+        this.nearbyLabel = mine.floor + ' \u00b7 ' + mine.building_name;
+      }
       return;
     }
 
@@ -83,7 +92,7 @@ createApp({
       if (window.screen && window.screen.orientation) {
         window.screen.orientation.addEventListener('change', handleRotation);
       }
-    } catch (e) { /* camera optional for manual-number fallback */ }
+    } catch (e) { this.cameraFailed = true; /* camera optional for manual-number fallback */ }
 
     // Gate AI scanning to campus grounds — otherwise it'll happily OCR a
     // room number off literally any sign anywhere and check it against the
@@ -643,13 +652,38 @@ createApp({
       return node ? node.floor : '';
     },
     async reportOutdated() {
-      if (!this.room) return;
-      await fetch('../../../Backend/api/flags.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room_id: this.room.id, note: 'Flagged from scan result screen' })
-      });
-      this.reported = true;
+      // From the scan flow the room you scanned is reported; from Find inside it is the destination you were looking at.
+      const target = this.planningMode ? this.destination : this.room;
+      if (!target) return;
+      try {
+        await fetch('../../../Backend/api/flags.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_id: target.id, note: this.planningMode ? 'Flagged from the Find inside screen' : 'Flagged from scan result screen' })
+        });
+        this.reported = true;
+      } catch (e) { /* offline: the button stays available to try again */ }
+    },
+    // Someone who has just walked in: offer the rooms on the lowest floor of the destination's building, by number.
+    showEntranceRooms() {
+      if (!this.destination) return;
+      const rank = (name) => {
+        const t = String(name || '').trim().toLowerCase(), m = t.match(/^(-?\d+)/);
+        if (m) return parseInt(m[1], 10);
+        if (/^(g|ground|lower ground)/.test(t)) return 0;
+        if (/basement|^b\d?\b/.test(t)) return -1;
+        return 99;
+      };
+      const inBuilding = LamparaCache.getRooms().filter((r) => String(r.building_id) === String(this.destination.building_id) && r.id !== this.destination.id);
+      if (!inBuilding.length) return;
+      // The floor the admin marked as the entrance, otherwise the lowest one.
+      const marked = this.destination.building_entrance_floor;
+      const markedRooms = marked ? inBuilding.filter((r) => r.floor === marked) : [];
+      const low = Math.min(...inBuilding.map((r) => rank(r.floor)));
+      const floorRooms = markedRooms.length ? markedRooms : inBuilding.filter((r) => rank(r.floor) === low);
+      this.nearbyRooms = floorRooms.sort((a, b) => String(a.room_number || '').localeCompare(String(b.room_number || ''), undefined, { numeric: true })).slice(0, 10);
+      this.nearbyTitle = 'Rooms near the entrance, on';
+      this.nearbyLabel = floorRooms[0].floor + ' \u00b7 ' + floorRooms[0].building_name;
     },
     reset() {
       this.stage = 'scan';

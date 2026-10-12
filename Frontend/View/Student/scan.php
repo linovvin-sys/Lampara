@@ -25,7 +25,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Student/scan.css?v=<?= $pageCssVer ?>">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 </head>
 <body style="background:#09090b;">
@@ -36,47 +36,59 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
      can legitimately grow past one viewport (e.g. a long destination-search
      list), and inheriting "hidden" from here made it permanently stuck with
      no way to reach anything below the fold. -->
-<div id="app" :style="{ position: 'relative', width: '100vw', height: '100vh', color: '#fff', overflow: stage === 'result' ? 'auto' : 'hidden' }">
+<div id="app" v-cloak :style="{ position: 'relative', width: '100vw', height: '100vh', color: '#fff', overflow: stage === 'result' ? 'auto' : 'hidden' }">
 
-  <!-- ===== STAGE 1: camera + tap-to-scan (AR chrome kept, recolored) ===== -->
+  <!-- ===== STAGE 1: camera + scan, in the same look as the outdoor guide (navy glass, yellow actions) ===== -->
   <template v-if="stage === 'scan'">
     <video id="camera-feed" ref="video" autoplay playsinline muted></video>
-    <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/80"></div>
+    <div class="sc-shade"></div>
 
-    <div class="relative z-10 p-4">
-      <a href="../Public/guide-ar.php" class="inline-flex items-center gap-1.5 text-xs text-white/70">&larr; Back to guide</a>
-    </div>
-
-    <div class="absolute top-16 left-4 flex items-center gap-2 bg-white/10 border border-white/15 rounded-full pl-2.5 pr-3 py-1.5 z-10">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="6" height="6" rx="1" stroke="#22c55e" stroke-width="1.6"/><rect x="14.5" y="3.5" width="6" height="6" rx="1" stroke="#22c55e" stroke-width="1.6"/><rect x="3.5" y="14.5" width="6" height="6" rx="1" stroke="#22c55e" stroke-width="1.6"/><rect x="14.5" y="14.5" width="6" height="6" rx="1" stroke="#22c55e" stroke-width="1.6"/></svg>
-      <span class="text-xs font-medium">Point camera at a room signage</span>
-    </div>
-
-    <!-- Stage 1 of signage reading: a local text detector (Tesseract.js) runs
-         periodically on the live frame and boxes whatever text it finds —
-         purely a visual aid to help you aim. Stage 2, the actual accurate
-         read, only happens on tap and is done by Gemini (see performScan). -->
+    <!-- Stage 1 of signage reading: a local text detector (Tesseract.js) runs periodically on the live frame and
+         boxes whatever text it finds - only a visual aid to help you aim. Stage 2, the accurate read, happens on tap (Gemini). -->
     <div v-if="liveBox" class="absolute z-10 pointer-events-none rounded-lg transition-all duration-200"
-         :style="{ left: liveBox.left + 'px', top: liveBox.top + 'px', width: liveBox.width + 'px', height: liveBox.height + 'px', border: '2px solid #22c55e', boxShadow: '0 0 0 2px rgba(34,197,94,0.25)' }">
-      <span class="absolute -top-6 left-0 bg-emerald-500 text-zinc-900 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap">TEXT DETECTED</span>
+         :style="{ left: liveBox.left + 'px', top: liveBox.top + 'px', width: liveBox.width + 'px', height: liveBox.height + 'px', border: '2px solid #ffd100', boxShadow: '0 0 0 2px rgba(255,209,0,0.25)' }">
+      <span class="sc-detected">TEXT FOUND</span>
     </div>
 
-    <div class="absolute inset-0 flex flex-col items-center justify-center z-10 px-8 pointer-events-none">
-      <p class="text-white/50 text-sm text-center mb-6">Not sure of the exact number? Type it manually below.</p>
-      <input v-model="manualNumber" type="text" placeholder="e.g. 204 or 204 - A" maxlength="16" style="width:13rem;"
-             class="w-40 text-center bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-lg font-mono tracking-widest text-white placeholder-white/30 focus:outline-none scan-input mb-4 pointer-events-auto">
+    <!-- top: back, and what this screen is for -->
+    <div class="sc-top">
+      <a href="../Public/guide-ar.php" class="round-btn" aria-label="Back to the guide">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </a>
+      <div class="sc-title">
+        <strong>Scan a room sign</strong>
+        <span>Find where you are inside a building</span>
+      </div>
     </div>
 
-    <div class="absolute bottom-10 inset-x-0 flex flex-col items-center gap-4 z-10">
-      <button @click="performScan" :disabled="scanning"
-              class="w-20 h-20 rounded-full bg-white border-4 scan-ring flex items-center justify-center lamp-glow disabled:opacity-60">
-        <span v-if="!scanning" class="w-12 h-12 rounded-full bg-emerald-50"></span>
-        <span v-else class="text-zinc-900 text-xs font-semibold">…</span>
+    <!-- the frame to aim with -->
+    <div class="sc-frame" aria-hidden="true">
+      <span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
+    </div>
+    <p class="sc-aim" role="status">
+      <template v-if="cameraFailed">The camera is not available. Type the room number below.</template>
+      <template v-else-if="scanning">Reading the sign&hellip;</template>
+      <template v-else>Fit the sign next to the door inside the frame</template>
+    </p>
+
+    <!-- bottom: the one action, plus the type-it fallback -->
+    <section class="sc-panel" aria-label="Scan or type a room number">
+      <p v-if="onCampus === false && !manualNumber" class="sc-warn">Scanning with AI works on campus grounds only. Type the room number instead.</p>
+      <label class="sc-type">
+        <span class="sc-type-label">Or type the number on the sign</span>
+        <span class="sc-type-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/></svg>
+          <input v-model="manualNumber" @keyup.enter="performScan" type="text" inputmode="text" maxlength="16" autocomplete="off" autocapitalize="characters" placeholder="e.g. 204 or 204 - A" aria-label="Room number">
+        </span>
+      </label>
+      <button type="button" class="sc-go" @click="performScan" :disabled="scanning">
+        <span v-if="scanning" class="start-spinner" aria-hidden="true"></span>
+        <svg v-else-if="manualNumber.trim()" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="2.5"/></svg>
+        {{ scanning ? 'Reading the sign…' : (manualNumber.trim() ? 'Find room ' + manualNumber.trim() : 'Scan the sign') }}
       </button>
-      <p v-if="scanning" class="text-xs text-white/70">Reading sign with AI…</p>
-      <p v-else-if="onCampus === false && !manualNumber" class="text-xs text-white/70 font-medium px-8 text-center">AI scanning only works on campus grounds — type the room number manually instead</p>
-      <p v-else class="text-xs text-white/70">Tap to read this sign with AI</p>
-    </div>
+      <a href="manual-search.php" class="sc-link">No sign nearby? Search the directory</a>
+    </section>
   </template>
 
   <!-- ===== STAGE 2: result (full white/green card redesign) ===== -->
@@ -86,33 +98,70 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
            DESTINATION, not "where they are" — there was no scan to establish
            that, so asking "where are you now?" comes first instead of the
            scanned flow's "You're at X" framing. -->
-      <div v-if="planningMode && destination && !room" style="padding-top:1.25rem;">
-        <div class="result-heading">
-          <h1>Where are you now?</h1>
-          <p>Going to {{ destination.room_number ? destination.room_number + ' — ' : '' }}{{ destination.room_name }} — search your current room to see the way there.</p>
-        </div>
-        <!-- What the destination looks like, on the first screen too (this is what tapping a room in the 3D map or
-             the search opens). Only when there is something to show: no photo and no hours means no extra card. -->
-        <div v-if="destination.photo_path || destination.hours" class="info-card dest-preview" style="margin-top:0.25rem;">
-          <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="dest-photo" @error="$event.target.hidden = true">
-          <p class="dest-meta" style="margin:0;">
-            {{ [({ office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' })[destination.category], destination.hours, destination.notes].filter(Boolean).join(' · ') }}
-          </p>
-        </div>
-        <div class="info-card" style="margin-top:0.25rem;">
-          <input v-model="originQuery" @input="searchOrigin" type="text"
-                 placeholder="Search your current room…"
-                 style="width:100%; box-sizing:border-box; padding:0.7rem 0.9rem; border:1px solid var(--line); border-radius:0.75rem; font-family:inherit; font-size:0.875rem;">
-          <div v-if="originResults.length" style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.4rem; max-height:16rem; overflow-y:auto;">
-            <button v-for="r in originResults" :key="r.id" @click="pickOrigin(r)"
-                    style="text-align:left; background:var(--green-50); border:none; border-radius:0.6rem; padding:0.55rem 0.75rem; font-family:inherit; cursor:pointer;">
-              <span style="font-weight:700; font-size:0.8125rem; color:var(--ink);">{{ r.room_number ? r.room_number + ' — ' : '' }}{{ r.room_name }}</span>
-              <span style="display:block; font-size:0.75rem; color:var(--muted);">{{ r.building_name }} &middot; {{ r.floor }}</span>
-            </button>
+      <div v-if="planningMode && destination && !room" class="wy">
+        <a href="manual-search.php" class="wy-back" aria-label="Back to the directory">
+          <span class="wy-back-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></span>
+          Directory
+        </a>
+
+        <!-- 1. where you are going: fixed, shown first so the question below makes sense -->
+        <section class="wy-dest" aria-label="Your destination">
+          <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="wy-photo" @error="$event.target.hidden = true">
+          <div class="wy-dest-body">
+            <span class="wy-eyebrow">Going to</span>
+            <h1>{{ destination.room_name }}</h1>
+            <p class="wy-dest-meta">{{ [destination.room_number ? 'Room ' + destination.room_number : '', destination.floor, destination.building_name].filter(Boolean).join(' \u00b7 ') }}</p>
+            <p v-if="destination.hours || destination.category" class="wy-chips">
+              <span v-if="({ office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' })[destination.category]" class="wy-chip">{{ ({ office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' })[destination.category] }}</span>
+              <span v-if="destination.hours" class="wy-chip">{{ destination.hours }}</span>
+            </p>
+            <p v-if="destination.notes" class="wy-note">{{ destination.notes }}</p>
           </div>
-          <div v-if="originQuery && !originResults.length" style="margin-top:0.5rem; font-size:0.8125rem; color:var(--muted);">No matching room found.</div>
+        </section>
+
+        <!-- 2. the one question: which room are you at -->
+        <section class="wy-ask" aria-labelledby="wyTitle">
+          <h2 id="wyTitle">Where are you now?</h2>
+          <p>Pick the room you are standing at and we will show the way, floor by floor.</p>
+          <div class="wy-opts">
+            <button type="button" class="wy-opt wy-opt-card" @click="showEntranceRooms">
+              <span class="wy-opt-main">I just arrived at the entrance</span>
+              <span class="wy-opt-sub">Pick a room near the entrance of {{ destination.building_name }}</span>
+            </button>
+            <a class="wy-opt wy-opt-card" :href="'../Public/guide-ar.php?to=' + destination.building_id + '&room=' + destination.id">
+              <span class="wy-opt-main">I am still outside</span>
+              <span class="wy-opt-sub">Walk to {{ destination.building_name }} first, then come back here</span>
+            </a>
+          </div>
+          <label class="wy-search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
+            <input v-model="originQuery" @input="searchOrigin" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search your current room" placeholder="Room name or number">
+            <button v-if="originQuery" type="button" class="wy-clear" aria-label="Clear" @click="originQuery = ''; originResults = []">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </label>
+
+          <p v-if="!originQuery && nearbyRooms.length" class="wy-label">{{ nearbyTitle }} {{ nearbyLabel }}</p>
+          <ul v-if="originResults.length || (!originQuery && nearbyRooms.length)" class="wy-list">
+            <li v-for="r in (originQuery ? originResults : nearbyRooms)" :key="r.id">
+              <button type="button" class="wy-opt" @click="pickOrigin(r)">
+                <span class="wy-opt-main">{{ r.room_number ? r.room_number + ' \u2014 ' : '' }}{{ r.room_name }}</span>
+                <span class="wy-opt-sub">{{ r.subtitle ? r.subtitle + ' \u00b7 ' : '' }}{{ r.floor }} &middot; {{ r.building_name }}</span>
+                <svg class="wy-go" width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </li>
+          </ul>
+          <p v-if="originQuery && !originResults.length" class="wy-none">No room matches &ldquo;{{ originQuery }}&rdquo;. Try its number, or fewer words.</p>
+        </section>
+
+        <!-- 3. other ways to say where you are -->
+        <div class="wy-alt">
+          <a href="scan.php" class="wy-alt-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>
+            Scan a room sign instead
+          </a>
+          <a href="manual-search.php" class="wy-alt-link">Pick a different destination</a>
         </div>
-        <a href="manual-search.php" class="back-link">Pick a different destination</a>
       </div>
 
       <!-- The destination itself couldn't be found — bad link, or truly
@@ -153,12 +202,32 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <h1>Where do you want to go?</h1>
           <p>Search a room, office, or lab to get directions from here.</p>
         </div>
-        <!-- Planning-mode heading: both ends are already picked, so this is
-             just a compact confirmation, not a prompt. -->
-        <div v-else class="result-heading" style="text-align:left;">
-          <h1 style="font-size:1.375rem;">{{ room.room_name }} &rarr; {{ destination.room_name }}</h1>
-          <p>{{ room.floor }}, {{ room.building_name }} &middot; {{ destination.floor }}, {{ destination.building_name }}</p>
-        </div>
+        <!-- Planning mode: both ends are picked, so show them as a route (from -> to), not a prompt. -->
+        <section v-else class="rt-sum" aria-label="Your route">
+          <a href="manual-search.php" class="wy-back" aria-label="Back to the directory">
+            <span class="wy-back-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></span>
+            Directory
+          </a>
+          <ol class="rt-stops">
+            <li class="rt-stop is-from">
+              <span class="rt-pin" aria-hidden="true"></span>
+              <div class="rt-stop-text">
+                <small>From</small>
+                <strong>{{ room.room_number ? room.room_number + ' \u2014 ' : '' }}{{ room.room_name }}</strong>
+                <span>{{ room.floor }} &middot; {{ room.building_name }}</span>
+              </div>
+              <button type="button" class="rt-change" @click="changeOrigin">Change</button>
+            </li>
+            <li class="rt-stop is-to">
+              <span class="rt-pin" aria-hidden="true"></span>
+              <div class="rt-stop-text">
+                <small>To</small>
+                <strong>{{ destination.room_number ? destination.room_number + ' \u2014 ' : '' }}{{ destination.room_name }}</strong>
+                <span>{{ destination.floor }} &middot; {{ destination.building_name }}</span>
+              </div>
+            </li>
+          </ol>
+        </section>
 
         <div v-if="!planningMode" class="info-card" style="margin-top:0.25rem;">
           <input v-model="destQuery" @input="searchDestinations" type="text"
@@ -181,13 +250,16 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         <div v-if="destination" class="info-card" :style="{ marginTop: planningMode ? '0.25rem' : '1rem' }">
           <!-- keyed per room, so a photo that failed to load for one room is not hidden for the next -->
           <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="dest-photo" @error="$event.target.hidden = true">
-          <p style="font-weight:800; font-size:0.9375rem; color:var(--ink); margin:0 0 0.2rem;">
+          <p v-if="!planningMode" style="font-weight:800; font-size:0.9375rem; color:var(--ink); margin:0 0 0.2rem;">
             {{ destination.room_number ? destination.room_number + ' — ' : '' }}{{ destination.room_name }}
           </p>
-          <p v-if="destination.category || destination.hours" class="dest-meta">
+          <p v-if="!planningMode && (destination.category || destination.hours)" class="dest-meta">
             {{ [({ office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' })[destination.category], destination.hours].filter(Boolean).join(' · ') }}
           </p>
-          <p style="font-size:0.8125rem; color:var(--green-700); font-weight:700; margin:0;">{{ directionHint }}</p>
+          <p class="rt-hint">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
+            <span>{{ directionHint }}</span>
+          </p>
           <!-- The admin's own notes on THIS room are the real "how to find it"
                info (e.g. "up the stairs, end of the hall") — more specific
                than the generic same-floor/different-building hint above, so
@@ -202,7 +274,8 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
                always covers the gap otherwise, so this never blocks. -->
           <p v-if="loadingFloorPlan" style="font-size:0.75rem; color:var(--muted); margin-top:0.6rem;">Loading floor plan…</p>
 
-          <div v-if="mapMode === 'same-floor'" style="margin-top:0.75rem; position:relative; border-radius:0.75rem; overflow:hidden; border:1px solid var(--line);">
+          <div v-if="mapMode === 'same-floor'" class="zoom-view" style="margin-top:0.75rem; position:relative; border-radius:0.75rem; overflow:hidden; border:1px solid var(--line);">
+            <div class="zoom-inner">
             <img :src="floorPlans.room.imageDataUrl || ('../../' + floorPlans.room.image_path)" alt="" style="width:100%; display:block;">
             <!-- Every other registered room on this floor — small, muted,
                  non-interactive dots for orientation, so the destination
@@ -227,6 +300,12 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" fill="#16a34a" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.1" fill="#fff"/></svg>
               <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); font-size:0.4375rem; font-weight:700; background:#16a34a; color:#fff; padding:0.05rem 0.25rem; border-radius:0.2rem; white-space:nowrap; line-height:1.4;">{{ destination.room_number || 'Here' }}</span>
             </div>
+            </div>
+            <div class="zoom-ctl" role="group" aria-label="Zoom the floor plan">
+                <button type="button" data-z="in" aria-label="Zoom in">+</button>
+                <button type="button" data-z="out" aria-label="Zoom out">&minus;</button>
+                <button type="button" data-z="reset" aria-label="Reset the zoom">&#8634;</button>
+              </div>
           </div>
 
           <!-- Multi-floor route: one floor's plan + its own sub-route at a
@@ -235,12 +314,13 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
                each page is its own floor plan with a "take the stairs"
                marker at the page break instead. -->
           <div v-else-if="mapMode === 'multi-floor'" style="margin-top:0.75rem;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.4rem;">
-              <p style="font-size:0.75rem; font-weight:700; color:var(--muted); margin:0;">{{ segmentFloorLabel(currentSegment) }}</p>
-              <p style="font-size:0.6875rem; color:var(--muted); margin:0;">Floor {{ currentSegmentIndex + 1 }} of {{ routeSegments.length }}</p>
+            <div class="rt-floorbar">
+              <strong>{{ segmentFloorLabel(currentSegment) }}</strong>
+              <span>Step {{ currentSegmentIndex + 1 }} of {{ routeSegments.length }}</span>
             </div>
 
-            <div v-if="segmentImage(currentSegment)" style="position:relative; border-radius:0.75rem; overflow:hidden; border:1px solid var(--line);">
+            <div v-if="segmentImage(currentSegment)" class="zoom-view" style="position:relative; border-radius:0.75rem; overflow:hidden; border:1px solid var(--line);">
+              <div class="zoom-inner">
               <img :src="segmentImage(currentSegment)" alt="" style="width:100%; display:block;">
               <div v-for="r in roomsOnFloor(segmentFloorLabel(currentSegment))" :key="r.id"
                    :style="{ position: 'absolute', left: r.map_x + '%', top: r.map_y + '%', transform: 'translate(-50%, -100%)' }">
@@ -268,12 +348,18 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
               <div v-if="currentSegmentIndex > 0" :style="{ position: 'absolute', left: currentSegment.points[0].x + '%', top: currentSegment.points[0].y + '%', transform: 'translate(-50%, -100%)' }">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="4" fill="#0369a1" stroke="#fff" stroke-width="1.5"/><path d="M8 9l4 8 4-8" stroke="#fff" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </div>
+              </div>
+              <div class="zoom-ctl" role="group" aria-label="Zoom the floor plan">
+                <button type="button" data-z="in" aria-label="Zoom in">+</button>
+                <button type="button" data-z="out" aria-label="Zoom out">&minus;</button>
+                <button type="button" data-z="reset" aria-label="Reset the zoom">&#8634;</button>
+              </div>
             </div>
             <p v-else style="font-size:0.75rem; color:var(--muted); margin:0.5rem 0;">Loading this floor's plan…</p>
 
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.5rem;">
-              <button type="button" @click="currentSegmentIndex--" :disabled="currentSegmentIndex === 0" class="btn-link" :style="{ fontSize: '0.8125rem', opacity: currentSegmentIndex === 0 ? 0.35 : 1 }">&larr; Previous floor</button>
-              <button type="button" @click="currentSegmentIndex++" :disabled="currentSegmentIndex === routeSegments.length - 1" class="btn-link" :style="{ fontSize: '0.8125rem', opacity: currentSegmentIndex === routeSegments.length - 1 ? 0.35 : 1 }">Next floor &rarr;</button>
+            <div class="rt-pager">
+              <button type="button" @click="currentSegmentIndex--" :disabled="currentSegmentIndex === 0">&larr; Previous floor</button>
+              <button type="button" class="is-next" @click="currentSegmentIndex++" :disabled="currentSegmentIndex === routeSegments.length - 1">Next floor &rarr;</button>
             </div>
           </div>
         </div>
@@ -281,11 +367,14 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         <!-- Only offered once every floor on the route has been calibrated by an
              admin (Floor Calibration) — otherwise there's no way to turn plan
              coordinates into real walking distance and direction. -->
-        <a v-if="arGuideUrl" :href="arGuideUrl" class="btn-dark" style="margin-top:1rem; text-decoration:none;">Start AR guide</a>
+        <a v-if="arGuideUrl" :href="arGuideUrl" class="rt-cta">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>
+          Start indoor AR guide
+        </a>
 
         <!-- Secondary: details about the CURRENT room — still useful, just
              no longer competing with "where do you want to go" for top billing. -->
-        <div class="info-card">
+        <div v-if="!planningMode" class="info-card">
           <div v-if="room.notes">
             <span class="notes-pill">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>
@@ -296,6 +385,10 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <div v-else class="no-hours" :style="{ marginTop: room.notes ? '0.6rem' : '0' }">Classroom/Lab — no fixed hours</div>
         </div>
 
+        <button v-if="planningMode" @click="reportOutdated" :disabled="reported" class="report-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5 22 20.5H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/></svg>
+          {{ reported ? 'Thanks. Reported to the campus admin' : 'Something here looks wrong? Report it' }}
+        </button>
         <template v-if="!planningMode">
           <button @click="reportOutdated" :disabled="reported" class="report-btn">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5 22 20.5H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/></svg>
@@ -304,7 +397,6 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <button @click="reset" class="btn-dark">Scan Another</button>
         </template>
         <template v-else>
-          <button @click="changeOrigin" class="btn-dark">Change current room</button>
           <a href="manual-search.php" class="back-link">Pick a different destination</a>
         </template>
         <a href="../Public/guide-ar.php" class="back-link">Back to outdoor guide</a>
@@ -327,6 +419,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Include/floor-route.js?v=<?= $routeJsVer ?>"></script>
 <script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
+<script src="../../Js/Include/plan-zoom.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/plan-zoom.js') ?>"></script>
 <script src="../../Js/Student/scan.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

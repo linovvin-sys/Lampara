@@ -45,30 +45,41 @@ const CampusRoute = (() => {
     return best;
   }
 
-  // Returns { points: [{lat,lng}...], length, snapDist } or null when there is
-  // no graph / no such node / no connected path. points[0] is where the user
-  // joins the walkway network, the last point is the entrance node.
-  function findRoute(graph, from, endNodeId) {
+  // Shortest walk from `from` (snapped onto the nearest walkway) to `target`, which is either a walkway node id (a building's
+  // entrance) or a free point { lat, lng } (a building with no entrance set, or "where I am standing"). A free point is
+  // snapped onto the nearest walkway too, and the walk finishes with a short straight connector to the exact spot. This is
+  // the same routing the AR Lab uses. Returns { points: [{lat,lng}...], length, snapDist, endSnapDist } or null when there is
+  // no graph / no such node / no connected path. points[0] is where the user joins the walkway network.
+  function findRoute(graph, from, target) {
     const { nodes, edges } = graph;
     if (!nodes.length || !edges.length) return null;
     const byId = new Map(nodes.map((n) => [n.id, n]));
-    const end = byId.get(endNodeId);
-    if (!end) return null;
-    const snap = snapToGraph(from, nodes, edges);
-    if (!snap) return null;
+    const isPoint = target !== null && typeof target === 'object';
+    const s = snapToGraph(from, nodes, edges);
+    if (!s) return null;
+    const e2 = isPoint ? snapToGraph(target, nodes, edges) : null;
+    if (isPoint && !e2) return null;
+    if (!isPoint && !byId.get(target)) return null;
+    const START = 'start', END = isPoint ? 'end' : target;
 
-    const START = 'start';
     const adj = new Map(nodes.map((n) => [n.id, []]));
     adj.set(START, []);
-    const link = (a, b, d) => { adj.get(a).push({ id: b, d }); adj.get(b).push({ id: a, d }); };
+    if (isPoint) adj.set(END, []);
+    const link = (x, y, d) => { adj.get(x).push({ id: y, d }); adj.get(y).push({ id: x, d }); };
     edges.forEach((e) => {
-      const a = byId.get(e.node_a_id), b = byId.get(e.node_b_id);
-      if (a && b) link(a.id, b.id, meters(a, b));
+      const x = byId.get(e.node_a_id), y = byId.get(e.node_b_id);
+      if (x && y) link(x.id, y.id, meters(x, y));
     });
-    link(START, snap.nodeA.id, meters(snap, snap.nodeA));
-    link(START, snap.nodeB.id, meters(snap, snap.nodeB));
+    link(START, s.nodeA.id, meters(s, s.nodeA));
+    link(START, s.nodeB.id, meters(s, s.nodeB));
+    if (isPoint) {
+      link(END, e2.nodeA.id, meters(e2, e2.nodeA));
+      link(END, e2.nodeB.id, meters(e2, e2.nodeB));
+      // both on the same stretch of walkway: no node in between
+      if (s.nodeA.id === e2.nodeA.id && s.nodeB.id === e2.nodeB.id) link(START, END, meters(s, e2));
+    }
 
-    // Plain O(n²) Dijkstra — a campus graph is a few dozen nodes.
+    // Plain O(n^2) Dijkstra: a campus graph is a few dozen nodes.
     const dist = new Map([...adj.keys()].map((id) => [id, Infinity]));
     const prev = new Map();
     const done = new Set();
@@ -76,18 +87,22 @@ const CampusRoute = (() => {
     while (done.size < dist.size) {
       let cur = null, curD = Infinity;
       dist.forEach((d, id) => { if (!done.has(id) && d < curD) { cur = id; curD = d; } });
-      if (cur === null || cur === end.id) break;
+      if (cur === null || cur === END) break;
       done.add(cur);
       adj.get(cur).forEach(({ id, d }) => {
         if (curD + d < dist.get(id)) { dist.set(id, curD + d); prev.set(id, cur); }
       });
     }
-    if (dist.get(end.id) === Infinity) return null;
+    if (dist.get(END) === Infinity) return null;
 
-    const ids = [end.id];
+    const ids = [END];
     while (ids[0] !== START) ids.unshift(prev.get(ids[0]));
-    const points = ids.map((id) => id === START ? { lat: snap.lat, lng: snap.lng } : { lat: byId.get(id).lat, lng: byId.get(id).lng });
-    return { points, length: dist.get(end.id), snapDist: snap.dist };
+    const points = ids.map((id) => id === START ? { lat: s.lat, lng: s.lng }
+      : (id === 'end' && isPoint) ? { lat: e2.lat, lng: e2.lng }
+      : { lat: byId.get(id).lat, lng: byId.get(id).lng, id, name: byId.get(id).name || '' });   // a walkway point keeps its id and name
+    let length = dist.get(END);
+    if (isPoint && e2.dist > 2) { points.push({ lat: target.lat, lng: target.lng }); length += e2.dist; }
+    return { points, length, snapDist: s.dist, endSnapDist: e2 ? e2.dist : 0 };
   }
 
   // First real corner along the route: { dir: 'left'|'right'|null, distance }.
@@ -143,7 +158,47 @@ const CampusRoute = (() => {
     return out;
   }
 
-  return { toXY, meters, snapToGraph, findRoute, nextTurn, smooth, truncate };
+  // ---- the campus gates: which side is which (shared by the AR guide and the Campus Paths admin page) ----
+  // A building whose name matches OUTSIDE_BUILDING_RE stands outside the campus gates (Heritage Building, JEG Building).
+  // The walkway point whose name matches MAIN_ENTRANCE_RE is the one way in for people coming from outside.
+  // A gate point whose name matches VEHICLE_GATE_RE is a vehicle gate (e.g. "Vehicle Exit"); on foot it is only chosen when it
+  // clearly saves VEHICLE_GATE_PENALTY_M over the other gate.
+  const OUTSIDE_BUILDING_RE = /heritage|\bjeg\b/i;
+  const MAIN_ENTRANCE_RE = /main\s*entrance/i;
+  const VEHICLE_GATE_RE = /vehicle|car\b|truck|service|delivery/i;
+  const VEHICLE_GATE_PENALTY_M = 40;
+  const isOutsideBuilding = (b) => OUTSIDE_BUILDING_RE.test((b && b.name) || '');
+  const gateKind = (name) => (VEHICLE_GATE_RE.test(name || '') ? 'vehicle' : 'main');
+
+  // The two sides of the gates, worked out from the drawn walkways. The "portals" are the gate points and the main entrance.
+  // The OUTSIDE walkways are the ones reachable from an outside building without going through a portal; everything else
+  // (the portals included) is inside. Returns { portals, mainEntrance, outsideNodes, insideNodes, outsideBuildingIds }
+  // (node ids as they are in the graph; building ids as strings).
+  function regions(graph, buildings) {
+    const nodes = graph.nodes, edges = graph.edges;
+    const portals = new Set(nodes.filter((n) => n.node_type === 'gate').map((n) => n.id));
+    const mainEntrance = nodes.find((n) => MAIN_ENTRANCE_RE.test(n.name || '')) || null;
+    if (mainEntrance) portals.add(mainEntrance.id);
+    const adj = new Map(nodes.map((n) => [n.id, []]));
+    edges.forEach((e) => { if (adj.has(e.node_a_id) && adj.has(e.node_b_id)) { adj.get(e.node_a_id).push(e.node_b_id); adj.get(e.node_b_id).push(e.node_a_id); } });
+    const outsideB = (buildings || []).filter(isOutsideBuilding);
+    const near = (b) => { let best = null; nodes.forEach((n) => { const d = meters(n, b); if (!best || d < best.d) best = { id: n.id, d }; }); return best ? best.id : null; };
+    const seeds = outsideB.map((b) => (b.entrance_node_id !== null && b.entrance_node_id !== undefined ? b.entrance_node_id : near(b))).filter((x) => x !== null && adj.has(x));
+    const outsideNodes = new Set(), stack = [];
+    seeds.forEach((x) => { if (!portals.has(x) && !outsideNodes.has(x)) { outsideNodes.add(x); stack.push(x); } });
+    while (stack.length) {
+      const c = stack.pop();
+      adj.get(c).forEach((o) => { if (!portals.has(o) && !outsideNodes.has(o)) { outsideNodes.add(o); stack.push(o); } });
+    }
+    const insideNodes = new Set(nodes.filter((n) => !outsideNodes.has(n.id)).map((n) => n.id));
+    return { portals, mainEntrance, outsideNodes, insideNodes, outsideBuildingIds: new Set(outsideB.map((b) => String(b.id))) };
+  }
+  // A copy of the graph limited to some points (and the connections between them).
+  function subGraph(graph, ids) {
+    return { nodes: graph.nodes.filter((n) => ids.has(n.id)), edges: graph.edges.filter((e) => ids.has(e.node_a_id) && ids.has(e.node_b_id)) };
+  }
+
+  return { toXY, meters, snapToGraph, findRoute, nextTurn, smooth, truncate, regions, subGraph, isOutsideBuilding, gateKind, VEHICLE_GATE_PENALTY_M, OUTSIDE_BUILDING_RE, MAIN_ENTRANCE_RE };
 })();
 
 if (typeof module !== 'undefined') module.exports = CampusRoute;

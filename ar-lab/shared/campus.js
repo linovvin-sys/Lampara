@@ -102,6 +102,10 @@
   async function resolve(route) {
     const legs = [await resolveLeg(route.a, route.b, route.mode, route.bNode, route.label || 'Point B')];
     if (route.c) legs.push(await resolveLeg(legs[0].b, route.c, route.mode, route.cNode, route.cLabel || 'Point C'));
+    // further stops (D, E, ...): route.more = [{ lat, lng, node, label }], each leg starts where the previous one ended
+    for (const [i, m] of (route.c ? route.more || [] : []).entries()) {
+      legs.push(await resolveLeg(legs[legs.length - 1].b, { lat: m.lat, lng: m.lng }, route.mode, m.node || null, m.label || 'Point ' + String.fromCharCode(68 + i)));
+    }
     const first = legs[0];
     return Object.assign({}, route, {
       legs, total: legs.reduce((s, l) => s + l.length, 0),

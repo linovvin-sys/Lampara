@@ -1,4 +1,7 @@
 <?php
+// The old guide is replaced by the AR guide; keep any old link working, with its query string.
+header('Location: guide-ar.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+exit;
 $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 ?>
@@ -21,13 +24,13 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 <link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
-<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="../../assets/vendor/vue.global.prod.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide.css">
 </head>
 <body class="bg-black">
 <script>LamparaSkeleton.show('guide')</script>
 
-<div id="app" class="relative w-screen h-screen text-white select-none overflow-hidden">
+<div id="app" v-cloak class="relative w-screen h-screen text-white select-none overflow-hidden">
 
   <!-- live camera background -->
   <video id="camera-feed" autoplay playsinline muted></video>

@@ -4,3 +4,7 @@ tailwindcss-cli
 .DS_Store
 config/secrets.php
 Frontend/pid
+
+# uploaded building / room photos (user data); the folder itself is kept
+Frontend/assets/photos/*
+!Frontend/assets/photos/.gitkeep
