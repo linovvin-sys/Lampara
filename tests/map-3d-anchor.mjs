@@ -10,7 +10,7 @@ import { pathToFileURL, fileURLToPath } from 'url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = path.join(ROOT, 'Frontend/assets/maps/map-3d-1791420622.obj');
 // a building can be several outlines: Amafel is four, closing a ring around its central courtyard
-const EXPECTED = { 1: ['TPX_Buildings_mesh2', 'TPX_Buildings_mesh3', 'TPX_Buildings_mesh4', 'TPX_Buildings_mesh25'], 3: ['TPX_Buildings_mesh15'], 4: ['TPX_Buildings_mesh1'], 5: ['TPX_Buildings_mesh54'], 6: ['TPX_Buildings_mesh51'], 7: ['TPX_Buildings_mesh46'] };
+const EXPECTED = { 1: ['TPX_Buildings_mesh2', 'TPX_Buildings_mesh3', 'TPX_Buildings_mesh4', 'TPX_Buildings_mesh25', 'TPX_Buildings_mesh5'], 3: ['TPX_Buildings_mesh15'], 4: ['TPX_Buildings_mesh1'], 5: ['TPX_Buildings_mesh54'], 6: ['TPX_Buildings_mesh51'], 7: ['TPX_Buildings_mesh46'] };
 
 // map-3d.js imports three.js by bare name (the browser resolves it through map.php's import map). The anchor maths
 // does not touch three.js, so load a copy with those imports stubbed out.
