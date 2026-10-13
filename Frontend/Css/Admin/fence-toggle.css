@@ -1,0 +1,11 @@
+.fence-toggle { display: flex; align-items: center; gap: 0.8rem; background: #fff; border: 1px solid var(--line, #dcdde8); border-radius: 0.9rem; padding: 0.55rem 0.8rem; max-width: 24rem; }
+.ft-label { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.ft-label b { font-size: 0.95rem; color: #161850; }
+.ft-label small { font-size: 0.78rem; color: #1f6b3c; }
+.ft-label small.off { color: #b3261e; }
+.ft-switch { flex: none; position: relative; width: 3.1rem; height: 1.75rem; border-radius: 999px; border: 0; background: #b9bccf; cursor: pointer; transition: background 0.25s; padding: 0; }
+.ft-switch.on { background: #1f8a4c; }
+.ft-switch:disabled { opacity: 0.6; cursor: wait; }
+.ft-knob { position: absolute; top: 0.2rem; left: 0.2rem; width: 1.35rem; height: 1.35rem; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); transition: transform 0.25s; }
+.ft-switch.on .ft-knob { transform: translateX(1.35rem); }
+.ft-switch:focus-visible { outline: 3px solid #161850; outline-offset: 2px; }

@@ -5,7 +5,6 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/indoor-ar.js');
 $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 $floorRouteJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 $navJsVer = filemtime(__DIR__ . '/../../Js/Include/indoor-nav.js');
-$ribbonJsVer = filemtime(__DIR__ . '/../../Js/Include/ar-ribbon.js');
 $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 ?>
 <!doctype html>
@@ -13,7 +12,7 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>Lampara — Indoor AR Guide</title>
+<title>Lampara — Camera Guide (inside)</title>
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
@@ -22,30 +21,25 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-<script src="../../assets/vendor/threex-device-orientation-controls.js"></script>
-<script src="../../assets/vendor/aframe-ar.js"></script>
+<script src="../../Js/Include/trip.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/trip.js') ?>"></script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Student/indoor-ar.css?v=<?= $pageCssVer ?>">
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
+<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <script>LamparaSkeleton.show('guide')</script>
 
 <div id="app" v-cloak class="ia-root">
 
-  <!-- AR scene: live camera + compass-aligned view. No GPS indoors — the camera
-       is moved along the route by step counting (see indoor-ar.js). Only mounted
-       after the tap so camera/motion permission prompts follow a user gesture. -->
-  <a-scene v-if="stage === 'nav'" ref="arScene" embedded
-           vr-mode-ui="enabled: false"
-           arjs="sourceType: webcam; debugUIEnabled: false;"
-           renderer="antialias: true; alpha: true">
-    <a-camera id="ia-cam" position="0 1.6 0"></a-camera>
-  </a-scene>
+  <!-- The AR view itself (camera video + 3D canvas) is created by LocAR (Js/Student/locar-indoor.js) only after the
+       tap, so camera/motion permission prompts follow a user gesture. No GPS indoors — the camera is moved along the
+       route by step counting (see indoor-ar.js). -->
 
   <!-- Loading / error / gate -->
   <div v-if="stage !== 'nav'" class="ia-screen">
@@ -55,9 +49,10 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
     </div>
 
     <div v-else-if="stage === 'error'" class="ia-center ia-card-dark">
-      <h1>Can't start the AR guide</h1>
+      <h1>Can't start the camera guide</h1>
       <p class="ia-muted">{{ error }}</p>
       <ul v-if="errorDetail.length" class="ia-detail"><li v-for="d in errorDetail" :key="d">{{ d }}</li></ul>
+      <a v-if="hasRoute" class="ia-btn ia-btn-green" :href="planUrl" style="text-decoration:none;text-align:center;margin-bottom:.6rem">Show the floor plan instead</a>
       <button class="ia-btn ia-btn-light" @click="goBack">Go back</button>
       <a class="ia-btn ia-btn-light" href="manual-search.php" style="margin-top:.6rem;text-decoration:none;text-align:center">Search for a room instead</a>
     </div>
@@ -75,15 +70,15 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 
     <div v-else class="ia-center ia-card-dark">
       <div class="ia-logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 L19.5 16 L12 12.7 L4.5 16 Z" fill="#fff"/></svg></div>
-      <h1>Walk to {{ toRoom.room_name }}</h1>
+      <h1>Walk to {{ destName }}</h1>
       <p class="ia-muted">
-        From {{ fromRoom.room_number ? 'Room ' + fromRoom.room_number : fromRoom.room_name }}
+        From {{ fromRoom.room_number ? 'Room ' + fromRoom.room_number : fromRoom.room_name }}<span v-if="leave"> &middot; then on to {{ nextBuilding }}</span>
         &middot; {{ segFloors.length > 1 ? segFloors.length + ' floors' : segFloors[0] }}
         &middot; about {{ totalMeters }} m
       </p>
       <p v-if="floorAnchor && !anchorScanned" class="ia-note">This floor has a posted QR code — scanning it sets your exact starting spot instead of guessing from the camera.</p>
       <p v-else class="ia-note">Stand at the sign you scanned, hold the phone up, and walk. The green path shows the way.</p>
-      <button class="ia-btn ia-btn-green" @click="begin">{{ floorAnchor && !anchorScanned ? 'Scan QR to begin' : 'Start AR guide' }}</button>
+      <button class="ia-btn ia-btn-green" @click="begin">{{ floorAnchor && !anchorScanned ? 'Scan QR to begin' : 'Start camera guide' }}</button>
       <button class="ia-link" @click="goBack">Cancel</button>
     </div>
   </div>
@@ -92,6 +87,9 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
   <template v-if="stage === 'nav'">
     <div class="ia-top">
       <button class="ia-chip" @click="goBack">&larr; Exit</button>
+      <a class="ia-chip" :href="planUrl" style="text-decoration:none">Floor plan</a>
+      <a class="ia-chip" href="where.php" style="text-decoration:none">Start over</a>
+      <a class="ia-chip" href="report.php" style="text-decoration:none">Report</a>
       <span class="ia-chip ia-chip-static">
         <span class="ia-dot" :class="motionOk ? 'on' : ''"></span>
         {{ motionOk ? 'Counting steps' : 'Manual steps' }}
@@ -112,12 +110,14 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
             <template v-if="hud.kind === 'turn'">Turn {{ hud.dir }} in {{ hud.distance }} m</template>
             <template v-else-if="hud.kind === 'straight'">Continue straight</template>
             <template v-else-if="hud.kind === 'stairs'">Take the stairs to {{ hud.nextFloor }}</template>
+            <template v-else-if="leave">You are at the exit</template>
             <template v-else>You've arrived</template>
           </div>
           <div class="ia-banner-sub">
-            <template v-if="hud.kind === 'arrived'">{{ toRoom.room_name }}<span v-if="toRoom.room_number"> &middot; Room {{ toRoom.room_number }}</span></template>
+            <template v-if="hud.kind === 'arrived' && leave">Next: walk to {{ nextBuilding }}</template>
+            <template v-else-if="hud.kind === 'arrived'">{{ toRoom.room_name }}<span v-if="toRoom.room_number"> &middot; Room {{ toRoom.room_number }}</span></template>
             <template v-else-if="hud.kind === 'stairs'">Then tap the button below once you're there</template>
-            <template v-else>{{ hud.remaining }} m to {{ toRoom.room_name }}</template>
+            <template v-else>{{ hud.remaining }} m to {{ destName }}</template>
           </div>
         </div>
       </div>
@@ -134,6 +134,7 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 
     <div class="ia-bottom">
       <button v-if="hud && hud.kind === 'stairs'" class="ia-btn ia-btn-green" @click="confirmFloor">I'm on {{ hud.nextFloor }}</button>
+      <a v-if="hud && hud.kind === 'arrived' && leave" class="ia-btn ia-btn-green" :href="outsideUrl" style="text-decoration:none;text-align:center">Continue outside</a>
       <div class="ia-adjust">
         <span class="ia-adjust-label">Position off? Adjust</span>
         <button class="ia-chip" @click="nudge(-2)">&minus;2 m</button>
@@ -149,10 +150,12 @@ $geomJsVer = filemtime(__DIR__ . '/../../Js/Public/campus-route.js');
 <script src="../../Js/Include/offline-cache.js?v=<?= $cacheJsVer ?>"></script>
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Include/floor-route.js?v=<?= $floorRouteJsVer ?>"></script>
-<script src="../../Js/Include/ar-ribbon.js?v=<?= $ribbonJsVer ?>"></script>
+<script src="../../Js/Include/building-doors.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/building-doors.js') ?>"></script>
 <script src="../../Js/Public/campus-route.js?v=<?= $geomJsVer ?>"></script>
 <script src="../../Js/Include/indoor-nav.js?v=<?= $navJsVer ?>"></script>
+<script type="module" src="../../Js/Student/locar-indoor.js?v=<?= filemtime(__DIR__ . '/../../Js/Student/locar-indoor.js') ?>"></script>
 <script src="../../Js/Student/indoor-ar.js?v=<?= $pageJsVer ?>"></script>
 
+<script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 </body>
 </html>

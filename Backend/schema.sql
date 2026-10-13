@@ -322,3 +322,19 @@ CREATE TABLE IF NOT EXISTS change_log (
     KEY entity_idx (entity, entity_id, id),
     KEY created_idx (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Visitor reports of a closed building or a blocked path (photo, place, note). Also created on first use by api/hazards.php.
+CREATE TABLE IF NOT EXISTS hazard_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind VARCHAR(12) NOT NULL,
+    building_id INT NULL,
+    lat DOUBLE NULL,
+    lng DOUBLE NULL,
+    note VARCHAR(255) NULL,
+    photo_path VARCHAR(255) NULL,
+    status VARCHAR(10) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP NULL,
+    resolved_by VARCHAR(60) NULL,
+    KEY idx_status_created (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -206,3 +206,10 @@ body > canvas { position: fixed !important; inset: 0; z-index: 0; }
 .start-group { margin: 1.1rem 0 0.1rem; }
 .start-tag { display: block; margin-top: 0.15rem; font-size: 0.8125rem; font-weight: 500; color: rgba(255,255,255,.62); }
 .scan-label { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* "You've arrived": the one obvious next step, right in the card, so nobody has to hunt for it at the bottom of the screen. */
+.nav-inside { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; margin-top: 0.55rem; padding: 0.7rem 1rem; border-radius: 0.95rem; background: #ffd100; color: #161850; text-decoration: none; text-align: center; box-shadow: 0 8px 20px -10px rgba(0,0,0,.7); }
+.nav-inside-main { font-size: 1.2rem; font-weight: 800; line-height: 1.15; }
+.nav-inside-sub { font-size: 0.9rem; font-weight: 600; opacity: .85; }
+.nav-inside:active { transform: scale(0.98); }
+.nav-inside:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }

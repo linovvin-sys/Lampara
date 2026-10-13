@@ -27,6 +27,8 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <link rel="stylesheet" href="../../Css/Student/scan.css?v=<?= $pageCssVer ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
+<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body style="background:#09090b;">
 <script>LamparaSkeleton.show('guide')</script>
@@ -124,13 +126,13 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <h2 id="wyTitle">Where are you now?</h2>
           <p>Pick the room you are standing at and we will show the way, floor by floor.</p>
           <div class="wy-opts">
-            <button type="button" class="wy-opt wy-opt-card" @click="showEntranceRooms">
-              <span class="wy-opt-main">I just arrived at the entrance</span>
-              <span class="wy-opt-sub">Pick a room near the entrance of {{ destination.building_name }}</span>
-            </button>
-            <a class="wy-opt wy-opt-card" :href="'../Public/guide-ar.php?to=' + destination.building_id + '&room=' + destination.id">
+            <a class="wy-opt wy-opt-card" :href="'journey.php?arrived=1&to=' + destination.id">
+              <span class="wy-opt-main">I am at the door of {{ destination.building_name }}</span>
+              <span class="wy-opt-sub">Show me the way to the room on the floor plan</span>
+            </a>
+            <a v-if="!saidInside" class="wy-opt wy-opt-card" :href="'../Public/guide-ar.php?to=' + destination.building_id + '&room=' + destination.id">
               <span class="wy-opt-main">I am still outside</span>
-              <span class="wy-opt-sub">Walk to {{ destination.building_name }} first, then come back here</span>
+              <span class="wy-opt-sub">Walk to {{ destination.building_name }} first, with the camera guide</span>
             </a>
           </div>
           <label class="wy-search">
@@ -367,9 +369,14 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         <!-- Only offered once every floor on the route has been calibrated by an
              admin (Floor Calibration) — otherwise there's no way to turn plan
              coordinates into real walking distance and direction. -->
-        <a v-if="arGuideUrl" :href="arGuideUrl" class="rt-cta">
+        <!-- Destination in another building: leave this one, walk outside, then find the room (Student/journey.php). -->
+        <a v-if="journeyUrl" :href="journeyUrl" class="rt-cta">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          Show me the way to {{ destination.building_name }}
+        </a>
+        <a v-if="arGuideUrl" :href="arGuideUrl" class="rt-cta rt-cta-alt">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>
-          Start indoor AR guide
+          Use my camera inside
         </a>
 
         <!-- Secondary: details about the CURRENT room — still useful, just
@@ -399,7 +406,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         <template v-else>
           <a href="manual-search.php" class="back-link">Pick a different destination</a>
         </template>
-        <a href="../Public/guide-ar.php" class="back-link">Back to outdoor guide</a>
+        <a href="../Public/guide-ar.php" class="back-link">Back to the outside guide</a>
       </div>
 
       <div v-else class="not-found">
@@ -422,5 +429,6 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <script src="../../Js/Include/plan-zoom.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/plan-zoom.js') ?>"></script>
 <script src="../../Js/Student/scan.js?v=<?= $pageJsVer ?>"></script>
 
+<script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 </body>
 </html>

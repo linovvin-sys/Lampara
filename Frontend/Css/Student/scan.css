@@ -170,6 +170,9 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 
 .rt-cta { display: flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 3.4rem; margin-top: 1rem; border-radius: 1.1rem; background: #ffd100; color: #15173f; font-size: 1.05rem; font-weight: 800; text-decoration: none; box-shadow: 0 12px 24px -14px rgba(230, 187, 0, 0.95); }
 .rt-cta:hover { background: #ffdb2e; }
+/* the camera guide is the second choice inside: the floor plan above is the main one */
+.rt-cta-alt { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.45); box-shadow: none; min-height: 3rem; font-size: 1rem; }
+.rt-cta-alt:hover { background: rgba(255,255,255,0.12); }
 .rt-cta:focus-visible, .rt-change:focus-visible, .rt-pager button:focus-visible { outline: 3px solid #15173f; outline-offset: 2px; }
 .result-shell > div:not(.wy) { padding-inline: 1rem; }
 .result-shell > .not-found { padding-inline: 1.5rem; }

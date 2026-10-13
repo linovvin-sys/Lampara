@@ -27,7 +27,7 @@ window.LamparaListApp = createApp({
     colorFor(id) { return COLORS[(Number(id) || 0) % COLORS.length]; },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
-      this.map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView([14.3283, 120.9372], 17);
+      this.map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView(CampusBounds.CENTER, 17);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         bounds: CampusBounds.BOUNDS, maxZoom: 19

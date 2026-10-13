@@ -30,6 +30,8 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
+<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <script>LamparaSkeleton.show('map', { manual: true })</script>
@@ -47,7 +49,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
     <div class="seg" role="tablist" aria-label="Map type">
       <button type="button" role="tab" id="tab-2d" data-kind="2d" aria-selected="true">2D</button>
       <button type="button" role="tab" id="tab-3d" data-kind="3d" aria-selected="false">3D</button>
-      <button type="button" role="tab" id="tab-street" aria-selected="false" title="Streets and buildings">Street</button>
+      <button type="button" role="tab" id="tab-street" aria-selected="false" title="The campus from above">Satellite</button>
     </div>
   </header>
 
@@ -136,11 +138,9 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
       </button>
     </div>
 
-    <!-- Street view: OpenStreetMap with a pin per building (js/map-street.js). Covers the 2D and 3D views while open. -->
+    <!-- Satellite view: the campus from above, nothing drawn on it (js/map-street.js). Covers the 2D and 3D views while open. -->
     <section class="street" id="streetView" aria-label="Street map of the campus" hidden>
       <div class="street-map" id="streetMap"></div>
-      <div class="street-chips" id="streetChips" aria-label="Buildings"></div>
-      <div class="street-card" id="streetCard" hidden></div>
     </section>
 
     <p class="hint" id="hint" hidden>Drag to move &middot; pinch or scroll to zoom &middot; double-tap to zoom in</p>
@@ -152,6 +152,8 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/map.js?v=<?= $jsVer ?>"></script>
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../Js/Public/map-street.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/map-street.js') ?>"></script>
+<script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 </body>
 </html>

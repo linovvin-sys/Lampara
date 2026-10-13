@@ -4,7 +4,8 @@ const API = '../../../Backend/api/';
 const STEP_LENGTH = 0.7;      // meters per detected step — a rough average stride
 const AHEAD_METERS = 14;      // how much of the path ahead the ribbon draws
 const ARRIVE_METERS = 1.5;    // this close to a segment's end counts as reached
-const CAMERA_HEIGHT = 1.6;    // a-camera default; the ribbon's ground plane is set relative to it
+const CAMERA_HEIGHT = 1.6;    // phone held at about eye level; the ribbon's ground plane is set relative to it
+const CAMERA_FOV_DEG = 65;    // horizontal field of view of a typical phone camera
 const MAP_PX_PER_METER = 6;   // mini-map zoom (240px canvas => ~20 m across)
 
 createApp({
@@ -13,6 +14,8 @@ createApp({
       stage: 'loading', // loading | error | gate | nav
       error: '', errorDetail: [],
       fromRoom: null, toRoom: null,
+      leave: false,       // the route ends at the building's exit (the destination is in another building)
+      nextBuilding: '',   // that other building's name
       segFloors: [],      // floor name for each route segment, in order
       totalMeters: 0,
       segIndex: 0,        // which segment (floor) we're walking
@@ -31,7 +34,14 @@ createApp({
     };
   },
   computed: {
-    currentFloor() { return this.segFloors[this.segIndex] || ''; }
+    currentFloor() { return this.segFloors[this.segIndex] || ''; },
+    // what the ribbon leads to: the room, or the building's exit when the room is in another building
+    destName() { return this.leave ? 'the exit' : (this.toRoom ? this.toRoom.room_name : ''); },
+    // the same trip on the animated floor plan (Student/journey.php)
+    planUrl() { return 'journey.php' + location.search; },
+    hasRoute() { return !!new URLSearchParams(location.search).get('to'); },
+    // after the exit: the outside walking guide, aimed at the destination's building
+    outsideUrl() { return this.toRoom && this.leave ? '../Public/guide-ar.php?to=' + this.toRoom.building_id + '&room=' + this.toRoom.id : '#'; }
   },
   async mounted() {
     try {
@@ -108,40 +118,68 @@ createApp({
       } catch (e) { /* mini-map falls back to the image URL */ }
     },
 
+    // The building's exit/entrance as a floor-plan point (see Js/Include/building-doors.js).
+    async doorData(buildingId, kind) {
+      let building = { id: buildingId };
+      try { const d = await (await fetch(API + 'buildings.php')).json(); if (d.success) building = d.buildings.find((b) => String(b.id) === String(buildingId)) || building; } catch (e) { /* the entrance floor is then the lowest one */ }
+      const graph = await this.fetchBuildingGraph(buildingId);
+      const plans = await this.fetchPlans(buildingId, graph, []);
+      return BuildingDoors.find(building, graph, plans, kind);
+    },
+
     async load() {
       const q = new URLSearchParams(location.search);
-      const fromId = q.get('from'), toId = q.get('to');
-      if (!fromId || !toId) return this.fail('This link is missing a starting room or a destination.');
+      const fromId = q.get('from'), toId = q.get('to'), arrived = !!q.get('arrived');
+      if (!toId || (!fromId && !arrived)) return this.fail('This link is missing a starting room or a destination.');
 
       const rooms = await this.getRooms();
-      const from = rooms.find((r) => String(r.id) === String(fromId));
       const to = rooms.find((r) => String(r.id) === String(toId));
-      if (!from || !to) return this.fail("Couldn't find one of those rooms.");
-      if (from.building_id !== to.building_id) {
-        return this.fail('Indoor AR works inside one building.', [`Head to ${to.building_name} first, then start again from a room there.`]);
-      }
-      if (from.map_x === null || from.map_y === null || to.map_x === null || to.map_y === null) {
-        return this.fail("These rooms don't have a marker on their floor plan yet.", ['An admin needs to place both rooms on the floor plan (Register Room).']);
+      const from = fromId ? rooms.find((r) => String(r.id) === String(fromId)) : null;
+      if (!to || (fromId && !from)) return this.fail("Couldn't find one of those rooms.");
+      const placed = (r) => r.map_x !== null && r.map_y !== null;
+
+      // Three trips: room -> room in one building; room -> this building's exit (the destination is in another building);
+      // or from the destination building's door -> room (the visitor has just walked in, ?arrived=1).
+      let bid, A, B, startRoom = from, endRoom = to;
+      this.leave = false;
+      if (from && String(from.building_id) !== String(to.building_id)) {
+        if (!placed(from)) return this.fail("Your starting room doesn't have a marker on its floor plan yet.", ['An admin needs to place it on the floor plan (Register Room).']);
+        bid = from.building_id;
+        const bd = await this.doorData(bid, 'exit');
+        if (!bd) return this.fail("This building's exit isn't set up yet.", ['An admin needs to draw walking paths on the entrance floor.']);
+        A = { floor: from.floor, x: from.map_x, y: from.map_y }; B = bd;
+        this.leave = true; this.nextBuilding = to.building_name;
+      } else if (!from) {
+        if (!placed(to)) return this.fail("This room doesn't have a marker on its floor plan yet.", ['An admin needs to place it on the floor plan (Register Room).']);
+        bid = to.building_id;
+        const bd = await this.doorData(bid, 'entry');
+        if (!bd) return this.fail("This building's entrance isn't set up yet.", ['An admin needs to draw walking paths on the entrance floor.']);
+        A = bd; B = { floor: to.floor, x: to.map_x, y: to.map_y };
+        startRoom = { room_name: 'the entrance', room_number: '' };
+      } else {
+        if (!placed(from) || !placed(to)) return this.fail("These rooms don't have a marker on their floor plan yet.", ['An admin needs to place both rooms on the floor plan (Register Room).']);
+        bid = from.building_id;
+        A = { floor: from.floor, x: from.map_x, y: from.map_y }; B = { floor: to.floor, x: to.map_x, y: to.map_y };
       }
 
-      const graph = await this.fetchBuildingGraph(from.building_id);
-      const plans = await this.fetchPlans(from.building_id, graph, [from.floor, to.floor]);
-      const fromPlan = plans.find((p) => p.floor === from.floor);
-      const toPlan = plans.find((p) => p.floor === to.floor);
+      const graph = await this.fetchBuildingGraph(bid);
+      const plans = await this.fetchPlans(bid, graph, [A.floor, B.floor]);
+      const fromPlan = plans.find((p) => p.floor === A.floor);
+      const toPlan = plans.find((p) => p.floor === B.floor);
       if (!fromPlan || !toPlan) return this.fail("A floor plan is missing for this route.", ['An admin needs to upload the plan for each floor involved.']);
       if (!graph.edges.length) return this.fail("Walkable paths haven't been drawn for this building yet.");
 
       const segments = routeAcrossFloors(
         graph.nodes, graph.edges,
-        { x: from.map_x, y: from.map_y }, fromPlan.id,
-        { x: to.map_x, y: to.map_y }, toPlan.id
+        { x: A.x, y: A.y }, fromPlan.id,
+        { x: B.x, y: B.y }, toPlan.id
       );
       if (!segments) return this.fail("No connected walking route between these rooms yet.", ['An admin needs to finish drawing the paths (and any stairs links between floors).']);
 
       const segPlans = segments.map((seg) => plans.find((p) => p.id === seg.floorPlanId));
       const uncalibrated = segPlans.filter((p) => !IndoorNav.isCalibrated(p));
       if (uncalibrated.length) {
-        return this.fail("AR directions aren't set up for this route yet.",
+        return this.fail("The camera guide isn't set up for this route yet.",
           [...new Set(uncalibrated.map((p) => (p ? p.floor : 'a floor on the route')))].map((f) => `${f} needs calibrating (admin: Floor Calibration).`));
       }
 
@@ -150,7 +188,7 @@ createApp({
       this._plans = segPlans;
       this._fromPlan = fromPlan;
       this._images = {};
-      segPlans.forEach((p) => this.ensureImage(from.building_id, p));
+      segPlans.forEach((p) => this.ensureImage(bid, p));
 
       try {
         const anchorRes = await fetch(API + 'qr-anchors.php?floor_plan_id=' + fromPlan.id);
@@ -158,8 +196,8 @@ createApp({
         this.floorAnchor = (anchorData.success && anchorData.anchors.length) ? anchorData.anchors[0] : null;
       } catch (e) { this.floorAnchor = null; }
 
-      this.fromRoom = from;
-      this.toRoom = to;
+      this.fromRoom = startRoom;
+      this.toRoom = endRoom;
       this.segFloors = segPlans.map((p) => p.floor);
       this.totalMeters = Math.round(this._paths.reduce((sum, p) => sum + p.total, 0));
       this.stage = 'gate';
@@ -175,6 +213,8 @@ createApp({
     // Permissions need a user gesture, so they're requested here, right
     // before the AR scene actually mounts.
     async proceedToNav() {
+      // iPhone only grants compass access from inside the tap, so ask for it before any await.
+      const compass = window.LamparaLocarIndoor ? window.LamparaLocarIndoor.requestMotion() : null;
       try {
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
           this.motionOk = (await DeviceMotionEvent.requestPermission()) === 'granted';
@@ -182,54 +222,24 @@ createApp({
           this.motionOk = typeof DeviceMotionEvent !== 'undefined';
         }
       } catch (e) { this.motionOk = false; }
+      if (compass) await compass;   // the compass-aligned camera just won't align without it
+      // The LocAR module loads after this classic script; wait for it (the CDN may also be unreachable).
+      if (!window.LamparaLocarIndoor) {
+        await new Promise((resolve) => {
+          window.addEventListener('lampara-locar-indoor-loaded', resolve, { once: true });
+          setTimeout(resolve, 10000);
+        });
+      }
+      if (!window.LamparaLocarIndoor) return this.fail("Couldn't open the camera view.", ['Check your connection and try again.']);
       try {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          await DeviceOrientationEvent.requestPermission();
-        }
-      } catch (e) { /* the compass-aligned camera just won't align without it */ }
+        const path = this._paths[this.segIndex];
+        const here = IndoorNav.toScene(IndoorNav.pointAt(path, this.s), path.cal);
+        await window.LamparaLocarIndoor.start({ eyeHeight: CAMERA_HEIGHT, fov: CAMERA_FOV_DEG, start: here });
+      } catch (e) {
+        return this.fail("Couldn't start the camera.", [String(e && e.message || e)]);
+      }
       this.stage = 'nav';
-      this.$nextTick(() => this.setupScene());
-    },
-
-    setupScene() {
-      const scene = this.$refs.arScene;
-      if (!scene) return;
-      const init = () => {
-        this.forceArSize();
-        window.addEventListener('resize', this.forceArSize);
-        window.addEventListener('arjs-video-loaded', () => setTimeout(this.forceArSize, 50));
-        setTimeout(this.forceArSize, 800);
-        setTimeout(this.forceArSize, 2000);
-        // Same fix as the outdoor guide: re-assert the render size every frame,
-        // since AR.js keeps resetting it.
-        if (!AFRAME.components['force-ar-size-every-frame']) {
-          AFRAME.registerComponent('force-ar-size-every-frame', { tick: () => window.__iaForceSize && window.__iaForceSize() });
-        }
-        window.__iaForceSize = () => this.forceArSize();
-        scene.setAttribute('force-ar-size-every-frame', '');
-
-        // Phones: compass-aligned camera rotation (the same controls the outdoor
-        // guide gets through gps-new-camera — but with no GPS involved at all).
-        // Desktop keeps the default mouse look-around for testing.
-        const camEl = scene.querySelector('#ia-cam');
-        const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        camEl.setAttribute('look-controls-enabled', String(!mobile));
-        if (mobile) camEl.setAttribute('arjs-device-orientation-controls', 'true');
-
-        this._ribbon = ArRibbon.create(scene);
-        this.buildMarker();
-        this.startTracking();
-      };
-      if (scene.hasLoaded) init(); else scene.addEventListener('loaded', init, { once: true });
-    },
-    forceArSize() {
-      const scene = this.$refs.arScene;
-      if (!scene || !scene.renderer) return;
-      const vv = window.visualViewport;
-      const w = vv ? vv.width : window.innerWidth;
-      const h = vv ? vv.height : window.innerHeight;
-      scene.renderer.setSize(w, h, true);
-      if (scene.camera) { scene.camera.aspect = w / h; scene.camera.updateProjectionMatrix(); }
+      this.$nextTick(() => { this.buildMarker(); this.startTracking(); });
     },
 
     // ---- Position tracking ----
@@ -248,13 +258,16 @@ createApp({
       };
       window.addEventListener('devicemotion', this._motionProbe);
       this._timer = setInterval(() => this.tick(), 200);
+      const flow = () => { if (this._paths) this.drawMinimap(this._paths[this.segIndex]); this._mm = requestAnimationFrame(flow); };
+      this._mm = requestAnimationFrame(flow);
       this.tick();
     },
     stopTracking() {
       if (this._timer) clearInterval(this._timer);
+      if (this._mm) cancelAnimationFrame(this._mm);
       if (this._steps) this._steps.stop();
       if (this._motionProbe) window.removeEventListener('devicemotion', this._motionProbe);
-      if (this._ribbon) this._ribbon.remove();
+      if (window.LamparaLocarIndoor && window.LamparaLocarIndoor.ready) window.LamparaLocarIndoor.stop();
     },
     advance(delta) {
       const path = this._paths[this.segIndex];
@@ -354,7 +367,7 @@ createApp({
       this.segIndex = this.nextWalkedIndex(this.segIndex);
       this.s = 0;
       this.buildMarker();
-      this.tick();
+      this.tick(true);
     },
 
     // The direction the camera is looking, as a compass bearing in the scene (0 = scene north), or
@@ -362,12 +375,8 @@ createApp({
     cameraHeading() {
       const o = window.__iaHeadingOverride;           // lets tests drive the heading
       if (typeof o === 'number') return o;
-      const scene = this.$refs.arScene;
-      if (!scene || !scene.camera) return null;
-      const dir = new AFRAME.THREE.Vector3();
-      scene.camera.getWorldDirection(dir);
-      if (Math.hypot(dir.x, dir.z) < 0.25) return null;
-      return (Math.atan2(dir.x, -dir.z) * 180 / Math.PI + 360) % 360;
+      const eng = window.LamparaLocarIndoor;
+      return eng && eng.ready ? eng.heading() : null;
     },
     // Bearing (scene north = 0) of the stretch of path just ahead of you.
     pathHeading(ahead) {
@@ -391,7 +400,7 @@ createApp({
       this._plans = this._plans.map((pl, i) => ({ ...pl, north_offset: this._paths[i].cal.north_offset }));
       this.alignNote = 'Aligned (turned the map ' + Math.round(Math.abs(delta)) + '° ' + (delta >= 0 ? 'clockwise' : 'counter-clockwise') + ').';
       this.buildMarker();
-      this.tick();
+      this.tick(true);
       setTimeout(() => { this.alignNote = ''; }, 3500);
     },
     // Tells the student which way to turn when the path ahead is outside the camera's view, so the
@@ -406,29 +415,27 @@ createApp({
 
     // One refresh: move the camera along the route, redraw the ribbon, update
     // the banner and the mini-map. Runs at 5 Hz and after every step.
-    tick() {
-      const scene = this.$refs.arScene;
-      if (!scene || !this._paths) return;
-      const camEl = scene.querySelector('#ia-cam');
-      if (!camEl || !camEl.object3D) return;
+    tick(jump) {
+      const eng = window.LamparaLocarIndoor;
+      if (!eng || !eng.ready || !this._paths) return;
       const path = this._paths[this.segIndex];
 
       const here = IndoorNav.toScene(IndoorNav.pointAt(path, this.s), path.cal);
-      camEl.object3D.position.set(here.x, CAMERA_HEIGHT, here.y);
+      eng.setPosition(here.x, here.y, jump === true);
 
       const remaining = path.total - this.s;
       const ahead = IndoorNav.aheadScene(path, this.s, AHEAD_METERS);
-      if (ahead.length >= 2 && remaining > ARRIVE_METERS) this._ribbon.update(CampusRoute.smooth(ahead, 1.5));
-      else this._ribbon.remove();
+      eng.setRoute(ahead.length >= 2 && remaining > ARRIVE_METERS ? CampusRoute.smooth(ahead, 1.5) : null);
 
       this.updateHud(path, remaining);
       if (remaining > ARRIVE_METERS) this.updateLookHint(ahead); else this.lookHint = null;
-      this.drawMinimap(scene, path);
+      this.drawMinimap(path);
     },
     updateHud(path, remaining) {
       const isLast = this.segIndex === this._paths.length - 1;
       const laterMeters = this._paths.slice(this.segIndex + 1).reduce((sum, p) => sum + p.total, 0);
       if (remaining <= ARRIVE_METERS) {
+        if (isLast && this.leave && !this._leaveSaved) { this._leaveSaved = true; LamparaTrip.set({ to: String(this.toRoom.id), from: String(new URLSearchParams(location.search).get('from') || ''), arrived: 0, step: 1, label: this.toRoom.room_name + ' (' + this.toRoom.building_name + ')' }); }
         this.hud = isLast
           ? { kind: 'arrived' }
           : { kind: 'stairs', nextFloor: this.segFloors[this.nextWalkedIndex(this.segIndex)] };
@@ -443,52 +450,22 @@ createApp({
     // Pin at the end of the current segment: the destination on the last floor,
     // the stairs on earlier ones.
     buildMarker() {
-      const scene = this.$refs.arScene;
-      if (!scene) return;
-      if (this._marker && this._marker.parentNode) this._marker.parentNode.removeChild(this._marker);
+      const eng = window.LamparaLocarIndoor;
+      if (!eng || !eng.ready) return;
       const path = this._paths[this.segIndex];
       const end = IndoorNav.toScene(path.pts[path.pts.length - 1], path.cal);
       const isLast = this.segIndex === this._paths.length - 1;
-
-      const root = document.createElement('a-entity');
-      root.setAttribute('position', `${end.x} 0.2 ${end.y}`);
-
-      const pin = document.createElement('a-entity');
-      pin.setAttribute('position', '0 1.6 0'); // still, not bobbing: a moving pin reads as an unstable position
-      const cone = document.createElement('a-cone');
-      cone.setAttribute('radius-bottom', '0.22');
-      cone.setAttribute('radius-top', '0');
-      cone.setAttribute('height', '0.5');
-      cone.setAttribute('segments-radial', '6');
-      cone.setAttribute('rotation', '180 0 0');
-      cone.setAttribute('material', 'color: #ffd100; emissive: #ffd100; emissiveIntensity: 0.5; shader: standard');
-      pin.appendChild(cone);
-
-      const label = document.createElement('a-text');
-      label.setAttribute('value', isLast ? this.toRoom.room_name : `Stairs to ${this.segFloors[this.nextWalkedIndex(this.segIndex)]}`);
-      label.setAttribute('align', 'center');
-      label.setAttribute('width', '3');
-      label.setAttribute('color', '#ffffff');
-      label.setAttribute('position', '0 0.55 0');
-      label.setAttribute('look-at', '#ia-cam');
-      pin.appendChild(label);
-
-      root.appendChild(pin);
-      scene.appendChild(root);
-      this._marker = root;
+      eng.setMarker(end, isLast ? (this.leave ? 'Exit' : this.toRoom.room_name) : `Stairs to ${this.segFloors[this.nextWalkedIndex(this.segIndex)]}`);
     },
 
     // Small circular map: the floor plan, rotated so where you're facing is up,
     // with the route drawn on it. Heading comes from the AR camera itself.
-    drawMinimap(scene, path) {
+    drawMinimap(path) {
       const canvas = this.$refs.minimap;
-      if (!canvas || !scene.camera) return;
+      const bearingTrue = this.cameraHeading();
+      if (!canvas || bearingTrue === null) return;
       const ctx = canvas.getContext('2d');
       const W = canvas.width, H = canvas.height;
-      const THREE = AFRAME.THREE;
-      const dir = new THREE.Vector3();
-      scene.camera.getWorldDirection(dir);
-      const bearingTrue = Math.atan2(dir.x, -dir.z) * 180 / Math.PI;
       const headingPlan = (bearingTrue - path.cal.north_offset) * Math.PI / 180;
 
       const plan = this._plans[this.segIndex];
@@ -514,12 +491,19 @@ createApp({
         ctx.drawImage(img, 0, 0, 100 * plan.meters_per_unit_x, 100 * plan.meters_per_unit_y);
         ctx.globalAlpha = 1;
       }
-      ctx.strokeStyle = '#ffe066';
-      ctx.lineWidth = 2.2 / MAP_PX_PER_METER * 2;
+      // the route as a flowing broken line, like on the floor-plan screen
+      ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.beginPath();
-      path.pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-      ctx.stroke();
+      ctx.setLineDash([1.7, 1.9]);
+      ctx.lineDashOffset = -(Date.now() / 1000) * 3;
+      const trace = () => { ctx.beginPath(); path.pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); };
+      ctx.strokeStyle = '#161850';
+      ctx.lineWidth = 1.5;
+      trace();
+      ctx.strokeStyle = '#ffd100';
+      ctx.lineWidth = 0.85;
+      trace();
+      ctx.setLineDash([]);
       ctx.restore();
 
       // You: a fixed arrow in the centre (the map turns around it).

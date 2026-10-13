@@ -186,7 +186,7 @@ window.LamparaBuildingApp = createApp({
     initPickMap() {
       const el = this.$refs.pickMap;
       if (!el || this._pickMap || typeof L === 'undefined') return;
-      const map = L.map(el, CampusBounds.mapOptions({ zoomControl: true })).setView([14.3283, 120.9372], 18);
+      const map = L.map(el, CampusBounds.mapOptions({ zoomControl: true })).setView(CampusBounds.CENTER, 18);
       const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
       });

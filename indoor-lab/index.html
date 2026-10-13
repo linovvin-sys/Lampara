@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Lampara Indoor Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#161850;--blue:#2b2f8f;--gold:#ffd100;--ink:#16181f;--muted:#5d6272;--line:#dcdde8;--bg:#f5f6fb;--card:#fff;--ok:#1f8a4c;--font:'Outfit',system-ui,sans-serif}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font)}
+  .wrap{max-width:64rem;margin:0 auto;padding:16px 16px 56px}
+  header.hero{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:24px 16px 26px}
+  header.hero .wrap{padding-block:0}
+  .eyebrow{font:600 12px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+  h1{font-size:clamp(1.7rem,5vw,2.4rem);margin:.25rem 0 .35rem;letter-spacing:-.02em}
+  header.hero p{margin:0;max-width:46rem;color:rgba(255,255,255,.85)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:14px}
+  .pick{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))}
+  label.f{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px;min-width:0}
+  select{font:15px var(--font);padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);width:100%}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  button.b,a.b{font:600 14px var(--font);padding:9px 15px;border-radius:999px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+  button.b.alt,a.b.alt{background:#fff;color:var(--navy)}
+  button.b:disabled{opacity:.45;pointer-events:none}
+  .seg{display:inline-flex;background:#e9e9f6;border-radius:999px;padding:3px}
+  .seg button{font:600 13px var(--font);border:0;background:none;padding:7px 14px;border-radius:999px;color:var(--navy);cursor:pointer;transition:background .25s,color .25s}
+  .seg button.on{background:var(--navy);color:#fff}
+  .stage{position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--line);background:#0b1220;margin-top:14px}
+  .view{transition:opacity .45s ease,transform .45s ease}
+  .view.hide{opacity:0;pointer-events:none;position:absolute;inset:0}
+  .view.hide.left{transform:translateX(-5%)}.view.hide.right{transform:translateX(5%)}
+  /* AR pane stand-in */
+  .ar{min-height:22rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;padding:24px;
+      background:radial-gradient(120% 90% at 50% 100%,#2b2f8f 0%,#0b1220 70%)}
+  .ar .chev{width:120px;height:170px;perspective:300px}
+  .ar .chev i{position:absolute;left:50%;width:46px;height:46px;margin-left:-23px;border-left:8px solid var(--gold);border-top:8px solid var(--gold);
+      transform:rotate(45deg);opacity:0;animation:fly 2.2s infinite ease-in}
+  .ar .chev i:nth-child(2){animation-delay:.35s}.ar .chev i:nth-child(3){animation-delay:.7s}
+  @keyframes fly{0%{top:130px;opacity:0}25%{opacity:1}100%{top:0;opacity:0}}
+  .ar .chev{position:relative}
+  .ar p{margin:0;color:rgba(255,255,255,.75);max-width:26rem}
+  .ar h2{margin:0;font-size:1.3rem}
+  /* floor plan pane */
+  .plan{position:relative;background:#0b1220}
+  .plan canvas{display:block;width:100%;transition:opacity .35s ease}
+  .plan canvas.fade{opacity:0}
+  .tabs{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap;z-index:2}
+  .tabs button{font:600 12px var(--font);padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(11,18,32,.7);color:#fff;cursor:pointer;backdrop-filter:blur(6px);transition:all .25s}
+  .tabs button.on{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+  .tabs button.done::after{content:" \2713"}
+  .hud{position:absolute;left:10px;right:10px;bottom:10px;z-index:2;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;pointer-events:none}
+  .pill{background:rgba(255,255,255,.95);color:var(--navy);border-radius:999px;padding:7px 14px;font-weight:700;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+  .stairs{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;background:rgba(11,18,32,.72);opacity:0;pointer-events:none;transition:opacity .4s}
+  .stairs.on{opacity:1;pointer-events:auto}
+  .stairs .card{background:#fff;border-radius:18px;padding:18px 22px;text-align:center;max-width:18rem;transform:translateY(14px) scale(.96);transition:transform .45s cubic-bezier(.2,1.3,.4,1)}
+  .stairs.on .card{transform:none}
+  .stairs svg{width:46px;height:46px}
+  .stairs h3{margin:6px 0 2px;color:var(--navy)}
+  .stairs p{margin:0 0 10px;color:var(--muted);font-size:14px}
+  .note{font-size:13px;color:var(--muted);margin-top:8px}
+  .err{color:#b3261e;font-size:14px;margin-top:8px}
+  .tag{display:inline-block;font:600 11px var(--font);padding:2px 9px;border-radius:999px;background:#e9e9f8;color:var(--blue)}
+  .tag.warn{background:#fff3d6;color:#8a5a00}
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .steps button{flex:1 1 9rem;display:flex;align-items:center;gap:8px;text-align:left;font:600 13px var(--font);padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .3s}
+  .steps button b{width:22px;height:22px;border-radius:50%;background:#e4e5f1;color:var(--navy);display:grid;place-items:center;font-size:12px;flex:none;transition:all .3s}
+  .steps button.on{border-color:var(--navy);color:var(--navy);box-shadow:0 4px 14px rgba(22,24,80,.15)}
+  .steps button.on b{background:var(--gold)}
+  .steps button.done b{background:var(--ok);color:#fff}
+  .ar .meta{font-weight:700;color:var(--gold)}
+  .ar .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .plan canvas{cursor:crosshair}
+</style>
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">Lab &middot; indoor</div>
+  <h1>Indoor Lab</h1>
+  <p>Test bed for the hand-off from the indoor AR guide to a floor-plan guide: the plan appears, a broken line draws itself from where you are to the room, and the stairs step between floors. Reads rooms and paths from the main app; changes nothing.</p>
+</div></header>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="pick">
+      <label class="f">From (where you are)<select id="from"></select></label>
+      <label class="f">To (where you are going &mdash; any building)<select id="to"></select></label>
+    </div>
+    <div class="row">
+      <button class="b" id="go">Show route</button>
+      <button class="b alt" id="swap">Swap</button>
+      <button class="b alt" id="replay">Replay</button>
+      <label class="f" style="flex-direction:row;align-items:center;gap:6px">Speed
+        <select id="speed" style="width:auto"><option value="0.6">Slow</option><option value="1" selected>Normal</option><option value="1.8">Fast</option></select>
+      </label>
+      <span id="mode" class="tag"></span>
+    </div>
+    <div id="err" class="err" hidden></div>
+  </div>
+
+  <div class="steps" id="steps"></div>
+  <div class="row" style="justify-content:space-between;margin-top:12px">
+    <div class="seg" id="viewseg"><button data-v="ar" class="on">Outdoor / AR</button><button data-v="plan">Floor plan</button></div>
+    <a class="b alt" id="realAr" href="#" target="_blank" rel="noopener" hidden>Open the real indoor AR guide</a>
+  </div>
+
+  <div class="stage">
+    <div class="view ar" id="viewAr">
+      <div class="chev"><i></i><i></i><i></i></div>
+      <h2 id="arTitle">Indoor AR guide</h2>
+      <p id="arText">This stands in for the camera view. When you are lost, off route or just want the big picture, switch to the floor plan.</p>
+      <div class="meta" id="arMeta"></div>
+      <div class="acts">
+        <a class="b" id="arOpen" href="#" target="_blank" rel="noopener" hidden style="background:#fff;color:var(--navy)">Open the real outdoor AR guide</a>
+        <button class="b" style="background:var(--gold);border-color:var(--gold);color:var(--navy)" id="toPlan">Switch to floor plan</button>
+      </div>
+    </div>
+    <div class="view plan hide right" id="viewPlan">
+      <div class="tabs" id="tabs"></div>
+      <canvas id="cv"></canvas>
+      <div class="hud"><span class="pill" id="hudL"></span><span class="pill" id="hint" style="font-weight:500"></span><span class="pill" id="hudR"></span></div>
+      <div class="stairs" id="stairs">
+        <div class="card">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4v-4h4v-4h4V8h4" stroke="#d4ab00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3 id="stTitle">Take the stairs</h3>
+          <p id="stSub">Continue on the next floor</p>
+          <button class="b" id="stGo">I'm on the next floor</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Pick any two rooms. In the same building you get one floor-plan route; in different buildings you get three steps &mdash; floor plan to the exit, outdoor AR walk, floor plan from the entrance to the room. Rooms need a pin on their floor plan and the building needs drawn paths (admin: Register Room, Floor Plans). If the server has no data, a built-in two-floor demo is used.</p>
+</div>
+
+<!-- same walkable-graph router the main app uses (read-only reuse) -->
+<script src="../Frontend/Js/Include/floor-route.js"></script>
+<script>
+const API = '../Backend/api/', FE = '../Frontend/';
+const $ = (id) => document.getElementById(id);
+const NAVY = '#161850', GOLD = '#ffd100';
+const q = new URLSearchParams(location.search);
+
+let rooms = [], buildings = [], demo = false, graphCache = {}, plansCache = {};
+let journey = null;    // { from, to, legs:[ {kind:'indoor', segs, startLabel, endLabel, gate?} | {kind:'outdoor', ...} ] }
+let legIdx = 0, route = null;   // route = the indoor leg on screen: { segs:[{plan, pts, img}], startLabel, endLabel }
+let segIdx = 0, anim = null, raf = 0, switching = false, cardAction = null;
+
+// ---------------- data
+async function getJson(url) { const r = await fetch(url); return r.json(); }
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const rank = (name) => {      // lowest floor first, same idea as scan.js
+  const t = String(name || '').trim().toLowerCase(), m = t.match(/^(-?\d+)/);
+  if (m) return parseInt(m[1], 10);
+  if (/^(g|ground|lower ground)/.test(t)) return 0;
+  if (/basement|^b\d?\b/.test(t)) return -1;
+  return 99;
+};
+
+function demoData() {
+  const mk = (label) => {
+    const c = document.createElement('canvas'); c.width = 1000; c.height = 600;
+    const x = c.getContext('2d');
+    x.fillStyle = '#eef0f8'; x.fillRect(0, 0, 1000, 600);
+    x.strokeStyle = '#8b90ad'; x.lineWidth = 6; x.strokeRect(20, 20, 960, 560);
+    x.fillStyle = '#dfe2f2'; x.fillRect(60, 270, 880, 60);                 // corridor
+    x.fillStyle = '#e4e6f4'; x.fillRect(440, 60, 120, 210);                // stair hall
+    x.strokeStyle = '#b7bbd3'; x.lineWidth = 3;
+    for (let i = 0; i < 5; i++) { x.strokeRect(70 + i * 160, 350, 140, 200); x.strokeRect(70 + i * 160, 50, 140, 200); }
+    x.fillStyle = '#7a7f9c'; x.font = '700 28px Outfit, sans-serif'; x.fillText(label, 44, 56);
+    return c.toDataURL('image/png');
+  };
+  const P = (id, bid, floor, label) => ({ id, building_id: bid, floor, image_path: null, dataUrl: mk(label), north_offset: 0, meters_per_unit_x: 0.6, meters_per_unit_y: 0.36 });
+  const N = (id, fp, floor, x, y, name) => ({ id, floor_plan_id: fp, floor, x, y, name: name || null });
+  const E = (arr) => arr.map(([a, b]) => ({ node_a_id: a, node_b_id: b }));
+  const hall = { // building 1: two floors, entrance at the west end of the 1st floor
+    plans: [P(1, 1, '1st Floor', 'Demo Hall - 1st Floor'), P(2, 1, '2nd Floor', 'Demo Hall - 2nd Floor')],
+    graph: { nodes: [N(1, 1, '1st Floor', 8, 50, 'Main Entrance'), N(2, 1, '1st Floor', 50, 50), N(3, 1, '1st Floor', 92, 50), N(4, 1, '1st Floor', 50, 22),
+                     N(5, 2, '2nd Floor', 50, 22), N(6, 2, '2nd Floor', 50, 50), N(7, 2, '2nd Floor', 84, 50)],
+             edges: E([[1, 2], [2, 3], [2, 4], [4, 5], [5, 6], [6, 7]]) }
+  };
+  const annex = { // building 2: one floor, entrance at the east end
+    plans: [P(3, 2, '1st Floor', 'Demo Annex - 1st Floor')],
+    graph: { nodes: [N(8, 3, '1st Floor', 92, 50, 'Entrance'), N(9, 3, '1st Floor', 50, 50), N(10, 3, '1st Floor', 10, 50)], edges: E([[8, 9], [9, 10]]) }
+  };
+  const base1 = { building_id: 1, building_name: 'Demo Hall' }, base2 = { building_id: 2, building_name: 'Demo Annex' };
+  return {
+    buildings: [{ id: 1, name: 'Demo Hall', lat: 14.5995, lng: 120.9842, entrance_floor: '1st Floor' }, { id: 2, name: 'Demo Annex', lat: 14.6003, lng: 120.9851, entrance_floor: '1st Floor' }],
+    rooms: [
+      { ...base1, id: 1, room_name: 'Registrar', room_number: '102', floor: '1st Floor', map_x: 90, map_y: 50 },
+      { ...base1, id: 2, room_name: 'Computer Lab', room_number: '204', floor: '2nd Floor', map_x: 84, map_y: 50 },
+      { ...base2, id: 3, room_name: 'Library', room_number: '105', floor: '1st Floor', map_x: 12, map_y: 50 }
+    ],
+    byB: { 1: hall, 2: annex }
+  };
+}
+let DEMO = null;
+
+async function loadRooms() {
+  try {
+    if (q.get('demo') === '1') throw new Error('demo');
+    const d = await getJson(API + 'rooms.php');
+    if (!d.success) throw new Error('no rooms');
+    rooms = d.rooms.filter((r) => r.map_x !== null && r.map_y !== null);
+    if (!rooms.length) throw new Error('none placed');
+    try { const b = await getJson(API + 'buildings.php'); buildings = b.success ? b.buildings : []; } catch (e) { buildings = []; }
+  } catch (e) {
+    demo = true; DEMO = demoData(); rooms = DEMO.rooms; buildings = DEMO.buildings;
+  }
+  $('mode').textContent = demo ? 'demo data' : 'live data';
+  $('mode').className = 'tag' + (demo ? ' warn' : '');
+  const grouped = new Map();
+  rooms.forEach((r) => { if (!grouped.has(r.building_id)) grouped.set(r.building_id, { name: r.building_name, list: [] }); grouped.get(r.building_id).list.push(r); });
+  const opts = [...grouped.values()].map((g) => `<optgroup label="${esc(g.name)}">` + g.list.map((r) =>
+    `<option value="${r.id}">${esc((r.room_number ? r.room_number + ' — ' : '') + r.room_name)} (${esc(r.floor)})</option>`).join('') + '</optgroup>').join('');
+  $('from').innerHTML = opts; $('to').innerHTML = opts;
+  if (rooms.length > 1) $('to').value = rooms[rooms.length - 1].id;
+  if (q.get('from') && rooms.find((r) => String(r.id) === q.get('from'))) $('from').value = q.get('from');
+  if (q.get('to') && rooms.find((r) => String(r.id) === q.get('to'))) $('to').value = q.get('to');
+  if (q.get('from') && q.get('to')) show();
+}
+
+async function buildingData(id) {
+  if (demo) return DEMO.byB[id];
+  if (!graphCache[id]) {
+    const g = await getJson(API + 'floor-plan-graph.php?building_id=' + id);
+    const p = await getJson(API + 'floor-plans.php?building_id=' + id);
+    graphCache[id] = { nodes: g.nodes || [], edges: g.edges || [] };
+    plansCache[id] = p.plans || [];
+  }
+  return { graph: graphCache[id], plans: plansCache[id] };
+}
+const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+// ---------------- the building's door, as a point on a floor plan
+// The data has no "exit" point on the floor plans, so: (1) a point you tapped here wins, (2) a path point named like an
+// entrance/exit on the entrance floor, (3) the path point on that floor that lies furthest out from the middle (a guess).
+const gateKey = (bid) => 'indoorlab.gate.' + (demo ? 'demo.' : '') + bid;
+// Doors set by hand for real buildings (path point names on the given floor). `entry` = where you come in, `exit` = where you leave.
+// Amafel (Main), building 1: Point AG is the main entrance, Point B is the exit.
+// Felix Amada (Annex), building 3: Point T on the 2nd floor (its lowest) is both the entrance stair and the exit stair.
+const GATE_POINTS = { 1: { floor: '1st Floor', entry: 'Point AG', exit: 'Point B' }, 3: { floor: '2nd Floor', entry: 'Point T', exit: 'Point T' } };
+// kind: 'entry' (arriving in the building) or 'exit' (leaving it)
+function gatePoint(bid, graph, plans, kind) {
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(gateKey(bid) + '.' + kind)); } catch (e) { /* storage blocked */ }
+  if (saved && plans.find((p) => p.floor === saved.floor)) return { floor: saved.floor, x: saved.x, y: saved.y, how: 'set' };
+  const cfg = !demo && GATE_POINTS[bid];
+  if (cfg && cfg[kind]) {
+    const plan = plans.find((p) => p.floor === cfg.floor);
+    const n = plan && graph.nodes.find((n) => n.floor_plan_id === plan.id && n.name === cfg[kind]);
+    if (n) return { floor: cfg.floor, x: n.x, y: n.y, how: 'named', name: cfg[kind] };
+  }
+  const b = buildings.find((x) => String(x.id) === String(bid)) || {};
+  const hasNodes = (p) => graph.nodes.some((n) => n.floor_plan_id === p.id);
+  const ordered = plans.filter(hasNodes).sort((p1, p2) => rank(p1.floor) - rank(p2.floor));
+  const plan = (b.entrance_floor && ordered.find((p) => p.floor === b.entrance_floor)) || ordered[0];
+  if (!plan) return null;
+  const nodes = graph.nodes.filter((n) => n.floor_plan_id === plan.id);
+  const named = nodes.find((n) => /entr|exit|gate|door/i.test(n.name || ''));
+  if (named) return { floor: plan.floor, x: named.x, y: named.y, how: 'named', name: named.name };
+  const cx = nodes.reduce((t, n) => t + n.x, 0) / nodes.length, cy = nodes.reduce((t, n) => t + n.y, 0) / nodes.length;
+  const far = nodes.slice().sort((n1, n2) => Math.hypot(n2.x - cx, n2.y - cy) - Math.hypot(n1.x - cx, n1.y - cy))[0];
+  return { floor: plan.floor, x: far.x, y: far.y, how: 'guess' };
+}
+
+// ---------------- route
+// One indoor leg inside one building, between two points {floor,x,y}.
+async function indoorLeg(bid, A, B, startLabel, endLabel, gate) {
+  const { graph, plans } = await buildingData(bid);
+  const fp = plans.find((p) => p.floor === A.floor), tp = plans.find((p) => p.floor === B.floor);
+  if (!fp || !tp) throw new Error('A floor plan is missing for this route.');
+  if (!graph.edges.length) throw new Error("Walkable paths haven't been drawn for this building yet.");
+  const segs = routeAcrossFloors(graph.nodes, graph.edges, { x: A.x, y: A.y }, fp.id, { x: B.x, y: B.y }, tp.id);
+  if (!segs) throw new Error('No connected walking route in that building yet.');
+  const out = [];
+  for (const s of segs) {
+    const plan = plans.find((p) => p.id === s.floorPlanId);
+    out.push({ plan, pts: s.points, img: await loadImg(plan.dataUrl || FE + plan.image_path) });
+  }
+  return { kind: 'indoor', segs: out, startLabel, endLabel, gate: gate || null, building: bid };
+}
+const pt = (r) => ({ floor: r.floor, x: r.map_x, y: r.map_y });
+const roomName = (r) => (r.room_number ? r.room_number + ' ' : '') + r.room_name;
+
+function haversine(a, b) {
+  const R = 6371008.8, rad = (d) => d * Math.PI / 180, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat)), x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lng - a.lng));
+  return { m: 2 * R * Math.asin(Math.min(1, Math.sqrt(h))), bearing: (Math.atan2(y, x) * 180 / Math.PI + 360) % 360 };
+}
+const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+
+async function show() {
+  $('err').hidden = true;
+  const from = rooms.find((r) => String(r.id) === $('from').value), to = rooms.find((r) => String(r.id) === $('to').value);
+  if (!from || !to) return;
+  if (from.id === to.id) return fail('Pick two different rooms.');
+  try {
+    const legs = [];
+    if (String(from.building_id) === String(to.building_id)) {
+      legs.push(await indoorLeg(from.building_id, pt(from), pt(to), 'You', roomName(to)));
+    } else {
+      const A = await buildingData(from.building_id), B = await buildingData(to.building_id);
+      const exit = gatePoint(from.building_id, A.graph, A.plans, 'exit'), entry = gatePoint(to.building_id, B.graph, B.plans, 'entry');
+      if (!exit) throw new Error(from.building_name + ' has no walkable path points on its entrance floor yet.');
+      if (!entry) throw new Error(to.building_name + ' has no walkable path points on its entrance floor yet.');
+      legs.push(await indoorLeg(from.building_id, pt(from), exit, 'You', 'Exit', { which: 'end', kind: 'exit', bid: from.building_id, p: exit }));
+      const bA = buildings.find((b) => String(b.id) === String(from.building_id)), bB = buildings.find((b) => String(b.id) === String(to.building_id));
+      legs.push({ kind: 'outdoor', from: bA, to: bB, toRoom: to, toBuildingName: to.building_name });
+      legs.push(await indoorLeg(to.building_id, entry, pt(to), 'Entrance', roomName(to), { which: 'start', kind: 'entry', bid: to.building_id, p: entry }));
+    }
+    journey = { from, to, legs };
+    if (legs.length === 1) { $('realAr').href = '../Frontend/View/Student/indoor-ar.php?from=' + from.id + '&to=' + to.id; $('realAr').hidden = false; }
+    else $('realAr').hidden = true;
+    buildSteps();
+    runLeg(0);
+  } catch (e) { fail(e && e.message || 'Could not load that route.'); }
+}
+function fail(m) { $('err').textContent = m; $('err').hidden = false; }
+
+// ---------------- legs: floor plan -> outdoor -> floor plan
+function buildSteps() {
+  const j = journey;
+  const names = j.legs.length === 1 ? ['Floor-plan route to ' + roomName(j.to)] :
+    ['Leave ' + j.from.building_name, 'Walk to ' + j.to.building_name, 'Find ' + roomName(j.to)];
+  $('steps').innerHTML = names.map((n, i) => '<button data-i="' + i + '"><b>' + (i + 1) + '</b><span>' + esc(n) + '</span></button>').join('');
+  $('steps').querySelectorAll('button').forEach((b) => b.onclick = () => runLeg(+b.dataset.i));
+  $('steps').hidden = j.legs.length === 1;
+}
+function runLeg(i) {
+  legIdx = i; const leg = journey.legs[i];
+  $('steps').querySelectorAll('button').forEach((b, k) => { b.classList.toggle('on', k === i); b.classList.toggle('done', k < i); });
+  $('stairs').classList.remove('on'); cardAction = null;
+  if (leg.kind === 'indoor') {
+    route = leg; $('toPlan').textContent = 'Switch to floor plan'; buildTabs(); setView('plan'); start(0);
+  } else {
+    const d = leg.from && leg.to && leg.from.lat != null && leg.to.lat != null ? haversine(leg.from, leg.to) : null;
+    $('arTitle').textContent = 'Walk to ' + leg.toBuildingName;
+    $('arText').textContent = 'Outdoor AR guide: follow the yellow ribbon on the campus walkways to the building entrance. When you reach the door, the floor plan takes over.';
+    $('arMeta').textContent = d ? 'about ' + Math.round(d.m) + ' m · head ' + COMPASS[Math.round(d.bearing / 45) % 8] : '';
+    $('arOpen').href = '../Frontend/View/Public/guide-ar.php?to=' + (leg.to ? leg.to.id : '') + '&room=' + leg.toRoom.id; $('arOpen').hidden = false;
+    $('toPlan').textContent = "I've arrived at the entrance";
+    cancelAnimationFrame(raf); raf = 0;
+    setView('ar');
+  }
+}
+// The indoor leg finished its last floor: hand over to the next leg (outdoors) when there is one.
+function legFinished() {
+  if (legIdx >= journey.legs.length - 1) return;
+  const next = journey.legs[legIdx + 1];
+  showCard('You are at the exit', 'Continue to ' + next.toBuildingName + ' with the outdoor AR guide', 'Continue outdoors', () => runLeg(legIdx + 1));
+}
+function showCard(title, sub, btn, action) {
+  $('stTitle').textContent = title; $('stSub').textContent = sub; $('stGo').textContent = btn; cardAction = action;
+  $('stairs').classList.add('on');
+}
+
+function lengthPx(seg) {
+  let t = 0; for (let i = 1; i < seg.pts.length; i++) t += Math.hypot(seg.pts[i].x - seg.pts[i - 1].x, seg.pts[i].y - seg.pts[i - 1].y);
+  return t;
+}
+function metres(seg) {
+  const p = seg.plan, mx = p.meters_per_unit_x > 0 ? p.meters_per_unit_x : null, my = p.meters_per_unit_y > 0 ? p.meters_per_unit_y : null;
+  if (!mx || !my) return null;
+  let t = 0; for (let i = 1; i < seg.pts.length; i++) t += Math.hypot((seg.pts[i].x - seg.pts[i - 1].x) * mx, (seg.pts[i].y - seg.pts[i - 1].y) * my);
+  return t;
+}
+
+// ---------------- path geometry (plan pixels)
+// Rounds the corners with quadratic curves so the line turns smoothly, then measures it so it can be drawn part-way.
+function smoothDense(pts, W, H, radius) {
+  const P = pts.map((p) => ({ x: p.x / 100 * W, y: p.y / 100 * H }));
+  const out = [P[0]];
+  for (let i = 1; i < P.length - 1; i++) {
+    const a = P[i - 1], b = P[i], c = P[i + 1];
+    const l1 = Math.hypot(a.x - b.x, a.y - b.y), l2 = Math.hypot(c.x - b.x, c.y - b.y);
+    if (!l1 || !l2) continue;
+    const d1 = Math.min(radius, l1 / 2), d2 = Math.min(radius, l2 / 2);
+    const s = { x: b.x + (a.x - b.x) / l1 * d1, y: b.y + (a.y - b.y) / l1 * d1 };
+    const e = { x: b.x + (c.x - b.x) / l2 * d2, y: b.y + (c.y - b.y) / l2 * d2 };
+    for (let k = 0; k <= 10; k++) { const t = k / 10, u = 1 - t; out.push({ x: u * u * s.x + 2 * u * t * b.x + t * t * e.x, y: u * u * s.y + 2 * u * t * b.y + t * t * e.y }); }
+  }
+  out.push(P[P.length - 1]);
+  const cum = [0];
+  for (let i = 1; i < out.length; i++) cum.push(cum[i - 1] + Math.hypot(out[i].x - out[i - 1].x, out[i].y - out[i - 1].y));
+  return { pts: out, cum, total: cum[cum.length - 1] };
+}
+function upTo(g, d) {      // points of the path up to length d, plus the head and its heading
+  d = Math.max(0, Math.min(g.total, d));
+  const out = [g.pts[0]]; let i = 1;
+  while (i < g.pts.length && g.cum[i] <= d) out.push(g.pts[i++]);
+  let head = out[out.length - 1], ang = 0;
+  if (i < g.pts.length) {
+    const t = (d - g.cum[i - 1]) / ((g.cum[i] - g.cum[i - 1]) || 1);
+    head = { x: g.pts[i - 1].x + t * (g.pts[i].x - g.pts[i - 1].x), y: g.pts[i - 1].y + t * (g.pts[i].y - g.pts[i - 1].y) };
+    out.push(head); ang = Math.atan2(g.pts[i].y - g.pts[i - 1].y, g.pts[i].x - g.pts[i - 1].x);
+  } else if (g.pts.length > 1) {
+    const a = g.pts[g.pts.length - 2], b = g.pts[g.pts.length - 1]; ang = Math.atan2(b.y - a.y, b.x - a.x);
+  }
+  return { pts: out, head, ang };
+}
+
+// ---------------- animation
+const ease = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+const cv = $('cv'), ctx = cv.getContext('2d');
+
+function start(i) {
+  segIdx = i; switching = false;
+  const seg = route.segs[i], W = seg.img.naturalWidth, H = seg.img.naturalHeight;
+  const g = smoothDense(seg.pts, W, H, Math.max(W, H) * 0.035);
+  const speed = parseFloat($('speed').value);
+  anim = { g, W, H, t0: performance.now(), dur: (1500 + 2600 * Math.min(1, g.total / (W * 1.1))) / speed, doneAt: 0, stairsShown: false };
+  const hmax = Math.min(window.innerHeight * 0.72, 720);
+  const w = cv.parentNode.clientWidth;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssH = Math.min(hmax, w * H / W);
+  cv.style.height = cssH + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(cssH * dpr);
+  anim.dpr = dpr;
+  document.querySelectorAll('#tabs button').forEach((b, k) => { b.classList.toggle('on', k === i); b.classList.toggle('done', k < i); });
+  const m = metres(seg), last = i === route.segs.length - 1;
+  $('hudL').textContent = seg.plan.floor + (route.segs.length > 1 ? ` · step ${i + 1} of ${route.segs.length}` : '');
+  $('hudR').textContent = m ? `~${Math.round(route.segs.reduce((s, x) => s + (metres(x) || 0), 0))} m · ~${Math.max(1, Math.round(route.segs.reduce((s, x) => s + (metres(x) || 0), 0) / 1.3 / 60))} min walk` : (last ? 'To ' + route.endLabel : 'Stairs next');
+  $('stairs').classList.remove('on');
+  const gt = route.gate, gHere = gt && ((gt.which === 'end' && last) || (gt.which === 'start' && i === 0));
+  $('hint').textContent = gHere ? (gt.p.how === 'set' ? 'Door set by you \u00b7 tap the plan to move it' : gt.p.how === 'named' ? (gt.p.name || 'Door') + '  \u00b7 tap to move' : 'Door is a guess \u00b7 tap the plan where the door is') : '';
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+}
+
+function frame(now) {
+  raf = requestAnimationFrame(frame);
+  const a = anim, seg = route.segs[segIdx], last = segIdx === route.segs.length - 1;
+  const raw = Math.min(1, (now - a.t0) / a.dur), p = ease(raw);
+  const { W, H, g, dpr } = a;
+  const cw = cv.width, ch = cv.height, k = Math.min(cw / W, ch / H);
+  const part = upTo(g, g.total * p);
+
+  // camera: follows the head while the line grows, then settles on the whole plan
+  const z = lerp(1.9, 1, ease(Math.min(1, raw * 1.15))), cx = lerp(part.head.x, W / 2, ease(raw)), cy = lerp(part.head.y, H / 2, ease(raw));
+  const s = k * z;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0b1220'; ctx.fillRect(0, 0, cw, ch);
+  ctx.setTransform(s, 0, 0, s, cw / 2 - cx * s, ch / 2 - cy * s);
+  ctx.drawImage(seg.img, 0, 0, W, H);
+  const px = 1 / s * dpr;       // one CSS pixel in plan space
+
+  // the broken line: dark outline dashes under yellow dashes, flowing toward the destination
+  if (part.pts.length > 1) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const dash = [13 * px, 15 * px], off = -(now / 1000) * 26 * px * parseFloat($('speed').value);
+    const path = () => { ctx.beginPath(); part.pts.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); };
+    ctx.setLineDash(dash); ctx.lineDashOffset = off;
+    ctx.strokeStyle = NAVY; ctx.lineWidth = 11 * px; path(); ctx.stroke();
+    ctx.strokeStyle = GOLD; ctx.lineWidth = 6.5 * px; path(); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // start marker
+  const st = g.pts[0];
+  if (segIdx === 0) pin(st, route.startLabel, px, 1, '#1f8a4c', now);
+  else stairIcon(st, px, 1);
+  // destination: drops in once the line arrives
+  const arrive = Math.max(0, (raw - 0.88) / 0.12), en = g.pts[g.pts.length - 1];
+  if (last) pin(en, route.endLabel, px, bounce(arrive), GOLD, now, true);
+  else stairIcon(en, px, bounce(arrive));
+
+  // walker: arrow on the head, pulsing ring
+  if (raw < 1) {
+    const h = part.head, pulse = (now % 1100) / 1100;
+    ctx.fillStyle = 'rgba(255,209,0,' + (0.35 * (1 - pulse)) + ')'; ctx.beginPath(); ctx.arc(h.x, h.y, (12 + pulse * 22) * px, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(part.ang + Math.PI / 2); ctx.scale(px, px);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = NAVY; ctx.lineWidth = 3; ctx.beginPath();
+    ctx.moveTo(0, -13); ctx.lineTo(10, 10); ctx.lineTo(0, 5); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+
+  if (raw >= 1 && !a.doneAt) a.doneAt = now;
+  if (a.doneAt && !last && !a.stairsShown && now - a.doneAt > 500 / parseFloat($('speed').value)) {
+    a.stairsShown = true;
+    const nf = route.segs[segIdx + 1].plan.floor;
+    showCard('Take the stairs to ' + nf, 'Then your path continues on the ' + nf + ' plan', "I'm on " + nf, () => goFloor(segIdx + 1));
+  }
+  if (a.doneAt && last && !a.stairsShown && now - a.doneAt > 700 / parseFloat($('speed').value)) { a.stairsShown = true; legFinished(); }
+  a.view = { s: s / dpr, tx: (cw / 2 - cx * s) / dpr, ty: (ch / 2 - cy * s) / dpr };
+}
+function bounce(t) { if (t <= 0) return 0; if (t >= 1) return 1; const c = 2.2; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+
+function pin(pt, label, px, sc, color, now, big) {
+  if (sc <= 0) return;
+  ctx.save(); ctx.translate(pt.x, pt.y); ctx.scale(px * sc, px * sc);
+  const bob = big ? Math.sin(now / 350) * 2 : 0;
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 2, 9, 3.5, 0, 0, 7); ctx.fill();
+  ctx.translate(0, bob);
+  ctx.fillStyle = color; ctx.strokeStyle = NAVY; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(-18, -18, -15, -40, 0, -40); ctx.bezierCurveTo(15, -40, 18, -18, 0, 0); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -26, 5.5, 0, 7); ctx.fill();
+  ctx.font = '700 15px Outfit, system-ui, sans-serif'; ctx.textAlign = 'center';
+  const w = ctx.measureText(label).width + 20;
+  ctx.fillStyle = NAVY; ctx.beginPath(); ctx.roundRect(-w / 2, -72, w, 26, 13); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillText(label, 0, -54);
+  ctx.restore();
+}
+function stairIcon(pt, px, sc) {
+  if (sc <= 0) return;
+  ctx.save(); ctx.translate(pt.x, pt.y); ctx.scale(px * sc, px * sc);
+  ctx.fillStyle = NAVY; ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.fill();
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(-9, 8); ctx.lineTo(-3, 8); ctx.lineTo(-3, 2); ctx.lineTo(3, 2); ctx.lineTo(3, -4); ctx.lineTo(9, -4); ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------- floors, view switching
+function buildTabs() {
+  $('tabs').innerHTML = route.segs.map((s, i) => `<button data-i="${i}">${esc(s.plan.floor)}</button>`).join('');
+  $('tabs').querySelectorAll('button').forEach((b) => b.onclick = () => goFloor(+b.dataset.i));
+}
+function goFloor(i) {
+  if (switching || !route || (journey && journey.legs[legIdx] !== route)) return;
+  if (i === segIdx && anim && anim.doneAt === 0) return;
+  switching = true; cv.classList.add('fade'); $('stairs').classList.remove('on');
+  setTimeout(() => { cv.classList.remove('fade'); start(i); }, 350);
+}
+function setView(v) {
+  const plan = v === 'plan';
+  $('viewAr').classList.toggle('hide', plan); $('viewAr').classList.toggle('left', plan);
+  $('viewPlan').classList.toggle('hide', !plan); $('viewPlan').classList.toggle('right', !plan);
+  $('viewseg').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  if (plan && route && !raf && journey && journey.legs[legIdx].kind === 'indoor') start(segIdx);
+}
+
+$('go').onclick = show;
+$('replay').onclick = () => journey && runLeg(0);
+$('swap').onclick = () => { const f = $('from').value; $('from').value = $('to').value; $('to').value = f; show(); };
+$('speed').onchange = () => { if (journey && journey.legs[legIdx].kind === 'indoor') start(segIdx); };
+$('stGo').onclick = () => { const act = cardAction; $('stairs').classList.remove('on'); if (act) act(); };
+// On the outdoor pane this button is "I've arrived": back to the floor plan for the next leg.
+$('toPlan').onclick = () => {
+  if (!journey) return show();
+  if (journey.legs[legIdx].kind === 'outdoor') runLeg(legIdx + 1); else setView('plan');
+};
+$('viewseg').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; if (!journey) return show(); setView(b.dataset.v); };
+// Tap the plan to say where the building's door really is (saved on this device for the lab).
+cv.addEventListener('click', (e) => {
+  const gt = route && route.gate, seg = route && route.segs[segIdx];
+  if (!gt || !anim || !anim.view || !seg) return;
+  if (!((gt.which === 'end' && segIdx === route.segs.length - 1) || (gt.which === 'start' && segIdx === 0))) return;
+  const r = cv.getBoundingClientRect(), v = anim.view;
+  const x = ((e.clientX - r.left) - v.tx) / v.s / anim.W * 100, y = ((e.clientY - r.top) - v.ty) / v.s / anim.H * 100;
+  if (x < 0 || y < 0 || x > 100 || y > 100) return;
+  try { localStorage.setItem(gateKey(gt.bid) + '.' + gt.kind, JSON.stringify({ floor: seg.plan.floor, x: x, y: y })); } catch (err) { /* storage blocked */ }
+  show();
+});
+window.addEventListener('resize', () => { if (journey && journey.legs[legIdx].kind === 'indoor') start(segIdx); });
+loadRooms();
+</script>
+</body>
+</html>

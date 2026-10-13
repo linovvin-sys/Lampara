@@ -16,6 +16,11 @@ $navItems = [
         'href'  => 'dashboard.php',
         'icon'  => '<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
     ],
+    'hazards' => [
+        'label' => 'Reports',
+        'href'  => 'hazards.php',
+        'icon'  => '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4M12 17v.01"/>',
+    ],
     // Dropdown: the campus-wide map content (walkways and the static campus map).
     'campus-editor' => [
         'label' => 'Campus Editor',
@@ -81,7 +86,7 @@ foreach ($navItems as $k => $it) {
     else $leaf[$k] = $it;
 }
 $navSections = [
-    'Overview'            => ['dashboard'],
+    'Overview'            => ['dashboard', 'hazards'],
     'Buildings and rooms' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration'],
     'Campus outdoors'     => ['campus-paths', 'building-outlines', 'campus-map'],
 ];
@@ -213,3 +218,4 @@ foreach ($navSections as $sectionName => $keys) {
 <script src="../../Js/Include/admin-search.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-search.js') ?>"></script>
 <script src="../../Js/Include/dropzone.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/dropzone.js') ?>"></script>
 <script src="../../Js/Include/admin-nav.js"></script>
+<script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>" data-admin="1"></script>

@@ -12,7 +12,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>Lampara — AR Guide</title>
+<title>Lampara — Walking Guide</title>
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
@@ -29,6 +29,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide-ar.css?v=<?= $pageCssVer ?>">
 <link rel="stylesheet" href="../../Css/Public/guide-tutorial.css?v=<?= filemtime(__DIR__ . '/../../Css/Public/guide-tutorial.css') ?>">
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
+<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <!-- No opaque body background: LocAR puts the camera <video> behind the page (z-index -100), and a body background would paint over it. The black is on <html> (guide-ar.css). -->
 <body>
@@ -97,7 +99,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
             <li :class="stageClass('camera')"><span class="start-dot" aria-hidden="true"></span>Starting the camera and compass</li>
             <li :class="stageClass('gps')"><span class="start-dot" aria-hidden="true"></span>Finding where you are<span v-if="gateAcc !== null" class="start-acc">&plusmn;{{ gateAcc }} m</span></li>
           </ol>
-          <p class="start-hint">Hold your phone upright. Open sky outdoors gives the best fix.</p>
+          <p class="start-hint">Hold your phone upright. A clear view of the sky gives the best location.</p>
         </div>
 
         <!-- the start form -->
@@ -114,7 +116,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
             <li v-for="b in gateList" :key="b.id">
               <button type="button" class="start-item" :class="{ on: pendingTarget && pendingTarget.id === b.id }" :aria-pressed="!!(pendingTarget && pendingTarget.id === b.id)" @click="pickDestination(b)">
                 <span class="start-pin" aria-hidden="true"></span>
-                <span class="start-item-name">{{ b.name }}<small v-if="b.room_count === 0" class="start-tag">Outdoor route only</small></span>
+                <span class="start-item-name">{{ b.name }}<small v-if="b.room_count === 0" class="start-tag">Outside route only</small></span>
                 <svg class="start-check" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
             </li>
@@ -195,7 +197,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       <button type="button" role="menuitem" class="menu-item" data-tut="menu-minimap" @click="toggleMiniMap(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>Mini-map</span><em>{{ miniMapOn ? 'Shown' : 'Hidden' }}</em></button>
       <button v-if="target" type="button" role="menuitem" class="menu-item" data-tut="m-clear" @click="clearNavigation()"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>Clear navigation (remove the path)</span></button>
       <button v-if="target" type="button" role="menuitem" class="menu-item" data-tut="m-hide" @click="toggleClearNav(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Hide the controls</span><em>{{ clearNav ? 'On' : 'Off' }}</em></button>
-      <a role="menuitem" class="menu-item" data-tut="m-scan" href="../Student/scan.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>Scan signage (indoor)</span></a>
+      <a role="menuitem" class="menu-item" href="../Student/report.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4M12 17v.01"/></svg>Report a closed building or blocked path</span></a>
+      <a role="menuitem" class="menu-item" data-tut="m-scan" href="../Student/scan.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>Find a room (inside)</span></a>
       <a role="menuitem" class="menu-item" data-tut="m-manual" href="../Student/manual-search.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>No signal? Search manually</span></a>
       <a role="menuitem" class="menu-item" data-tut="m-map" href="map.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14"/></svg>Campus map</span></a>
       <button type="button" role="menuitem" class="menu-item" data-tut="m-replay" @click="replayTutorial()"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>Replay tutorial</span></button>
@@ -246,6 +249,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
             </button>
           </div>
         </div>
+        <a v-if="arrivedAtTarget" :href="doorHref" class="nav-inside">
+          <span class="nav-inside-main">Go inside</span>
+          <span class="nav-inside-sub">{{ doorSub }}</span>
+        </a>
         <div class="nav-foot">
           <span v-if="guidance.badge" class="nav-badge">{{ guidance.badge }}</span>
           <span class="nav-dest-name">{{ target.name }}</span>
@@ -269,8 +276,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
   <!-- bottom: scan a room sign (indoor) and Ask Lampara; the other links are in the menu -->
   <div v-if="started && !scanningAnchor" class="bottom-bar">
-    <a v-if="!clearActive || (pendingRoom && routeInfo && routeInfo.status === 'arrived')" :href="insideHref" class="scan-btn" :aria-label="insideLabel + ' (indoor)'">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>
+    <a v-if="!clearActive && !arrivedAtTarget" :href="insideHref" class="scan-btn" aria-label="I am inside a building: say which room I am in">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>
       <span class="scan-label">{{ insideLabel }}</span>
     </a>
     <button v-if="target" type="button" class="ask-btn" @click="openChat(target)">
@@ -358,5 +365,6 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Public/guide-mascot-shop.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-mascot-shop.js') ?>"></script>
 <script src="../../Js/Public/guide-tutorial.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-tutorial.js') ?>"></script>
 
+<script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 </body>
 </html>

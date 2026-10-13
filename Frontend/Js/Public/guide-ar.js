@@ -208,12 +208,16 @@ window.LamparaGuide = createApp({
     },
     gateRooms() { return this.findRooms(this.gateQuery); },
     ddRooms() { return this.findRooms(this.searchQuery); },
-    // The 'Find inside' button: opens the picked room when it is in the building being walked to, otherwise the sign scanner.
-    insideHref() {
-      const r = this.pendingRoom;
-      return r && this.target && String(r.building_id) === String(this.target.id) ? '../Student/scan.php?room=' + r.id : '../Student/scan.php';
-    },
-    insideLabel() { return this.insideHref.indexOf('room=') !== -1 ? 'Find ' + this.pendingRoom.room_name + ' inside' : 'Scan room sign'; },
+    // Two ways into a building, for two different moments:
+    //   - doorHref, on the "You've arrived" card: the visitor is at the door of the building just walked to, so show the floor plan
+    //     from that entrance to the room picked at the start (Student/journey.php); with no room picked, ask for a room to find.
+    //   - insideHref, the small button at the bottom while still walking: someone already inside who wants to say which room they are in.
+    arrivedAtTarget() { return !!this.guidance && this.guidance.icon === 'arrive' && this.guidance.step === -1; },
+    roomHere() { const r = this.pendingRoom; return r && this.target && String(r.building_id) === String(this.target.id) ? r : null; },
+    doorHref() { return this.roomHere ? '../Student/journey.php?arrived=1&to=' + this.roomHere.id : '../Student/scan.php'; },
+    doorSub() { return this.roomHere ? 'Show me the way to ' + this.roomHere.room_name : 'Find a room on the floor plan'; },
+    insideHref() { return this.roomHere ? '../Student/scan.php?room=' + this.roomHere.id : '../Student/scan.php'; },
+    insideLabel() { return 'I am inside'; },
     // Clear navigation is in effect: a building is chosen and the switch is on. Everything but the search bar, Ask Lampara and the path is hidden.
     clearActive() { return this.clearNav && !!this.target; },
     searchMatches() {

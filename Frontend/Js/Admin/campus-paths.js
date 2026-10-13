@@ -383,7 +383,7 @@ createApp({
     },
     initMap() {
       // Amafel Building as a sane default center before real data loads.
-      const map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView([14.3283, 120.9372], 18);
+      const map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView(CampusBounds.CENTER, 18);
       const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19

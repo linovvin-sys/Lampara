@@ -26,6 +26,8 @@ createApp({
       // the whole "You're at X" scanned framing is wrong here. Swaps the
       // result screen to "where are you now, then here's the route" instead.
       planningMode: false,
+      // The visitor already said "inside" on the first question (Student/where.php): do not offer "I am still outside" again.
+      saidInside: (() => { try { return sessionStorage.getItem('lampara_where') === 'inside'; } catch (e) { return false; } })(),
       originQuery: '', originResults: [], nearbyRooms: [], nearbyLabel: '', nearbyTitle: 'Rooms on',
       // Keyed by 'room' / 'destination' -> the floor_plans row for that
       // room's building+floor, or null once we've checked and there isn't
@@ -183,6 +185,12 @@ createApp({
     // Link to the indoor AR guide, or null when it can't work yet: it needs a
     // real route, and every floor on that route calibrated (meters per plan
     // unit + which way is north) — see the admin Floor Calibration page.
+    // Destination in a different building: the three-step route (leave this one, walk outside, find the room).
+    journeyUrl() {
+      if (!this.room || !this.destination || this.room.building_id === this.destination.building_id) return null;
+      if (this.room.map_x === null || this.room.map_y === null || this.destination.map_x === null || this.destination.map_y === null) return null;
+      return `journey.php?from=${this.room.id}&to=${this.destination.id}`;
+    },
     arGuideUrl() {
       if (!this.room || !this.destination) return null;
       const calibrated = (p) => !!p && p.north_offset !== null && p.north_offset !== undefined &&

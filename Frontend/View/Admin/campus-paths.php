@@ -49,6 +49,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
   .modal-body { padding: 1.25rem; }
   .modal-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--line, #e3e3f0); display: flex; justify-content: flex-end; }
 </style>
+<link rel="stylesheet" href="../../Css/Admin/fence-toggle.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/fence-toggle.css') ?>">
 </head>
 <body class="admin-body">
 <script>LamparaSkeleton.show('admin')</script>
@@ -63,6 +64,10 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
         <div>
           <h1>Campus Paths</h1>
           <p>Draw the walkways the AR ground arrow follows outdoors. {{ nodes.length }} point(s), {{ edges.length }} connection(s).</p>
+        </div>
+        <div class="fence-toggle" id="fenceToggle">
+          <span class="ft-label"><b>Campus-only access</b><small id="ftState">Checking&hellip;</small></span>
+          <button type="button" class="ft-switch" id="ftBtn" role="switch" aria-checked="false" aria-label="Only allow visitors who are on the campus"><span class="ft-knob"></span></button>
         </div>
         <a class="btn btn-secondary" href="../Public/guide-ar.php" target="_blank" rel="noopener">Preview as student</a>
       </div>
@@ -318,6 +323,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <script src="../../Js/Include/point-names.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/point-names.js') ?>"></script>
 <script src="../../Js/Include/editor-lock.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/editor-lock.js') ?>"></script>
 <script src="../../Js/Public/campus-route.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/campus-route.js') ?>"></script>
+<script src="../../Js/Admin/fence-toggle.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/fence-toggle.js') ?>"></script>
 <script src="../../Js/Admin/campus-paths.js?v=<?= $pageJsVer ?>"></script>
 
 </body>

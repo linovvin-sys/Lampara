@@ -14,9 +14,9 @@
   var picked = null;               // the building chosen in the quick-pick
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function guideUrl(b) { return 'guide-ar.php' + (b ? '?to=' + encodeURIComponent(b.id) : ''); }
+  function guideUrl(b) { return '../Student/where.php' + (b ? '?to=' + encodeURIComponent(b.id) : ''); }
 
-  // The start button always goes to the guide, straight to the chosen building when there is one.
+  // The start button always asks "inside or outside?" first (Student/where.php), carrying the chosen building along.
   function syncGo() {
     goEl.href = guideUrl(picked);
     goEl.textContent = picked ? 'Navigate to ' + picked.name : 'Start navigating';

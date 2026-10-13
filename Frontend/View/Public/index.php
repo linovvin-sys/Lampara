@@ -8,7 +8,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lampara — Campus AR Guide</title>
+<title>Lampara — Campus Guide</title>
 <meta name="description" content="Pick a building, follow the path on your phone's camera and read turn-by-turn directions on the NCST campus.">
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
@@ -23,6 +23,8 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Public/index.css?v=<?= $cssVer ?>">
+<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
+<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <script>LamparaSkeleton.show('public')</script>
@@ -44,7 +46,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
       <span>Admin</span>
     </a>
-    <a href="guide-ar.php" class="btn btn-primary btn-sm">Start navigating</a>
+    <a href="../Student/where.php" class="btn btn-primary btn-sm">Start navigating</a>
   </div>
 </header>
 
@@ -67,7 +69,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
           <ul class="chips" id="chips" aria-label="Buildings"></ul>
           <p class="quick-hint" id="quick-hint" role="status">Choose one to start straight to it, or start and search inside the guide.</p>
           <div class="hero-actions">
-            <a href="guide-ar.php" class="btn btn-primary btn-lg" id="go">Start navigating</a>
+            <a href="../Student/where.php" class="btn btn-primary btn-lg" id="go">Start navigating</a>
             <a href="map.php" class="btn btn-ghost btn-lg">Open the campus map</a>
           </div>
         </form>
@@ -125,10 +127,10 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <ul class="wrap ways" data-stagger aria-label="Ways to use Lampara">
       <li><a href="guide-ar.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg>
-        <span><b>AR Outdoor Guide</b><small>Follow the path on your camera</small></span></a></li>
+        <span><b>Walking guide (outside)</b><small>Follow the path on your camera</small></span></a></li>
       <li><a href="../Student/manual-search.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <span><b>Room Scan &amp; Search</b><small>Find any office or classroom</small></span></a></li>
+        <span><b>Find a room (inside)</b><small>Scan a sign or search any office or classroom</small></span></a></li>
       <li><a href="guide-ar.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg>
         <span><b>Ask Lampara AI</b><small>Answers from campus records</small></span></a></li>
@@ -168,7 +170,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
       <ul class="features" data-stagger>
         <li>
           <span class="ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span>
-          <h3>Outdoor AR path</h3>
+          <h3>Walking path (outside)</h3>
           <p>Chevrons on the ground that follow the real walkways, with a marker on your destination.</p>
         </li>
         <li>
@@ -226,8 +228,8 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <section class="closing" aria-labelledby="end-h">
     <div class="wrap closing-in" data-reveal>
       <h2 id="end-h">Ready to find your way?</h2>
-      <p>Open the guide on your phone, outdoors, with your location on.</p>
-      <a href="guide-ar.php" class="btn btn-primary btn-lg">Start navigating</a>
+      <p>Open the guide on your phone, outside, with your location on.</p>
+      <a href="../Student/where.php" class="btn btn-primary btn-lg">Start navigating</a>
     </div>
   </section>
 
@@ -238,7 +240,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <div class="foot-brand"><span class="brand-mark"><img src="../../assets/logo.svg" alt="" width="18" height="18"></span><span>Lampara</span></div>
     <p>Find your way around the NCST campus. Directions come from the walkways and rooms the school has registered, kept up to date by its administrators.</p>
     <nav class="foot-links" aria-label="Links">
-      <a href="guide-ar.php">AR guide</a>
+      <a href="guide-ar.php">Walking guide</a>
       <a href="map.php">Campus map</a>
       <a href="../Student/manual-search.php">Search rooms</a>
       <a href="guide-ar.php?tutorial=1">Replay tutorial</a>
@@ -250,5 +252,6 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/index.js?v=<?= $jsVer ?>"></script>
 
+<script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 </body>
 </html>
