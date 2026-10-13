@@ -1,0 +1,9 @@
+.ol-label { display: block; font-size: 0.8125rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
+#bsel { width: 100%; min-height: 2.6rem; border-radius: 0.6rem; border: 1px solid var(--line, #e1e2ef); padding: 0 0.6rem; font: inherit; background: #fff; }
+.ol-key { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; font-size: 0.8125rem; }
+.ol-key li { display: flex; align-items: center; gap: 0.6rem; }
+.sw { width: 1.1rem; height: 1.1rem; border-radius: 0.3rem; border: 2px solid; flex: none; }
+.sw-none { background: rgba(255, 255, 255, 0.35); border-color: #fff; }
+.sw-on { background: rgba(46, 49, 146, 0.55); border-color: #2e3192; }
+.sw-sel { background: rgba(255, 209, 0, 0.7); border-color: #e6bb00; }
+.ol-tip { font-weight: 600; }

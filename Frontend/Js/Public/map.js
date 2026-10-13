@@ -445,6 +445,8 @@
       img.alt = 'Photo of ' + (r.room_name || 'this room');
       img.src = '../../' + r.photo_path;
       img.addEventListener('error', () => ph.replaceChildren(photoPlaceholder()));
+      img.addEventListener('load', () => ph.classList.toggle('is-portrait', img.naturalHeight > img.naturalWidth));
+      ph.classList.remove('is-portrait');
       ph.appendChild(img);
     } else {
       ph.appendChild(photoPlaceholder());

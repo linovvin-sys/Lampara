@@ -1,5 +1,7 @@
 // Photo picker for the admin editors: choose or drop a picture, move and zoom it inside a 4:3 frame, and get
 // back a ready-to-upload JPEG (1200x900). The server never has to resize anything.
+// pick({ portrait: true }) also allows a 3:4 frame (900x1200): a tall photo opens in it automatically, and a
+// Landscape / Portrait switch lets the admin change it. Used for room photos.
 //
 //   const dataUrl = await LamparaPhoto.pick({ title: 'Building photo' });     // null if cancelled
 //   const path = await LamparaPhoto.upload('building', 12, dataUrl);            // 'assets/photos/...'
@@ -8,8 +10,9 @@
 // pick({ file }) skips the first step when a picture was already dropped onto the page.
 // Plain <script>; exposes `LamparaPhoto`.
 const LamparaPhoto = (() => {
-  const FW = 960, FH = 720;          // the frame, in canvas units (4:3)
-  const OUT_W = 1200, OUT_H = 900;   // the exported picture
+  let FW = 960, FH = 720;            // the frame, in canvas units (4:3 landscape, or 3:4 portrait when switched)
+  let OUT_W = 1200, OUT_H = 900;     // the exported picture
+  let allowPortrait = false, portrait = false;
   const MAX_RAW = 25 * 1024 * 1024;  // refuse enormous originals before decoding them
   const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
   const API = '../../../Backend/api/photos.php';
@@ -41,8 +44,12 @@ const LamparaPhoto = (() => {
 
     const canvas = el('canvas', { width: String(FW), height: String(FH), class: 'pd-canvas', tabindex: '0', role: 'img', 'aria-label': 'Photo preview. Drag to move it, or use the arrow keys.' });
     const zoom = el('input', { type: 'range', min: '1', max: '3', step: '0.01', value: '1', 'aria-label': 'Zoom' });
+    const shapeL = el('button', { type: 'button', class: 'pd-shape-btn', text: 'Landscape', 'aria-pressed': 'true' });
+    const shapeP = el('button', { type: 'button', class: 'pd-shape-btn', text: 'Portrait', 'aria-pressed': 'false' });
+    const shape = el('div', { class: 'pd-shape', role: 'group', 'aria-label': 'Photo shape', hidden: '' }, [shapeL, shapeP]);
     const step2 = el('div', { class: 'pd-step2', hidden: '' }, [
       el('div', { class: 'pd-stage' }, [canvas]),
+      shape,
       el('label', { class: 'pd-zoom' }, [el('span', { text: 'Zoom' }), zoom]),
       el('p', { class: 'pd-hint', text: 'Drag the picture to choose what shows. Arrow keys also move it.' }),
     ]);
@@ -60,7 +67,7 @@ const LamparaPhoto = (() => {
       el('div', { class: 'pd-foot' }, [cancel, change, use]),
     ]);
     document.body.appendChild(dlg);
-    els = { title, drop, file, camera, choose, take, err, step1, step2, canvas, zoom, cancel, change, use, close };
+    els = { shape, shapeL, shapeP, title, drop, file, camera, choose, take, err, step1, step2, canvas, zoom, cancel, change, use, close };
 
     const pickFile = () => file.click();
     drop.addEventListener('click', pickFile);
@@ -102,6 +109,8 @@ const LamparaPhoto = (() => {
       draw();
     });
 
+    shapeL.addEventListener('click', () => { if (img) setFrame(false); });
+    shapeP.addEventListener('click', () => { if (img) setFrame(true); });
     change.addEventListener('click', () => { reset(); });
     cancel.addEventListener('click', () => finish(null));
     close.addEventListener('click', () => finish(null));
@@ -128,17 +137,30 @@ const LamparaPhoto = (() => {
       els.err.textContent = "Couldn't open that picture. Try a different one.";
       return;
     }
-    if (img.width < 300 || img.height < 225) {
+    if (Math.min(img.width, img.height) < 225 || Math.max(img.width, img.height) < 300) {
       els.err.textContent = 'That picture is small and will look blurry. Choose one at least 300 x 225 pixels.';
       img = null; return;
     }
+    els.shape.hidden = !allowPortrait;
+    setFrame(allowPortrait && img.height > img.width);   // a tall photo opens in the tall frame
+    els.step1.hidden = true; els.step2.hidden = false;
+    els.change.hidden = false; els.use.disabled = false;
+    els.canvas.focus();
+  }
+
+  // Switch between the landscape and portrait frame and re-centre the picture in it.
+  function setFrame(tall) {
+    portrait = tall;
+    FW = tall ? 720 : 960; FH = tall ? 960 : 720;
+    OUT_W = tall ? 900 : 1200; OUT_H = tall ? 1200 : 900;
+    els.canvas.width = FW; els.canvas.height = FH;
+    els.canvas.style.aspectRatio = FW + ' / ' + FH;
+    els.canvas.parentNode.classList.toggle('is-tall', tall);
+    els.shapeL.setAttribute('aria-pressed', String(!tall)); els.shapeP.setAttribute('aria-pressed', String(tall));
     const base = Math.max(FW / img.width, FH / img.height);
     view = { base, zoom: 1, scale: base, ox: (FW - img.width * base) / 2, oy: (FH - img.height * base) / 2 };
     els.zoom.value = '1';
-    els.step1.hidden = true; els.step2.hidden = false;
-    els.change.hidden = false; els.use.disabled = false;
     draw();
-    els.canvas.focus();
   }
 
   async function decode(file) {
@@ -185,6 +207,7 @@ const LamparaPhoto = (() => {
     opts = opts || {};
     build();
     els.title.textContent = opts.title || 'Photo';
+    allowPortrait = !!opts.portrait;
     reset();
     return new Promise((resolve) => {
       resolver = resolve;

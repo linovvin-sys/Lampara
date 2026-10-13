@@ -224,3 +224,7 @@ body {
 .st-pin.on { background: #ffd100; box-shadow: 0 0 0 4px rgba(21, 23, 63, .35), 0 4px 10px rgba(11, 37, 89, .5); }
 .street-on .key-places { display: none; }
 .street .leaflet-top { top: 3.7rem; }
+
+/* a tall room photo is shown whole instead of cropped into the wide frame */
+.room-dlg-photo.is-portrait { aspect-ratio: 3 / 4; max-height: 60vh; background: var(--blue-50, #f1f1fb); }
+.room-dlg-photo.is-portrait img { object-fit: contain; }

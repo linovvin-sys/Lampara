@@ -167,3 +167,120 @@ a { color: var(--navy); }
   .bld-skel { animation: none; }
   .btn, .chip, .quick-field { transition: none; }
 }
+
+/* ======================================================================================================================
+   Interaction layer. Strong ease-out for anything entering or responding, short durations, transform and opacity only.
+   Hover effects sit behind (hover: hover) so touch screens never get stuck states. Everything collapses under reduced motion.
+   ====================================================================================================================== */
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-io: cubic-bezier(0.77, 0, 0.175, 1); }
+
+/* ---- scroll progress, drawn by the browser where supported ---- */
+@supports (animation-timeline: scroll()) {
+  .top::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--yellow); transform-origin: 0 50%; transform: scaleX(0); animation: progress linear both; animation-timeline: scroll(root); }
+  @keyframes progress { to { transform: scaleX(1); } }
+}
+.top { transition: box-shadow 220ms var(--ease-out), background-color 220ms; }
+.top.stuck { box-shadow: 0 12px 30px -22px rgba(21, 23, 63, 0.6); background: rgba(255, 255, 255, 0.97); }
+.top-nav a { position: relative; transition: background-color 160ms, color 160ms; }
+.top-nav a.on { color: var(--ink); background: var(--soft); }
+.brand-mark { transition: transform 260ms var(--ease-out), background-color 160ms; }
+
+/* ---- buttons: lift, sheen sweep, press ---- */
+.btn { position: relative; overflow: hidden; isolation: isolate; transition: transform 160ms var(--ease-out), box-shadow 200ms var(--ease-out), background-color 160ms, border-color 160ms, color 160ms; }
+.btn:active { transform: scale(0.97); }
+.btn-primary::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.65) 50%, transparent 70%); transform: translateX(-120%); }
+.btn-ghost { position: relative; }
+.btn-ghost::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--navy); transform: translateY(101%); transition: transform 260ms var(--ease-out); border-radius: inherit; }
+
+/* ---- chips and fields ---- */
+.chip { transition: transform 160ms var(--ease-out), border-color 160ms, background-color 160ms, color 160ms, box-shadow 200ms; }
+.chip:active { transform: scale(0.95); }
+.chip.on { animation: pop 320ms var(--ease-out); }
+@keyframes pop { 0% { transform: scale(0.92); } 100% { transform: scale(1); } }
+.quick-field svg { transition: transform 260ms var(--ease-out), color 160ms; }
+.quick-field:focus-within svg { color: var(--navy); transform: scale(1.12) rotate(-8deg); }
+
+/* ---- cards share one spotlight: --mx / --my are set by index.js on pointer move ---- */
+.ways li, .steps li, .bld-card, .features li, .room-find { position: relative; transition: transform 260ms var(--ease-out), box-shadow 260ms var(--ease-out), border-color 200ms, background-color 200ms; }
+.ways li::before, .steps li::before, .bld-card::before, .features li::before { content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 240ms; background: radial-gradient(18rem circle at var(--mx, 50%) var(--my, 50%), rgba(255, 209, 0, 0.22), transparent 62%); }
+.ways li > *, .steps li > *, .bld-card > *, .features li > * { position: relative; z-index: 1; }
+.ways li { overflow: hidden; }
+.ways a { transition: background-color 200ms; }
+.ways svg { transition: transform 300ms var(--ease-out), color 160ms; }
+.ways a > span:last-child, .bld-go { transition: transform 260ms var(--ease-out); }
+.step-n { transition: transform 360ms var(--ease-out), box-shadow 260ms var(--ease-out), background-color 160ms; }
+.ico { position: relative; transition: transform 320ms var(--ease-out), background-color 200ms, color 200ms, border-color 200ms, box-shadow 260ms var(--ease-out); }
+.features li { padding: 1.1rem 1.1rem 1.2rem; margin: -1.1rem -1.1rem -1.2rem; border: 1px solid transparent; border-radius: 1.2rem; }
+.bld-go svg { transition: transform 260ms var(--ease-out); }
+.bld-card h3 { transition: color 160ms; }
+.room-find { overflow: hidden; }
+.room-find::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(22rem circle at var(--mx, 85%) var(--my, 50%), rgba(255, 209, 0, 0.2), transparent 60%); opacity: 0; transition: opacity 260ms; pointer-events: none; }
+.room-find > * { position: relative; }
+
+/* ---- hero: entrance cascade, floating phone, chevrons that run toward the destination ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-copy > *, .hero-art { animation: rise 640ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms + 60ms); }
+  .hero-copy > :nth-child(1) { --i: 0; } .hero-copy > :nth-child(2) { --i: 1; } .hero-copy > :nth-child(3) { --i: 2; }
+  .hero-copy > :nth-child(4) { --i: 3; } .hero-copy > :nth-child(5) { --i: 4; }
+  .hero-art { --i: 3; animation-name: rise-art; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+  @keyframes rise-art { from { opacity: 0; transform: translateY(28px) scale(0.96); } to { opacity: 1; transform: none; } }
+  .phone-float { animation: float 6s ease-in-out 1s infinite; }
+  @keyframes float { 50% { transform: translateY(-10px); } }
+  .phone g[stroke] > path { animation: chev 1.8s ease-in-out infinite; }
+  .phone g[stroke] > path:nth-child(5) { animation-delay: 0s; } .phone g[stroke] > path:nth-child(4) { animation-delay: 0.2s; }
+  .phone g[stroke] > path:nth-child(3) { animation-delay: 0.4s; } .phone g[stroke] > path:nth-child(2) { animation-delay: 0.6s; }
+  .phone g[stroke] > path:nth-child(1) { animation-delay: 0.8s; }
+  @keyframes chev { 0%, 100% { opacity: 1; } 45% { opacity: 0.35; } }
+  .locus-dot { animation: ping 2.4s ease-out infinite; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(255, 209, 0, 0.7); } 80%, 100% { box-shadow: 0 0 0 9px rgba(255, 209, 0, 0); } }
+
+  /* scroll reveal: only hidden once index.js has confirmed it can reveal them again */
+  .js-reveal [data-reveal] { opacity: 0; transform: translateY(22px); transition: opacity 560ms var(--ease-out), transform 560ms var(--ease-out); transition-delay: calc(var(--d, 0) * 70ms); }
+  .js-reveal [data-reveal].in { opacity: 1; transform: none; }
+  .bld-card { animation: rise 520ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 50ms); }
+}
+.phone { transition: transform 180ms var(--ease-out); transform: perspective(900px) rotate(3deg) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+@media (max-width: 40rem) { .phone { transform: perspective(900px) rotate(2deg) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); } }
+
+/* closing band: soft glow follows the pointer */
+.closing { position: relative; overflow: hidden; }
+.closing::before { content: ''; position: absolute; inset: 0; background: radial-gradient(26rem circle at var(--mx, 75%) var(--my, 30%), rgba(255, 209, 0, 0.16), transparent 60%); pointer-events: none; }
+.closing-in { position: relative; }
+.foot-links a { position: relative; text-decoration: none !important; }
+.foot-links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0.1rem; height: 2px; background: var(--yellow); transform: scaleX(0); transform-origin: 0 50%; transition: transform 240ms var(--ease-out); }
+
+/* ---- hover states: pointer devices only ---- */
+@media (hover: hover) and (pointer: fine) {
+  .brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 28px -12px rgba(230, 187, 0, 0.95); }
+  .btn-primary:hover::after { transform: translateX(120%); transition: transform 700ms var(--ease-out); }
+  .btn-primary:active { transform: translateY(0) scale(0.97); }
+  .btn-ghost:hover { color: #fff; border-color: var(--navy); }
+  .btn-ghost:hover::before { transform: translateY(0); }
+  .hero .btn-ghost:hover { background: rgba(255, 255, 255, 0.9); }
+  .top-admin { transition: transform 160ms var(--ease-out), border-color 160ms, background-color 160ms; }
+  .top-admin:hover { transform: translateY(-1px); background: var(--soft); }
+  .chip:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -10px rgba(21, 23, 63, 0.5); }
+  .chip.on:hover { transform: translateY(-2px); }
+  .quick-field:hover { border-color: #b9bbd8; }
+
+  .ways li:hover, .steps li:hover, .bld-card:hover { transform: translateY(-5px); border-color: #c9cbe3; box-shadow: 0 26px 40px -24px rgba(21, 23, 63, 0.55); }
+  .ways li:hover::before, .steps li:hover::before, .bld-card:hover::before, .features li:hover::before, .room-find:hover::before { opacity: 1; }
+  .ways a:hover { background: transparent; }
+  .ways li:hover svg { transform: scale(1.15) rotate(-6deg); }
+  .ways li:hover a > span:last-child { transform: translateX(3px); }
+  .steps li:hover .step-n { transform: scale(1.12) rotate(-8deg); box-shadow: 0 8px 18px -8px rgba(230, 187, 0, 1); }
+  .features li:hover { background: #fff; border-color: var(--line); transform: translateY(-4px); box-shadow: 0 22px 36px -24px rgba(21, 23, 63, 0.5); }
+  .features li:hover .ico { background: var(--navy); border-color: var(--navy); color: var(--yellow); transform: rotate(-6deg) scale(1.06); box-shadow: 0 10px 18px -10px rgba(35, 38, 122, 0.9); }
+  .bld-card:hover h3 { color: var(--navy); }
+  .bld-card:hover .bld-go { transform: translateX(2px); text-decoration: none; }
+  .bld-card:hover .bld-go svg { transform: translateX(5px); }
+  .bld-card:active, .ways li:active, .steps li:active { transform: translateY(-2px) scale(0.99); }
+  .foot-links a:hover::after { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ways li, .steps li, .bld-card, .features li, .phone, .btn::before, .btn::after, .ico, .step-n { transition: none !important; }
+  .ways li:hover, .steps li:hover, .bld-card:hover, .features li:hover, .btn-primary:hover, .chip:hover { transform: none !important; }
+  .phone { transform: rotate(3deg); }
+}

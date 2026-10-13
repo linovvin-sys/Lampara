@@ -9,6 +9,7 @@
     { label: 'Add / Edit Room', href: 'room-edit.php', hint: 'Page' },
     { label: 'Floor Calibration', href: 'floor-calibration.php', hint: 'Page' },
     { label: 'Campus Paths', href: 'campus-paths.php', hint: 'Page' },
+    { label: 'Building Outlines', href: 'building-outlines.php', hint: 'Page' },
     { label: 'Campus Map', href: 'campus-map.php', hint: 'Page' },
     { label: 'Test Chat', href: 'test-chat.php', hint: 'Page' }
   ];

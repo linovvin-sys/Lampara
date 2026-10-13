@@ -227,3 +227,6 @@ html, body { margin: 0; font-family: 'Outfit', sans-serif; }
 .wy-back { padding: 0; gap: 0.6rem; margin-left: 0; color: #15173f; }
 .wy-back:hover { background: transparent; }
 .wy-back-ico { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 0.8rem; background: #15173f; color: #fff; }
+
+/* a tall room photo is shown whole instead of cropped into the wide strip */
+.dest-photo.is-portrait { height: auto; max-height: 24rem; object-fit: contain; }

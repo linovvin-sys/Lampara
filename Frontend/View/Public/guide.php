@@ -192,14 +192,14 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
         </div>
         <transition-group tag="div" name="msg" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm" ref="chatLog">
           <div v-for="(m, i) in chatMessages" :key="i" class="flex items-end gap-2" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div v-if="m.role !== 'user'" class="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-              <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
+            <div v-if="m.role !== 'user'" class="rounded-full bg-white flex items-center justify-center flex-shrink-0" style="width:34px;height:34px">
+              <img data-mascot alt="" width="30" height="30" style="display:block;image-rendering:pixelated">
             </div>
             <div class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%] text-left" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></div>
           </div>
           <div v-if="chatLoading" key="typing" class="flex items-end gap-2 justify-start">
-            <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-              <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
+            <div class="rounded-full bg-white flex items-center justify-center flex-shrink-0" style="width:34px;height:34px">
+              <img data-mascot alt="" width="30" height="30" style="display:block;image-rendering:pixelated">
             </div>
             <span class="inline-flex items-center gap-1 bg-zinc-100 rounded-2xl px-4 py-3.5">
               <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
@@ -221,6 +221,7 @@ $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 
 <script src="../../Js/Include/offline-cache.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/offline-cache.js') ?>"></script>
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
+<script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
 <script src="../../Js/Public/guide.js"></script>
 
 </body>

@@ -249,7 +249,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 
         <div v-if="destination" class="info-card" :style="{ marginTop: planningMode ? '0.25rem' : '1rem' }">
           <!-- keyed per room, so a photo that failed to load for one room is not hidden for the next -->
-          <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="dest-photo" @error="$event.target.hidden = true">
+          <img v-if="destination.photo_path" :key="destination.id" :src="'../../' + destination.photo_path" :alt="'Photo of ' + destination.room_name" class="dest-photo" @load="$event.target.classList.toggle('is-portrait', $event.target.naturalHeight > $event.target.naturalWidth)" @error="$event.target.hidden = true">
           <p v-if="!planningMode" style="font-weight:800; font-size:0.9375rem; color:var(--ink); margin:0 0 0.2rem;">
             {{ destination.room_number ? destination.room_number + ' — ' : '' }}{{ destination.room_name }}
           </p>

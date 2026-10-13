@@ -18,7 +18,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
@@ -28,6 +28,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide-ar.css?v=<?= $pageCssVer ?>">
+<link rel="stylesheet" href="../../Css/Public/guide-tutorial.css?v=<?= filemtime(__DIR__ . '/../../Css/Public/guide-tutorial.css') ?>">
 </head>
 <!-- No opaque body background: LocAR puts the camera <video> behind the page (z-index -100), and a body background would paint over it. The black is on <html> (guide-ar.css). -->
 <body>
@@ -171,15 +172,15 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <button v-if="target" type="button" class="sp-btn" :class="{ on: clearNav }" :aria-pressed="clearNav" :aria-label="clearNav ? 'Show all controls' : 'Hide the controls and keep only the directions'" @click="toggleClearNav">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path v-if="clearNav" d="M4 4l16 16"/></svg>
         </button>
-        <button type="button" class="sp-btn" :aria-expanded="showAllBuildings" aria-label="Browse all buildings" @click="showAllBuildings = !showAllBuildings">
+        <button type="button" class="sp-btn" data-tut="browse" :aria-expanded="showAllBuildings" aria-label="Browse all buildings" @click="showAllBuildings = !showAllBuildings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" :style="{ transform: showAllBuildings ? 'rotate(180deg)' : 'none' }" style="transition: transform 160ms ease-out;" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
       <!-- For when the chevrons drift off the walkway or seem to float: recaptures your location and lays the path again. -->
-      <button v-show="!clearActive" type="button" class="round-btn" :disabled="refreshing" :aria-label="refreshing ? (refreshNote || 'Refreshing') : 'Refresh path'" @click="refreshPath">
+      <button v-show="!clearActive" type="button" class="round-btn" data-tut="refresh" :disabled="refreshing" :aria-label="refreshing ? (refreshNote || 'Refreshing') : 'Refresh path'" @click="refreshPath">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" :class="refreshing ? 'ar-spin' : ''" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>
       </button>
-      <button v-show="!clearActive" type="button" class="round-btn" :class="{ on: menuOpen }" aria-haspopup="true" :aria-expanded="menuOpen" aria-label="More options" @click="menuOpen = !menuOpen">
+      <button v-show="!clearActive" type="button" class="round-btn" data-tut="more" :class="{ on: menuOpen }" aria-haspopup="true" :aria-expanded="menuOpen" aria-label="More options" @click="menuOpen = !menuOpen">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>
         <span class="round-dot" :class="(statusOk && headingInit && locationOn) ? 'ok' : ''" aria-hidden="true"></span>
       </button>
@@ -189,15 +190,17 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     <!-- The rest of the controls, out of the way until needed. -->
     <div v-if="menuOpen && !clearActive" class="menu-pop" role="menu">
       <div class="menu-status" role="status"><span class="menu-dot" :class="(statusOk && headingInit && locationOn) ? 'ok' : ''" aria-hidden="true"></span>{{ !locationOn ? 'Distance readout is off' : (!statusOk ? 'Waiting for GPS…' : (headingInit ? 'GPS and compass ready' : 'GPS ready, compass starting…')) }}</div>
-      <button type="button" role="menuitem" class="menu-item" @click="toggleCamera(); menuOpen = false"><span>Camera</span><em>{{ cameraOn ? 'On' : 'Off' }}</em></button>
-      <button type="button" role="menuitem" class="menu-item" @click="toggleLocation(); menuOpen = false"><span>Distance readout</span><em>{{ locationOn ? 'On' : 'Off' }}</em></button>
-      <button type="button" role="menuitem" class="menu-item" @click="toggleMiniMap(); menuOpen = false"><span>Mini-map</span><em>{{ miniMapOn ? 'Shown' : 'Hidden' }}</em></button>
-      <button v-if="target" type="button" role="menuitem" class="menu-item" @click="clearNavigation()"><span>Clear navigation (remove the path)</span></button>
-      <button v-if="target" type="button" role="menuitem" class="menu-item" @click="toggleClearNav(); menuOpen = false"><span>Hide the controls</span><em>{{ clearNav ? 'On' : 'Off' }}</em></button>
-      <a role="menuitem" class="menu-item" href="../Student/scan.php"><span>Scan signage (indoor)</span></a>
-      <a role="menuitem" class="menu-item" href="../Student/manual-search.php"><span>No signal? Search manually</span></a>
-      <a role="menuitem" class="menu-item" href="map.php"><span>Campus map</span></a>
-      <button type="button" role="menuitem" class="menu-item" @click="runArDebug(); menuOpen = false"><span>AR debug</span></button>
+      <button type="button" role="menuitem" class="menu-item" data-tut="m-camera" @click="toggleCamera(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="12.5" r="3.2"/></svg>Camera</span><em>{{ cameraOn ? 'On' : 'Off' }}</em></button>
+      <button type="button" role="menuitem" class="menu-item" data-tut="m-location" @click="toggleLocation(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2"/></svg>Distance readout</span><em>{{ locationOn ? 'On' : 'Off' }}</em></button>
+      <button type="button" role="menuitem" class="menu-item" data-tut="menu-minimap" @click="toggleMiniMap(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>Mini-map</span><em>{{ miniMapOn ? 'Shown' : 'Hidden' }}</em></button>
+      <button v-if="target" type="button" role="menuitem" class="menu-item" data-tut="m-clear" @click="clearNavigation()"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>Clear navigation (remove the path)</span></button>
+      <button v-if="target" type="button" role="menuitem" class="menu-item" data-tut="m-hide" @click="toggleClearNav(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Hide the controls</span><em>{{ clearNav ? 'On' : 'Off' }}</em></button>
+      <a role="menuitem" class="menu-item" data-tut="m-scan" href="../Student/scan.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>Scan signage (indoor)</span></a>
+      <a role="menuitem" class="menu-item" data-tut="m-manual" href="../Student/manual-search.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>No signal? Search manually</span></a>
+      <a role="menuitem" class="menu-item" data-tut="m-map" href="map.php"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14"/></svg>Campus map</span></a>
+      <button type="button" role="menuitem" class="menu-item" data-tut="m-replay" @click="replayTutorial()"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>Replay tutorial</span></button>
+      <button type="button" role="menuitem" class="menu-item" @click="menuOpen = false; openMascots()"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5v2a3 3 0 0 0 3 3M16 6h3v2a3 3 0 0 1-3 3M12 13v4M8 20h8M10 17h4"/></svg>Mascots and achievements</span></button>
+      <button type="button" role="menuitem" class="menu-item" @click="runArDebug(); menuOpen = false"><span class="mi-label"><svg class="mi-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/></svg>AR debug</span></button>
     </div>
 
     <transition name="dropdown">
@@ -235,10 +238,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
             <div class="nav-detail">{{ guidance.detail }}</div>
           </div>
           <div class="nav-actions">
-            <button type="button" class="nav-btn" :class="{ on: voiceOn }" :aria-pressed="voiceOn" :aria-label="voiceOn ? 'Turn voice directions off' : 'Turn voice directions on'" @click="toggleVoice">
+            <button type="button" class="nav-btn" data-tut="voice" :class="{ on: voiceOn }" :aria-pressed="voiceOn" :aria-label="voiceOn ? 'Turn voice directions off' : 'Turn voice directions on'" @click="toggleVoice">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z"/><path v-if="voiceOn" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path v-else d="m16 9.5 5 5m0-5-5 5"/></svg>
             </button>
-            <button type="button" class="nav-btn" aria-label="Show all directions" @click="directionsOpen = true">
+            <button type="button" class="nav-btn" data-tut="dirs" aria-label="Show all directions" @click="directionsOpen = true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
             </button>
           </div>
@@ -305,10 +308,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
   <!-- chat panel (identical to the main guide) -->
   <transition name="sheet">
     <div v-if="chatOpenFor" class="absolute inset-0 z-40 bg-zinc-950/60" @click.self="chatOpenFor = null">
-      <div class="bg-white text-zinc-900 w-full h-full flex flex-col">
+      <div class="chat-panel bg-white text-zinc-900 w-full h-full flex flex-col">
         <div class="flex justify-between items-center px-5 pt-5 pb-3 border-b border-zinc-100">
           <h2 class="font-bold">Ask Lampara</h2>
-          <button @click="chatOpenFor = null" class="press text-zinc-400 text-2xl leading-none">&times;</button>
+          <button @click="chatOpenFor = null" data-tut="chat-close" aria-label="Close chat" class="press text-zinc-400 text-2xl leading-none">&times;</button>
         </div>
         <div class="px-5 pt-3">
           <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 text-[11px] font-medium rounded-xl px-3 py-2">
@@ -318,14 +321,14 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         </div>
         <transition-group tag="div" name="msg" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm" ref="chatLog">
           <div v-for="(m, i) in chatMessages" :key="i" class="flex items-end gap-2" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div v-if="m.role !== 'user'" class="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-              <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
+            <div v-if="m.role !== 'user'" class="rounded-full bg-white flex items-center justify-center flex-shrink-0" style="width:34px;height:34px">
+              <img data-mascot alt="" width="30" height="30" style="display:block;image-rendering:pixelated">
             </div>
             <div class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%] text-left" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></div>
           </div>
           <div v-if="chatLoading" key="typing" class="flex items-end gap-2 justify-start">
-            <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-              <img src="../../assets/logo.svg" alt="" width="17" height="17" style="display:block">
+            <div class="rounded-full bg-white flex items-center justify-center flex-shrink-0" style="width:34px;height:34px">
+              <img data-mascot alt="" width="30" height="30" style="display:block;image-rendering:pixelated">
             </div>
             <span class="inline-flex items-center gap-1 bg-zinc-100 rounded-2xl px-4 py-3.5">
               <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
@@ -349,7 +352,11 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/campus-route.js?v=<?= $routeJsVer ?>"></script>
 <script type="module" src="../../Js/Public/locar-engine.js?v=<?= $engineJsVer ?>"></script>
+<script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
 <script src="../../Js/Public/guide-ar.js?v=<?= $pageJsVer ?>"></script>
+<script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
+<script src="../../Js/Public/guide-mascot-shop.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-mascot-shop.js') ?>"></script>
+<script src="../../Js/Public/guide-tutorial.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-tutorial.js') ?>"></script>
 
 </body>
 </html>

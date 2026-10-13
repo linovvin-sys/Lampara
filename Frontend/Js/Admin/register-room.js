@@ -476,7 +476,7 @@ window.LamparaRoomApp = createApp({
     async choosePhoto(file) {
       if (this.editingId === null || this.editingIsTemp) return;
       if (!(await AdminOffline.guardOnline('Uploading a photo'))) return;
-      const data = await LamparaPhoto.pick({ title: 'Photo of ' + (this.form.room_name || 'the room'), file });
+      const data = await LamparaPhoto.pick({ title: 'Photo of ' + (this.form.room_name || 'the room'), file, portrait: true });
       if (!data) return;
       this.photoBusy = true;
       try {

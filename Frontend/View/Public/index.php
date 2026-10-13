@@ -81,7 +81,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
       <div class="hero-art" aria-hidden="true">
         <!-- A drawing of the guide: camera view, the path on the ground and the direction card -->
-        <svg viewBox="0 0 300 600" class="phone" role="img" aria-label="The Lampara guide on a phone: a yellow path on the ground and the direction Turn left in 24 metres">
+        <div class="phone-float"><svg viewBox="0 0 300 600" class="phone" role="img" aria-label="The Lampara guide on a phone: a yellow path on the ground and the direction Turn left in 24 metres">
           <defs>
             <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9dc0ff"/><stop offset="1" stop-color="#e4edf9"/></linearGradient>
             <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8b99"/><stop offset="1" stop-color="#3b4654"/></linearGradient>
@@ -115,14 +115,14 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
           <text x="42" y="154" fill="#fff" fill-opacity=".72" font-size="12" font-family="Outfit, system-ui, sans-serif">at Point E &#183; then 7 m to Point F</text>
           <rect x="88" y="536" width="124" height="38" rx="19" fill="#ffd100"/>
           <text x="150" y="560" fill="#15173f" font-size="14" font-weight="800" text-anchor="middle" font-family="Outfit, system-ui, sans-serif">Ask Lampara</text>
-        </svg>
+        </svg></div>
       </div>
     </div>
   </section>
 
   <!-- ===== Three ways in, as a signage strip over the photo ===== -->
   <div class="ways-wrap">
-    <ul class="wrap ways" aria-label="Ways to use Lampara">
+    <ul class="wrap ways" data-stagger aria-label="Ways to use Lampara">
       <li><a href="guide-ar.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg>
         <span><b>AR Outdoor Guide</b><small>Follow the path on your camera</small></span></a></li>
@@ -138,9 +138,9 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <!-- ===== How it works ===== -->
   <section class="block" id="how" aria-labelledby="how-h">
     <div class="wrap">
-      <p class="eyebrow">How it works</p>
-      <h2 id="how-h">Three steps from where you stand to the door.</h2>
-      <ol class="steps">
+      <p class="eyebrow" data-reveal>How it works</p>
+      <h2 id="how-h" data-reveal style="--d:1">Three steps from where you stand to the door.</h2>
+      <ol class="steps" data-stagger>
         <li>
           <span class="step-n">1</span>
           <h3>Pick a place</h3>
@@ -163,9 +163,9 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <!-- ===== Features ===== -->
   <section class="block alt" id="features" aria-labelledby="feat-h">
     <div class="wrap">
-      <p class="eyebrow">What you get</p>
-      <h2 id="feat-h">Everything for getting around, in one place.</h2>
-      <ul class="features">
+      <p class="eyebrow" data-reveal>What you get</p>
+      <h2 id="feat-h" data-reveal>Everything for getting around, in one place.</h2>
+      <ul class="features" data-stagger>
         <li>
           <span class="ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span>
           <h3>Outdoor AR path</h3>
@@ -204,7 +204,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <section class="block" id="buildings" aria-labelledby="bld-h">
     <div class="wrap">
       <p class="eyebrow">Campus</p>
-      <div class="bld-head">
+      <div class="bld-head" data-reveal>
         <h2 id="bld-h">Go straight to a building.</h2>
         <a href="map.php" class="btn btn-ghost">Open the campus map</a>
       </div>
@@ -212,7 +212,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
         <li class="bld-skel" aria-hidden="true"></li><li class="bld-skel" aria-hidden="true"></li><li class="bld-skel" aria-hidden="true"></li>
       </ul>
       <p class="bld-empty" id="bld-empty" hidden>The building list could not be loaded. Open the guide and search for a building there.</p>
-      <div class="room-find">
+      <div class="room-find" data-reveal>
         <div>
           <h3>Looking for a room instead?</h3>
           <p>Search every office, classroom and lab, or scan the sign on the door.</p>
@@ -224,7 +224,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
   <!-- ===== Closing ===== -->
   <section class="closing" aria-labelledby="end-h">
-    <div class="wrap closing-in">
+    <div class="wrap closing-in" data-reveal>
       <h2 id="end-h">Ready to find your way?</h2>
       <p>Open the guide on your phone, outdoors, with your location on.</p>
       <a href="guide-ar.php" class="btn btn-primary btn-lg">Start navigating</a>
@@ -241,6 +241,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
       <a href="guide-ar.php">AR guide</a>
       <a href="map.php">Campus map</a>
       <a href="../Student/manual-search.php">Search rooms</a>
+      <a href="guide-ar.php?tutorial=1">Replay tutorial</a>
     </nav>
   </div>
 </footer>

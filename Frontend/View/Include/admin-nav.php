@@ -26,6 +26,11 @@ $navItems = [
                 'href'  => 'campus-paths.php',
                 'icon'  => '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 17c4-1 2-6 5-8s3-2 3-2"/>',
             ],
+            'building-outlines' => [
+                'label' => 'Building Outlines',
+                'href'  => 'building-outlines.php',
+                'icon'  => '<path d="M4 8l8-4 8 4v8l-8 4-8-4Z"/><path d="M4 8l8 4 8-4M12 12v8"/>',
+            ],
             'campus-map' => [
                 'label' => 'Campus Map',
                 'href'  => 'campus-map.php',
@@ -78,13 +83,13 @@ foreach ($navItems as $k => $it) {
 $navSections = [
     'Overview'            => ['dashboard'],
     'Buildings and rooms' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration'],
-    'Campus outdoors'     => ['campus-paths', 'campus-map'],
+    'Campus outdoors'     => ['campus-paths', 'building-outlines', 'campus-map'],
 ];
 // The three tabs along the bottom of a phone, and which pages count as "inside" each one.
 $tabs = [
     ['label' => 'Home',      'href' => 'dashboard.php',      'icon' => $leaf['dashboard']['icon'],        'match' => ['dashboard']],
     ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'test-chat']],
-    ['label' => 'Campus',    'href' => 'campus-paths.php',   'icon' => $leaf['campus-paths']['icon'],     'match' => ['campus-paths', 'campus-map']],
+    ['label' => 'Campus',    'href' => 'campus-paths.php',   'icon' => $leaf['campus-paths']['icon'],     'match' => ['campus-paths', 'building-outlines', 'campus-map']],
 ];
 
 // Pages reached from another page (the chat preview opens from the Buildings list menu) light that page's entry.

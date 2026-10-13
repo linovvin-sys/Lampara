@@ -125,7 +125,7 @@ function relativeAngle(fromDeg, toDeg) {
 }
 
 
-createApp({
+window.LamparaGuide = createApp({
   data() {
     return {
       arBuild: AR_BUILD,
@@ -1018,9 +1018,9 @@ createApp({
     // Runs a few times a second: works out the instruction for where you are and which way you face right now.
     updateGuidance() {
       const tgt = this.target, ri = this.routeInfo, here = this._pos || this.myPos;
-      if (!tgt || !ri || !here) { this.guidance = null; return; }
+      if (!tgt || !ri || !here) { this.guidance = tgt && window.LamparaTutorial && LamparaTutorial.active ? LamparaTutorial.sampleGuidance() : null; return; }
       const eta = (m) => Math.max(1, Math.round(m / NAV_WALK_M_PER_MIN));
-      if (ri.status === 'arrived') { this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name, badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
+      if (ri.status === 'arrived') { try { this.rewardArrival(tgt); } catch (e) { /* the reward must never get in the way of the directions */ } this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name, badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
       if (ri.status === 'far') { this.guidance = { icon: 'warn', title: 'Too far to guide you', dist: '', detail: ri.remaining + ' m from ' + tgt.name + '. Are you on campus?', badge: '', facing: null, totalM: ri.remaining, etaMin: 0, step: -1 }; return; }
       const steps = this._steps || [];
       if (!steps.length) { this.guidance = { icon: 'straight', title: 'Finding your route', dist: '', detail: tgt.name, badge: '', facing: null, totalM: ri.remaining || 0, etaMin: 0, step: -1 }; return; }
@@ -1205,6 +1205,19 @@ createApp({
       if (crow <= ARRIVED_METERS) return 'you are already there.';
       return 'a route to ' + this.target.name + ' exists (' + (this.routeInfo ? this.routeInfo.status : '?') + ') but is not on the ground yet. Tap Refresh path.';
     },
+    // Reaching a destination for real earns points, once per building; reaching all of them is the Campus Explorer achievement.
+    rewardArrival(b) {
+      const M = window.LamparaMascots, S = window.LamparaMascotShop;
+      if (!M || !S || (window.LamparaTutorial && LamparaTutorial.active)) return;
+      if (!M.award('visit:' + b.id, 10)) return;
+      S.toast('Arrived at ' + b.name, 10);
+      if (this.buildings.length && M.visited() >= this.buildings.length && M.award('explorer', 50)) S.toast('Campus Explorer', 50);
+    },
+    openMascots() { if (window.LamparaMascotShop) LamparaMascotShop.open(); },
+    replayTutorial() {
+      this.menuOpen = false;
+      if (window.LamparaTutorial) LamparaTutorial.start(true);
+    },
     toggleMiniMap() {
       this.miniMapOn = !this.miniMapOn;
       try { localStorage.setItem('lampara_ar_minimap', this.miniMapOn ? '1' : '0'); } catch (e) { /* not remembered */ }
@@ -1233,6 +1246,7 @@ createApp({
     },
     async sendChat() {
       if (!this.chatInput.trim() || this.chatLoading) return;
+      if (window.LamparaMascots && LamparaMascots.award('first-question', 5) && window.LamparaMascotShop) LamparaMascotShop.toast('First Question', 5);
       const userText = this.chatInput;
       const history = this.chatMessages.map(m => ({ role: m.role, text: m.text }));
       this.chatMessages.push({ role: 'user', text: userText });
