@@ -1,14 +1,32 @@
 // Where a building's doors are on its floor plans. Plain <script>; exposes `BuildingDoors`.
 //
-// The floor-plan data has no "door" marker, so the doors that are known are named here by the path point (as labelled
-// on the admin Floor Plans page) and the floor it is on. `entry` = where you come in, `exit` = where you leave.
-// For a building not listed, a path point named like an entrance/exit is used, and failing that the point furthest
-// from the middle of the entrance floor (a guess, flagged as such by `how: 'guess'`).
+// A door is one of a floor plan's walkable path points: `entry` = where you come in, `exit` = where you leave.
+// Order of trust, for a building and a kind:
+//   1. the admin's choice, saved in the database (Admin > Doors; Backend/api/building-doors.php), kept on the phone for offline use
+//   2. the points built in below for the buildings that were set up before the admin page existed
+//   3. a path point on the entrance floor named like an entrance or exit
+//   4. the path point furthest from the middle of the entrance floor (a guess, flagged `how: 'guess'`)
 const BuildingDoors = (() => {
+  const KEY = 'lampara_doors_cache';
   const KNOWN = {
     1: { floor: '1st Floor', entry: 'Point AG', exit: 'Point B' },    // Amafel (Main): AG = main entrance, B = exit
     3: { floor: '2nd Floor', entry: 'Point T', exit: 'Point T' }      // Felix Amada (Annex): T = entrance stair and exit stair
   };
+  let saved = {};      // { "<building id>": { entry: {floor, x, y, name}, exit: {...} } }
+
+  try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { saved = {}; }
+
+  // Fetches the admin's choices (and remembers them for offline). Never throws: with no answer, what was remembered is used.
+  async function load(url) {
+    try {
+      const d = await (await fetch(url, { cache: 'no-store' })).json();
+      if (d && d.success && d.doors) {
+        saved = d.doors;
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* not remembered */ }
+      }
+    } catch (e) { /* offline: keep what is remembered */ }
+    return saved;
+  }
 
   const rank = (name) => {          // lowest floor first, same rule as scan.js
     const t = String(name || '').trim().toLowerCase(), m = t.match(/^(-?\d+)/);
@@ -19,8 +37,11 @@ const BuildingDoors = (() => {
   };
 
   // building: { id, entrance_floor? }; graph: { nodes, edges }; plans: floor plans of the building; kind: 'entry' | 'exit'.
-  // Returns { floor, x, y, how: 'known' | 'named' | 'guess', name? } (x, y = 0-100 plan percent) or null.
+  // Returns { floor, x, y, how: 'set' | 'known' | 'named' | 'guess', name? } (x, y = 0-100 plan percent) or null.
   function find(building, graph, plans, kind) {
+    const mine = saved[String(building.id)] && saved[String(building.id)][kind];
+    if (mine && plans.find((p) => p.floor === mine.floor)) return { floor: mine.floor, x: Number(mine.x), y: Number(mine.y), how: 'set', name: mine.name };
+
     const cfg = KNOWN[building.id];
     if (cfg && cfg[kind]) {
       const plan = plans.find((p) => p.floor === cfg.floor);
@@ -38,5 +59,5 @@ const BuildingDoors = (() => {
     return { floor: plan.floor, x: far.x, y: far.y, how: 'guess' };
   }
 
-  return { find };
+  return { find, load };
 })();

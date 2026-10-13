@@ -1,5 +1,7 @@
 // On-campus check for every visitor page. Plain <script>; needs campus-bounds.js loaded first.
 // The page stays hidden until the visitor's location is inside the campus (CampusBounds.BOUNDS), give or take the GPS error.
+// It guards the pages that need the visitor to be there (walking guide, camera guide, sign scan, reports), not the directory,
+// the map or the floor plans, which anyone may use to plan a visit.
 // Outside the campus, or with location switched off, a full-screen message replaces the page. A logged-in admin, or the
 // switch in Backend/api/fence.php, skips the check. A good answer is remembered for 10 minutes of this visit so that moving
 // between pages does not ask again.
@@ -49,11 +51,16 @@
     show(PIN + '<h1>You are not on the campus</h1><p>Lampara can only be used inside the school campus' + (km ? '. You are about ' + km + ' away' : '') + '. Please come to the campus and try again.</p><button type="button" class="lf-btn" id="lfRetry">Check again</button>');
     document.getElementById('lfRetry').onclick = check;
   }
+  // denied = the visitor said no to location. Otherwise it simply could not be found (a desktop computer, a weak signal): then the
+  // visitor can say they are on the campus. That is on trust, the same way a sign at a door is.
   function noLocation(denied) {
     show(PIN + '<h1>Please turn on your location</h1><p>' + (denied
       ? 'Your phone is not sharing its location with Lampara. Open your phone or browser settings, allow location for this site, then try again.'
-      : 'We could not find where you are. Go outside or near a window, make sure location is on, and try again.') + '</p><button type="button" class="lf-btn" id="lfRetry">Try again</button>');
+      : 'We could not find where you are. Go outside or near a window, make sure location is on, and try again. On a computer, you can confirm below.') + '</p><button type="button" class="lf-btn" id="lfRetry">Try again</button>'
+      + (denied ? '' : '<button type="button" class="lf-btn" id="lfHere" style="background:#fff">I am on the campus</button>'));
     document.getElementById('lfRetry').onclick = check;
+    var here = document.getElementById('lfHere');
+    if (here) here.onclick = function () { remember(); release(); };
   }
 
   function check() {

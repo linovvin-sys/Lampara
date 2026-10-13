@@ -51,7 +51,8 @@ function change_label(string $entity, ?array $row): string
 function log_change(mysqli $conn, string $entity, int $entityId, string $action, ?array $before, ?array $after): void
 {
     if (!change_log_ready($conn)) return;
-    if (session_status() !== PHP_SESSION_ACTIVE) @session_start();
+    require_once __DIR__ . '/session_boot.php';
+    lampara_session_start();
     $adminId = isset($_SESSION['admin_id']) ? (int) $_SESSION['admin_id'] : null;
     $adminName = (string) ($_SESSION['admin_username'] ?? 'Admin');
     $label = change_label($entity, $after ?: $before);

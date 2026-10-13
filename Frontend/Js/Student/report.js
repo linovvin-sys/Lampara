@@ -93,10 +93,11 @@
     try {
       const res = await fetch(API + 'hazards.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, building_id: $('bld').value || null, lat: pos && pos.lat, lng: pos && pos.lng, note: $('note').value, image: photo })
+        body: JSON.stringify({ kind, building_id: $('bld').value || null, lat: pos && pos.lat, lng: pos && pos.lng, note: $('note').value, image: photo, urgent: $('urgent').checked })
       });
       const d = await res.json();
       if (!d.success) throw new Error(d.error || 'Could not send the report.');
+      if (d.urgent) $('s4').querySelector('.rp-sub').textContent = 'Your report is showing to everyone now, marked as not yet checked. The school staff will confirm it.';
       show('s4');
     } catch (e) {
       err.textContent = e.message || 'Could not send the report.'; err.hidden = false;

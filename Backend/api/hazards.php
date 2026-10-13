@@ -1,18 +1,22 @@
 <?php
 
-// Live hazard reports: a visitor photographs a restricted building or a blocked path, and everyone using the app (and
-// every admin) is told.
+// Live hazard reports: a visitor photographs a closed building or a blocked path, and everyone using the app (and every admin)
+// is told.
 // A new report starts as 'pending': only admins see it until one approves it (then it is 'active' and shown to everyone).
-// GET    /api/hazards.php                 -> reports that are active, i.e. approved (public). They fade out after 12 hours.
-//        ?status=pending|active|resolved|all -> admin only; also lifts the 12-hour limit
+// An URGENT report (a danger, not an inconvenience) is shown to everyone at once, labelled "not yet checked by staff", until
+// an admin verifies it.
+// GET    /api/hazards.php                 -> reports that are active (public). They fade out after 12 hours.
+//        ?status=pending|active|resolved|all -> admin only. 'pending' is everything that still needs a look: waiting reports and
+//                                              urgent ones nobody has verified yet. Also lifts the 12-hour limit.
 // POST   /api/hazards.php                 -> a new report (public, throttled); an admin's own report is approved at once
-//        body (JSON): { kind: 'restricted'|'blocked', building_id?, lat?, lng?, note?, image?: data URL }
-// PUT    /api/hazards.php?id=1&action=approve|resolve|reopen   -> show it to everyone, clear it, or bring a cleared one back (admin)
+//        body (JSON): { kind: 'restricted'|'blocked', urgent?, building_id?, lat?, lng?, note?, image?: data URL }
+// POST   /api/hazards.php?id=1&action=flag -> "this photo should not be here" from a visitor; three of them hide the report again
+// PUT    /api/hazards.php?id=1&action=approve|verify|resolve|reopen -> show it to everyone, confirm an urgent one, clear it,
+//                                                                      or bring a cleared one back (admin)
 // DELETE /api/hazards.php?id=1            -> remove a report and its photo (admin)
+// Set HAZARD_ALERT_EMAIL in Backend/secrets.php to also get an email for every new report.
 
 header('Content-Type: application/json');
-header('Cache-Control: no-store');
-header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
@@ -21,37 +25,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit(0);
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../photo_upload.php';
 require_once __DIR__ . '/../rate_limit.php';
+require_once __DIR__ . '/../session_boot.php';
 
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+lampara_session_start();
 $isAdmin = !empty($_SESSION['admin_id']);
 $method = $_SERVER['REQUEST_METHOD'];
+$action = $_GET['action'] ?? '';
 
 if (in_array($method, ['PUT', 'DELETE'], true)) {
     require_once __DIR__ . '/_require_admin.php';
+} else {
+    lampara_same_origin_or_die();
 }
 
 $db = new Database();
 $conn = $db->connect();
 
-// Created on first use, so nobody has to remember to run a migration.
-$conn->query(
-    "CREATE TABLE IF NOT EXISTS hazard_reports (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        kind VARCHAR(12) NOT NULL,
-        building_id INT NULL,
-        lat DOUBLE NULL,
-        lng DOUBLE NULL,
-        note VARCHAR(255) NULL,
-        photo_path VARCHAR(255) NULL,
-        status VARCHAR(10) NOT NULL DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        resolved_at TIMESTAMP NULL,
-        resolved_by VARCHAR(60) NULL,
-        KEY idx_status_created (status, created_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-);
+// ---- storage. The table is created (and an older one brought up to date) the first time a query finds it missing, not on every request.
+function hz_migrate(mysqli $conn): void
+{
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS hazard_reports (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            kind VARCHAR(12) NOT NULL,
+            building_id INT NULL,
+            lat DOUBLE NULL,
+            lng DOUBLE NULL,
+            note VARCHAR(255) NULL,
+            photo_path VARCHAR(255) NULL,
+            status VARCHAR(10) NOT NULL DEFAULT 'pending',
+            urgent TINYINT(1) NOT NULL DEFAULT 0,
+            verified TINYINT(1) NOT NULL DEFAULT 1,
+            flags INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            resolved_at TIMESTAMP NULL,
+            resolved_by VARCHAR(60) NULL,
+            KEY idx_status_created (status, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+    $have = [];
+    $r = $conn->query('SHOW COLUMNS FROM hazard_reports');
+    while ($c = $r->fetch_assoc()) $have[$c['Field']] = true;
+    $add = ['urgent' => 'TINYINT(1) NOT NULL DEFAULT 0', 'verified' => 'TINYINT(1) NOT NULL DEFAULT 1', 'flags' => 'INT NOT NULL DEFAULT 0'];
+    foreach ($add as $col => $def) {
+        if (empty($have[$col])) $conn->query("ALTER TABLE hazard_reports ADD COLUMN $col $def");
+    }
+}
+// Runs $fn; if the table or a column is missing (MySQL errors 1146 and 1054), sets it up once and runs $fn again.
+function hz(mysqli $conn, callable $fn)
+{
+    try {
+        return $fn();
+    } catch (mysqli_sql_exception $e) {
+        if (!in_array($e->getCode(), [1146, 1054], true)) throw $e;
+        hz_migrate($conn);
+        return $fn();
+    }
+}
 
-function hazard_row(array $r): array
+function hz_row(array $r): array
 {
     return [
         'id' => (int) $r['id'],
@@ -63,45 +95,131 @@ function hazard_row(array $r): array
         'note' => $r['note'],
         'photo_path' => $r['photo_path'],
         'status' => $r['status'],
+        'urgent' => (int) $r['urgent'] === 1,
+        'verified' => (int) $r['verified'] === 1,
         'created_at' => $r['created_at'],
         'age_min' => (int) $r['age_min'],
     ];
 }
 
+// A JPEG from a phone can carry the place and time it was taken (Exif) and other tags. The browser already redraws the photo, which
+// drops them, but a hand-made upload would not: remove them here too. Everything up to the image data is rewritten, the image
+// data itself is copied as is.
+function hz_strip_jpeg(string $b): string
+{
+    if (strlen($b) < 4 || $b[0] !== "\xFF" || $b[1] !== "\xD8") return $b;
+    $out = "\xFF\xD8";
+    $i = 2; $n = strlen($b);
+    while ($i + 3 < $n) {
+        if ($b[$i] !== "\xFF") break;
+        $m = ord($b[$i + 1]);
+        if ($m === 0xFF) { $i++; continue; }
+        if ($m === 0xDA) { return $out . substr($b, $i); }            // start of scan: the rest is image data
+        if (($m >= 0xD0 && $m <= 0xD7) || $m === 0x01 || $m === 0xD8) { $out .= substr($b, $i, 2); $i += 2; continue; }
+        $len = (ord($b[$i + 2]) << 8) | ord($b[$i + 3]);
+        if ($len < 2 || $i + 2 + $len > $n) return $b;                 // not a well-formed file: leave it for the image check to judge
+        $drop = ($m === 0xE1) || ($m >= 0xE3 && $m <= 0xEF && $m !== 0xEE) || $m === 0xFE;   // Exif/XMP, vendor tags, comments
+        if (!$drop) $out .= substr($b, $i, 2 + $len);
+        $i += 2 + $len;
+    }
+    return $out . substr($b, $i);
+}
+
+function hz_purge(mysqli $conn): void
+{
+    // cleared or unreviewed reports are not kept for ever, and neither are their photos
+    $res = $conn->query("SELECT id, photo_path FROM hazard_reports WHERE (status = 'resolved' AND resolved_at < NOW() - INTERVAL 30 DAY) OR (status = 'pending' AND created_at < NOW() - INTERVAL 30 DAY)");
+    while ($r = $res->fetch_assoc()) {
+        photoDelete($r['photo_path']);
+        $conn->query('DELETE FROM hazard_reports WHERE id = ' . (int) $r['id']);
+    }
+}
+
+function hz_alert(string $kind, string $where, bool $urgent, ?string $note): void
+{
+    $secrets = __DIR__ . '/../secrets.php';
+    if (is_file($secrets)) { try { require_once $secrets; } catch (Throwable $e) { /* no alert address */ } }
+    if (!defined('HAZARD_ALERT_EMAIL') || !HAZARD_ALERT_EMAIL) return;
+    $subject = ($urgent ? '[URGENT] ' : '') . 'Lampara report: ' . ($kind === 'restricted' ? 'closed building' : 'blocked path') . ' ' . $where;
+    $body = "A visitor sent a report.\n\nWhere: $where\nUrgent: " . ($urgent ? 'yes' : 'no') . "\nNote: " . ($note ?: '(none)') . "\n\nReview it in the admin panel: Reports.";
+    @mail(HAZARD_ALERT_EMAIL, $subject, $body);
+}
+
+// ---- GET
 if ($method === 'GET') {
     $status = $_GET['status'] ?? '';
-    $sql = "SELECT h.id, h.kind, h.building_id, b.name AS building_name, h.lat, h.lng, h.note, h.photo_path, h.status, h.created_at,
+    $sql = "SELECT h.id, h.kind, h.building_id, b.name AS building_name, h.lat, h.lng, h.note, h.photo_path, h.status, h.urgent, h.verified, h.created_at,
                    TIMESTAMPDIFF(MINUTE, h.created_at, NOW()) AS age_min
             FROM hazard_reports h LEFT JOIN buildings b ON b.id = h.building_id";
     if ($status !== '') {
         if (!$isAdmin) { http_response_code(401); echo json_encode(['success' => false, 'error' => 'Admin login required']); exit; }
-        $sql .= $status === 'all' ? '' : " WHERE h.status = '" . (in_array($status, ['pending', 'resolved'], true) ? $status : 'active') . "'";
+        header('Cache-Control: no-store');
+        if ($status === 'pending') $sql .= " WHERE (h.status = 'pending' OR (h.status = 'active' AND h.verified = 0))";
+        elseif ($status !== 'all') $sql .= " WHERE h.status = '" . ($status === 'resolved' ? 'resolved' : 'active') . "'";
         $sql .= ' ORDER BY h.id DESC LIMIT 200';
     } else {
+        header('Cache-Control: public, max-age=15');      // every open page asks every 30 seconds; a short cache spares the database
         $sql .= " WHERE h.status = 'active' AND h.created_at > NOW() - INTERVAL 12 HOUR ORDER BY h.id DESC LIMIT 50";
     }
-    $res = $conn->query($sql);
-    $out = [];
-    while ($r = $res->fetch_assoc()) $out[] = hazard_row($r);
+    $out = hz($conn, function () use ($conn, $sql) {
+        $res = $conn->query($sql);
+        $rows = [];
+        while ($r = $res->fetch_assoc()) $rows[] = hz_row($r);
+        return $rows;
+    });
     echo json_encode(['success' => true, 'reports' => $out]);
     exit;
 }
 
+header('Cache-Control: no-store');
+
+// ---- POST
 if ($method === 'POST') {
-    rate_limit_or_die('hazard_report', 5, 600, 'You have sent several reports just now. Please wait a few minutes before sending another.');
+    // One device cookie tells visitors on the same school Wi-Fi apart, so one person's reports do not use up everyone's allowance.
+    // The per-address limit is the backstop for someone who keeps clearing the cookie.
+    $dev = $_COOKIE['lampara_dev'] ?? '';
+    if (!preg_match('/^[a-f0-9]{16}$/', $dev)) {
+        $dev = bin2hex(random_bytes(8));
+        setcookie('lampara_dev', $dev, ['expires' => time() + 31536000, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+    }
+
+    if ($action === 'flag') {
+        rate_limit_or_die('hazard_flag', 10, 600, 'Thank you. You have already sent several notices just now.', $dev);
+        $id = (int) ($_GET['id'] ?? 0);
+        if ($id <= 0) photoFail(400, 'id is required');
+        hz($conn, function () use ($conn, $id) {
+            $stmt = $conn->prepare("UPDATE hazard_reports SET flags = flags + 1 WHERE id = ? AND status = 'active'");
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $stmt->close();
+            // three notices put the report back in the admins' queue and take it off everyone's screen
+            $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'pending', verified = 0 WHERE id = ? AND status = 'active' AND flags >= 3");
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $stmt->close();
+        });
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
+    rate_limit_or_die('hazard_report', 5, 600, 'You have sent several reports just now. Please wait a few minutes before sending another.', $dev);
+    rate_limit_or_die('hazard_report_ip', 60, 600, 'Too many reports were sent from this network just now. Please try again in a few minutes.');
     $in = json_decode(file_get_contents('php://input'), true);
     if (!is_array($in)) photoFail(400, 'Invalid request');
 
     $kind = $in['kind'] ?? '';
     if (!in_array($kind, ['restricted', 'blocked'], true)) photoFail(400, 'Say whether a building is closed or a path is blocked');
+    $urgent = !empty($in['urgent']) ? 1 : 0;
 
     $buildingId = isset($in['building_id']) && $in['building_id'] !== '' ? (int) $in['building_id'] : null;
+    $buildingName = null;
     if ($buildingId !== null) {
-        $stmt = $conn->prepare('SELECT id FROM buildings WHERE id = ?');
+        $stmt = $conn->prepare('SELECT name FROM buildings WHERE id = ?');
         $stmt->bind_param('i', $buildingId);
         $stmt->execute();
-        if (!$stmt->get_result()->fetch_row()) $buildingId = null;
+        $row = $stmt->get_result()->fetch_row();
         $stmt->close();
+        if ($row) $buildingName = $row[0]; else $buildingId = null;
     }
     $lat = isset($in['lat']) && is_numeric($in['lat']) ? (float) $in['lat'] : null;
     $lng = isset($in['lng']) && is_numeric($in['lng']) ? (float) $in['lng'] : null;
@@ -115,42 +233,62 @@ if ($method === 'POST') {
     $image = $in['image'] ?? null;
     if ($image === null && $buildingId === null && $lat === null) photoFail(400, 'Add a photo or say where this is');
 
-    $startStatus = $isAdmin ? 'active' : 'pending';
-    $stmt = $conn->prepare('INSERT INTO hazard_reports (kind, building_id, lat, lng, note, status) VALUES (?, ?, ?, ?, ?, ?)');
-    $stmt->bind_param('siddss', $kind, $buildingId, $lat, $lng, $note, $startStatus);
-    if (!$stmt->execute()) photoFail(500, 'Could not save the report');
-    $id = $conn->insert_id;
-    $stmt->close();
+    // an admin's own report is trusted; an urgent one goes live at once but is marked as not yet checked
+    $status = ($isAdmin || $urgent) ? 'active' : 'pending';
+    $verified = $isAdmin ? 1 : 0;
+    $id = hz($conn, function () use ($conn, $kind, $buildingId, $lat, $lng, $note, $status, $urgent, $verified) {
+        $stmt = $conn->prepare('INSERT INTO hazard_reports (kind, building_id, lat, lng, note, status, urgent, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt->bind_param('siddssii', $kind, $buildingId, $lat, $lng, $note, $status, $urgent, $verified);
+        $stmt->execute();
+        $newId = $conn->insert_id;
+        $stmt->close();
+        return $newId;
+    });
 
     if (is_string($image) && $image !== '') {
+        // the report page always sends a JPEG it has redrawn itself; other formats can carry hidden data this server cannot clean
+        if (!preg_match('/^data:image\/jpe?g;base64,(.+)$/s', $image, $m)) photoFail(400, 'Please send the photo as a JPEG');
+        $bin = base64_decode($m[1], true);
+        if ($bin === false) photoFail(400, 'Could not read that photo');
+        $image = 'data:image/jpeg;base64,' . base64_encode(hz_strip_jpeg($bin));
         $path = photoSave('hazards', $id, $image);        // checks the real bytes; answers 400 for anything that is not a photo
         $stmt = $conn->prepare('UPDATE hazard_reports SET photo_path = ? WHERE id = ?');
         $stmt->bind_param('si', $path, $id);
         $stmt->execute();
         $stmt->close();
     }
-    echo json_encode(['success' => true, 'id' => $id, 'pending' => !$isAdmin]);
+
+    if (!$isAdmin) hz_alert($kind, $buildingName ?: 'on the campus grounds', (bool) $urgent, $note);
+    if (random_int(1, 40) === 1) { try { hz_purge($conn); } catch (Throwable $e) { /* housekeeping must never fail a report */ } }
+
+    echo json_encode(['success' => true, 'id' => $id, 'pending' => !$isAdmin && !$urgent, 'urgent' => (bool) $urgent]);
     exit;
 }
 
-// PUT / DELETE (admin)
+// ---- PUT / DELETE (admin)
 $id = (int) ($_GET['id'] ?? 0);
 if ($id <= 0) photoFail(400, 'id is required');
 
 if ($method === 'PUT') {
-    $action = $_GET['action'] ?? 'resolve';
+    $act = $action ?: 'resolve';
     $who = $_SESSION['admin_username'] ?? 'admin';
-    if ($action === 'approve') {
-        $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'active', created_at = NOW() WHERE id = ? AND status = 'pending'");
-        $stmt->bind_param('i', $id);
-    } elseif ($action === 'reopen') {
-        $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'active', resolved_at = NULL, resolved_by = NULL WHERE id = ?");
-        $stmt->bind_param('i', $id);
-    } else {
-        $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'resolved', resolved_at = NOW(), resolved_by = ? WHERE id = ?");
-        $stmt->bind_param('si', $who, $id);
-    }
-    $stmt->execute();
+    hz($conn, function () use ($conn, $act, $id, $who) {
+        if ($act === 'approve') {
+            $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'active', verified = 1, flags = 0, created_at = NOW() WHERE id = ? AND status = 'pending'");
+            $stmt->bind_param('i', $id);
+        } elseif ($act === 'verify') {
+            $stmt = $conn->prepare("UPDATE hazard_reports SET verified = 1, flags = 0 WHERE id = ? AND status = 'active'");
+            $stmt->bind_param('i', $id);
+        } elseif ($act === 'reopen') {
+            $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'active', verified = 1, resolved_at = NULL, resolved_by = NULL WHERE id = ?");
+            $stmt->bind_param('i', $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'resolved', resolved_at = NOW(), resolved_by = ? WHERE id = ?");
+            $stmt->bind_param('si', $who, $id);
+        }
+        $stmt->execute();
+        $stmt->close();
+    });
     echo json_encode(['success' => true]);
     exit;
 }

@@ -20,8 +20,6 @@ $qs = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Student/where.css?v=<?= $pageCssVer ?>">
 <script src="../../Js/Include/trip.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/trip.js') ?>"></script>
-<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
-<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <main class="wh">
@@ -57,7 +55,7 @@ $qs = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
   </div>
 
   <p class="wh-help"><b>Not sure?</b> If you can see the sky and the walkways around you, choose <b>outside</b>. If you are under a roof, past the doors, choose <b>inside</b>.</p>
-  <p class="wh-report"><a href="report.php">Report a closed building or a blocked path</a></p>
+  <p class="wh-report"><a href="report.php">Report a closed building or a blocked path</a> &middot; <a href="privacy.php">Privacy</a></p>
 </main>
 <script>
 // Remember the answer for this visit (so later screens do not ask again) and offer to continue an open trip.
@@ -74,5 +72,6 @@ document.querySelectorAll('[data-where]').forEach(function (a) {
 })();
 </script>
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
+<script src="../../Js/Include/privacy-notice.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/privacy-notice.js') ?>"></script>
 </body>
 </html>

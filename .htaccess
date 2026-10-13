@@ -1,0 +1,21 @@
+# Lampara: keep project internals out of reach and send basic safe headers.
+# Needs Apache with AllowOverride All (the default in XAMPP's htdocs). Harmless where it is not understood.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # notes, setup scripts, the database layout and the repository itself are not for visitors
+  RewriteRule ^docs(/|$) - [R=404,L]
+  RewriteRule ^Backend/scripts(/|$) - [R=404,L]
+  RewriteRule ^Backend/[^/]+\.(php|sql)$ - [R=404,L]
+  RewriteRule (^|/)\.git - [R=404,L]
+  RewriteRule \.(sql|md|bak|log)$ - [R=404,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # the app needs the camera, location and motion sensors on its own pages, and nothing else (no microphone)
+  Header always set Permissions-Policy "camera=(self), geolocation=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self), microphone=()"
+  Header always set Strict-Transport-Security "max-age=15552000" env=HTTPS
+</IfModule>

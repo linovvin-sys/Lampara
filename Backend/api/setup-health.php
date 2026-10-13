@@ -61,6 +61,11 @@ foreach (rows_of($conn,
      GROUP BY r.building_id, r.floor") as $r) {
     $unmarked[(int) $r['building_id']][$r['floor']] = (int) $r['c'];
 }
+// Buildings whose entrance and exit were chosen in Admin > Doors (the table may not exist yet: then none were).
+$doorsSet = [];
+try {
+    foreach (rows_of($conn, "SELECT building_id, COUNT(DISTINCT kind) k FROM building_doors GROUP BY building_id") as $r) $doorsSet[(int) $r['building_id']] = (int) $r['k'] >= 2;
+} catch (Throwable $e) { /* no doors saved yet */ }
 $unnumbered = [];
 foreach (rows_of($conn,
     "SELECT building_id, COUNT(*) c FROM rooms
@@ -106,13 +111,16 @@ foreach ($buildings as $b) {
             add($items, 'fix', $name, $fl, "$n room" . ($n > 1 ? 's' : '') . ' without a plan marker', 'Place each room on the plan so the arrow can lead to its door.', 'room-edit.php?building=' . $bid, 'Place markers');
         }
     }
+    if (empty($doorsSet[$bid]) && count($buildings) > 1) {
+        add($items, 'tip', $name, '', 'Entrance and exit points not set', 'Routes between buildings guess where the door is until it is chosen.', 'doors.php?building=' . $bid, 'Set doors');
+    }
     if (!empty($unnumbered[$bid])) {
         $n = $unnumbered[$bid];
         add($items, 'tip', $name, '', "$n room" . ($n > 1 ? 's' : '') . ' without a number', 'Sign scanning cannot find rooms that have no number.', 'room-edit.php?building=' . $bid, 'Review rooms');
     }
 }
 
-// ---- Guided setup: eight steps per building, in the order an admin does them -------------------
+// ---- Guided setup: nine steps per building, in the order an admin does them -------------------
 $roomCounts = [];
 foreach (rows_of($conn, "SELECT building_id, COUNT(*) c FROM rooms GROUP BY building_id") as $r) {
     $roomCounts[(int) $r['building_id']] = (int) $r['c'];
@@ -136,6 +144,7 @@ foreach ($buildings as $b) {
         ['rooms',     'Add rooms',            'Register the offices, classrooms and labs.',                    'Add rooms',         'room-edit.php?building=' . $bid,   ($roomCounts[$bid] ?? 0) > 0],
         ['markers',   'Place room markers',   'Pin each room on its floor plan so the arrow can reach its door.', 'Place markers',  'room-edit.php?building=' . $bid,   ($roomCounts[$bid] ?? 0) > 0 && $unmarkedHere === 0],
         ['entrance',  'Set the entrance',     'Where outdoor directions end at the door.',                     'Set the entrance',  'campus-paths.php',                 $b['entrance_node_id'] !== null],
+        ['doors',     'Mark the doors',       'Which path point is the way in and the way out, inside the building.', 'Set doors',        'doors.php?building=' . $bid,       !empty($doorsSet[$bid])],
     ];
     $steps = array_map(fn($d) => ['key' => $d[0], 'label' => $d[1], 'hint' => $d[2], 'cta' => $d[3], 'href' => $d[4], 'done' => (bool) $d[5]], $defs);
     $done = count(array_filter($steps, fn($st) => $st['done']));

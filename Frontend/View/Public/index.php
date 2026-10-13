@@ -23,8 +23,6 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Public/index.css?v=<?= $cssVer ?>">
-<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
-<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <script>LamparaSkeleton.show('public')</script>
@@ -244,6 +242,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
       <a href="map.php">Campus map</a>
       <a href="../Student/manual-search.php">Search rooms</a>
       <a href="guide-ar.php?tutorial=1">Replay tutorial</a>
+      <a href="../Student/privacy.php">Privacy</a>
     </nav>
   </div>
 </footer>
@@ -253,5 +252,6 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <script src="../../Js/Public/index.js?v=<?= $jsVer ?>"></script>
 
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
+<script src="../../Js/Include/privacy-notice.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/privacy-notice.js') ?>"></script>
 </body>
 </html>

@@ -17,9 +17,8 @@ header('Cache-Control: no-store');
 
 $admin = false;
 if (isset($_COOKIE[session_name()])) {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    require_once __DIR__ . '/../session_boot.php';
+    lampara_session_start();
     $admin = !empty($_SESSION['admin_id']);
 }
 

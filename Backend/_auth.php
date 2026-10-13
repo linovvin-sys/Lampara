@@ -4,9 +4,8 @@
 // output) to require a logged-in admin session. Public student-facing pages
 // never touch this file.
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+require_once __DIR__ . '/session_boot.php';
+lampara_session_start();
 
 if (empty($_SESSION['admin_id'])) {
     $next = urlencode($_SERVER['REQUEST_URI'] ?? 'dashboard.php');

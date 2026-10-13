@@ -8,3 +8,7 @@ Frontend/pid
 # uploaded building / room photos (user data); the folder itself is kept
 Frontend/assets/photos/*
 !Frontend/assets/photos/.gitkeep
+!Frontend/assets/photos/.htaccess
+
+# end-to-end test screenshots
+tests/e2e/shots/

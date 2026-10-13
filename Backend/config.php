@@ -3,6 +3,12 @@
 // Lampara — DB connection. Same pattern as SIAdrafts/Backend/db.php, kept
 // self-contained here so this starter has zero dependency on that project.
 
+// Basic response headers for every API: the browser must not guess file types, and sends the least it can as a referrer.
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+}
+
 class DbError extends RuntimeException {}
 
 class Database

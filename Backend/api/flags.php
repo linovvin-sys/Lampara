@@ -7,7 +7,6 @@
 // PUT    /api/flags.php?id=1          -> mark a flag resolved (admin-only)
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 

@@ -10,7 +10,6 @@
 // DELETE /api/buildings.php?id=1     -> delete a building (cascades to its rooms/flags)
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 

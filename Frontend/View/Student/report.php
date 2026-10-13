@@ -42,7 +42,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
   <!-- 2. photo of the scene -->
   <section id="s2" hidden>
     <h1>Take a photo of it</h1>
-    <p class="rp-sub">Point the camera at the problem so others can see it.</p>
+    <p class="rp-sub">Point the camera at the building or the path. Please keep people's faces out of the photo.</p>
     <div class="rp-cam">
       <video id="video" autoplay playsinline muted></video>
       <img id="shot" alt="Your photo" hidden>
@@ -63,6 +63,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
     <select id="bld"><option value="">Not at a building (on the walkway)</option></select>
     <label class="rp-label" for="note">Anything we should know? (optional)</label>
     <textarea id="note" maxlength="255" rows="3" placeholder="For example: the gate is locked"></textarea>
+    <label class="rp-urgent" for="urgent"><input type="checkbox" id="urgent"><span><b>This is dangerous or urgent</b><small>It will show to everyone straight away, marked "not yet checked by staff".</small></span></label>
     <p class="rp-err" id="err" hidden></p>
     <button type="button" class="rp-btn rp-ok" id="send">Send report</button>
   </section>
@@ -73,10 +74,12 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
     <h1>Thank you</h1>
     <p class="rp-sub">Your report was sent to the school staff. As soon as they confirm it, everyone using Lampara will see the warning.</p>
     <a class="rp-btn" href="where.php">Back to the start</a>
+    <p class="rp-small"><a href="privacy.php">How reports and photos are handled</a></p>
   </section>
 </main>
 
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 <script src="../../Js/Student/report.js?v=<?= $pageJsVer ?>"></script>
+<script src="../../Js/Include/privacy-notice.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/privacy-notice.js') ?>"></script>
 </body>
 </html>

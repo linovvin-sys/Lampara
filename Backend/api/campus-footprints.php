@@ -8,7 +8,6 @@
 // PUT /api/campus-footprints.php?id=4  body { building_id: 1 | null }  -> link / unlink one outline (admin only)
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, PUT, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 

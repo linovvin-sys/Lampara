@@ -27,11 +27,11 @@
       const map = r.lat !== null ? '<a class="alt" href="https://www.google.com/maps?q=' + r.lat + ',' + r.lng + '" target="_blank" rel="noopener">Open on map</a>' : '';
       return '<article class="hz-card" data-id="' + r.id + '">'
         + (r.photo_path ? '<a href="' + esc(FE + r.photo_path) + '" target="_blank" rel="noopener"><img src="' + esc(FE + r.photo_path) + '" alt="Photo sent with the report" loading="lazy"></a>' : '<div class="hz-noimg">No photo sent</div>')
-        + '<div class="hz-body"><span class="hz-kind ' + esc(r.kind) + '">' + esc(KIND[r.kind] || r.kind) + '</span>'
+        + '<div class="hz-body"><span class="hz-kind ' + esc(r.kind) + '">' + esc(KIND[r.kind] || r.kind) + '</span>' + (r.urgent ? ' <span class="hz-kind">Urgent' + (r.status === 'active' && !r.verified ? ', showing to everyone, not yet checked' : '') + '</span>' : '')
         + '<h3>' + esc(place) + '</h3><div class="hz-meta">' + ago(r.age_min) + ' &middot; ' + esc(r.created_at) + '</div>'
         + (r.note ? '<p class="hz-note">' + esc(r.note) + '</p>' : '') + '</div>'
         + '<div class="hz-actions">' + map
-        + (r.status === 'pending' ? '<button type="button" data-act="approve">Approve: show to everyone</button>' : r.status === 'active' ? '<button type="button" data-act="resolve">Mark as cleared</button>' : '<button type="button" data-act="reopen">Bring back</button>')
+        + (r.status === 'pending' ? '<button type="button" data-act="approve">Approve: show to everyone</button>' : r.status === 'active' ? (!r.verified ? '<button type="button" data-act="verify">Confirm it is real</button>' : '') + '<button type="button" data-act="resolve">Mark as cleared</button>' : '<button type="button" data-act="reopen">Bring back</button>')
         + '<button type="button" class="danger" data-act="delete">' + (r.status === 'pending' ? 'Reject' : 'Delete') + '</button></div></article>';
     }).join('');
   }
@@ -43,6 +43,7 @@
     const card = b.closest('[data-id]'), place = card.querySelector('h3').textContent, pending = !!card.querySelector('[data-act="approve"]');
     // Each action asks first; clearing and bringing back are easy to undo, so only approving and removing ask.
     const ask = {
+      verify: { icon: 'question', title: 'Confirm this report?', text: 'It stays on screen for every visitor, without the not-yet-checked label.', confirmButtonText: 'Yes, it is real', confirmButtonColor: '#161850' },
       approve: { icon: 'question', title: 'Show this to everyone?', text: 'Everyone using the app will see a warning about ' + place + ' right away.', confirmButtonText: 'Yes, show it', confirmButtonColor: '#161850' },
       delete: { icon: 'warning', title: pending ? 'Reject this report?' : 'Delete this report?', text: 'The report and its photo will be removed for good.', confirmButtonText: pending ? 'Reject' : 'Delete', confirmButtonColor: '#ff0000' }
     }[act];
@@ -53,7 +54,7 @@
     b.disabled = true;
     const d = act === 'delete' ? await call(API + '?id=' + id, 'DELETE') : await call(API + '?id=' + id + '&action=' + act, 'PUT');
     if (d && d.success) {
-      const done = { approve: 'Now showing to everyone', resolve: 'Marked as cleared', reopen: 'Brought back', delete: pending ? 'Report rejected' : 'Report deleted' }[act];
+      const done = { verify: 'Confirmed', approve: 'Now showing to everyone', resolve: 'Marked as cleared', reopen: 'Brought back', delete: pending ? 'Report rejected' : 'Report deleted' }[act];
       Swal.fire({ icon: 'success', title: done, timer: 1600, showConfirmButton: false });
       load(); if (window.LamparaHazards) window.LamparaHazards.refresh();
     } else {

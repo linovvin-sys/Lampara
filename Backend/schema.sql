@@ -323,7 +323,10 @@ CREATE TABLE IF NOT EXISTS change_log (
     KEY created_idx (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Visitor reports of a closed building or a blocked path (photo, place, note). Also created on first use by api/hazards.php.
+-- Visitor reports of a closed building or a blocked path (photo, place, note). Also created, and an older copy brought up to date,
+-- by api/hazards.php the first time it finds the table or a column missing.
+--   status: pending (waiting for an admin) | active (shown to everyone) | resolved (cleared)
+--   urgent: shown to everyone at once; verified = 0 until an admin confirms it. flags: "report this photo" notices from visitors.
 CREATE TABLE IF NOT EXISTS hazard_reports (
     id INT AUTO_INCREMENT PRIMARY KEY,
     kind VARCHAR(12) NOT NULL,
@@ -333,8 +336,28 @@ CREATE TABLE IF NOT EXISTS hazard_reports (
     note VARCHAR(255) NULL,
     photo_path VARCHAR(255) NULL,
     status VARCHAR(10) NOT NULL DEFAULT 'pending',
+    urgent TINYINT(1) NOT NULL DEFAULT 0,
+    verified TINYINT(1) NOT NULL DEFAULT 1,
+    flags INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     resolved_at TIMESTAMP NULL,
     resolved_by VARCHAR(60) NULL,
     KEY idx_status_created (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Small key/value settings. Today: campus_fence = '1' (visitors must be on the campus) or '0'. No row means on.
+-- Also created by api/fence.php on first use.
+CREATE TABLE IF NOT EXISTS app_settings (
+    k VARCHAR(40) PRIMARY KEY,
+    v VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Which floor-plan path point is each building's entrance and exit (set in Admin > Doors). kind: 'entry' | 'exit'.
+-- Also created by api/building-doors.php on first use.
+CREATE TABLE IF NOT EXISTS building_doors (
+    building_id INT NOT NULL,
+    kind VARCHAR(5) NOT NULL,
+    node_id INT NOT NULL,
+    PRIMARY KEY (building_id, kind),
+    FOREIGN KEY (node_id) REFERENCES floor_plan_nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

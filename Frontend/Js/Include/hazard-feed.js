@@ -45,6 +45,7 @@ const LamparaHazards = (() => {
 .lh-item b{display:block;font-size:1.12rem}
 .lh-item span{color:#4b4f6a;font-size:1rem}
 .lh-item img{display:block;width:100%;max-height:16rem;object-fit:cover;border-radius:.8rem;margin-top:.5rem}
+.lh-flag{display:block;margin-top:.4rem;background:none;border:0;color:#5d6272;font:600 .9rem 'Outfit',system-ui,sans-serif;text-decoration:underline;cursor:pointer;padding:.2rem 0}
 .lh-btn{display:block;width:100%;box-sizing:border-box;text-align:center;text-decoration:none;font:800 1.1rem 'Outfit',system-ui,sans-serif;border:0;border-radius:.9rem;padding:.85rem;margin-top:.6rem;cursor:pointer;background:#ffd100;color:#161850}
 .lh-btn.alt{background:#eceefa}
 .lh-toast{position:fixed;right:14px;bottom:14px;z-index:2147483000;max-width:22rem;background:#161850;color:#fff;border-left:6px solid #ffd100;border-radius:.8rem;padding:.8rem 1rem;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 .95rem/1.35 'Outfit',system-ui,sans-serif;cursor:pointer}
@@ -72,22 +73,29 @@ const LamparaHazards = (() => {
     if (!list.length) { if (bar) bar.classList.remove('on'); return; }
     ensureBar();
     const r = list[0];
-    bar.querySelector('.lh-main').innerHTML = esc(title(r)) + '<small>' + esc(KIND[r.kind] || '') + ' &middot; ' + ago(r.age_min) + (list.length > 1 ? ' &middot; ' + (list.length - 1) + ' more' : '') + ' &middot; tap to see</small>';
+    bar.querySelector('.lh-main').innerHTML = esc(title(r)) + '<small>' + esc(KIND[r.kind] || '') + (r.urgent && !r.verified ? ' &middot; not yet checked by staff' : '') + ' &middot; ' + ago(r.age_min) + (list.length > 1 ? ' &middot; ' + (list.length - 1) + ' more' : '') + ' &middot; tap to see</small>';
     bar.classList.add('on');
     if (flash) { bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
   }
   function openSheet() {
     if (dlg) dlg.remove();
     dlg = document.createElement('div'); dlg.className = 'lh-ov';
-    const items = reports.map((r) => '<div class="lh-item"><b>' + esc(title(r)) + '</b><span>' + esc(KIND[r.kind] || '') + ' &middot; ' + ago(r.age_min) + '</span>'
+    const items = reports.map((r) => '<div class="lh-item"><b>' + esc(title(r)) + '</b><span>' + esc(KIND[r.kind] || '') + (r.urgent && !r.verified ? ' &middot; <b style="display:inline">not yet checked by staff</b>' : '') + ' &middot; ' + ago(r.age_min) + '</span>'
       + (r.note ? '<p style="margin:.4rem 0 0">' + esc(r.note) + '</p>' : '')
-      + (r.photo_path ? '<img src="' + esc(FE + r.photo_path) + '" alt="Photo of the problem">' : '') + '</div>').join('');
+      + (r.photo_path ? '<img src="' + esc(FE + r.photo_path) + '" alt="Photo of the problem"><button type="button" class="lh-flag" data-flag="' + r.id + '">Report this photo</button>' : '') + '</div>').join('');
     const canAlert = 'Notification' in window && Notification.permission === 'default';
     dlg.innerHTML = '<div class="lh-sheet" role="dialog" aria-label="Warnings from other visitors"><h2>Warnings on the campus</h2>' + items
       + (canAlert ? '<button type="button" class="lh-btn alt" data-alert>Tell me when something new is reported</button>' : '')
       + '<a class="lh-btn alt" href="' + esc(FE + 'View/Student/report.php') + '">Report a problem</a><button type="button" class="lh-btn" data-close>Close</button></div>';
     document.body.appendChild(dlg);
-    dlg.onclick = (e) => { if (e.target === dlg || e.target.hasAttribute('data-close')) { dlg.remove(); dlg = null; } };
+    dlg.onclick = (e) => {
+      if (e.target === dlg || e.target.hasAttribute('data-close')) { dlg.remove(); dlg = null; return; }
+      const f = e.target.closest('[data-flag]');
+      if (f) {
+        f.disabled = true; f.textContent = 'Thank you. Staff will look at it.';
+        fetch(API.split('?')[0] + '?id=' + f.dataset.flag + '&action=flag', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+      }
+    };
     const a = dlg.querySelector('[data-alert]');
     if (a) a.onclick = () => Notification.requestPermission().then(() => { a.remove(); });
   }

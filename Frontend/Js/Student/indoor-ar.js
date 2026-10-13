@@ -122,6 +122,7 @@ createApp({
     async doorData(buildingId, kind) {
       let building = { id: buildingId };
       try { const d = await (await fetch(API + 'buildings.php')).json(); if (d.success) building = d.buildings.find((b) => String(b.id) === String(buildingId)) || building; } catch (e) { /* the entrance floor is then the lowest one */ }
+      await BuildingDoors.load(API + 'building-doors.php');
       const graph = await this.fetchBuildingGraph(buildingId);
       const plans = await this.fetchPlans(buildingId, graph, []);
       return BuildingDoors.find(building, graph, plans, kind);

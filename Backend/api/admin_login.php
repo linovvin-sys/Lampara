@@ -4,9 +4,9 @@
 
 header('Content-Type: application/json');
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+require_once __DIR__ . '/../session_boot.php';
+lampara_session_start();
+lampara_same_origin_or_die();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

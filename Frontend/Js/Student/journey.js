@@ -16,6 +16,7 @@
   let camLeave = null, camFind = null;
   let segIdx = 0, anim = null, raf = 0, switching = false, cardAction = null;
   const cv = $('cv'), ctx = cv.getContext('2d');
+  const still = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---------------- data (network first, offline cache as fallback; same as the other student pages)
   async function getRooms() {
@@ -83,13 +84,14 @@
     $('title').textContent = 'Sorry';
     $('error').innerHTML = ''; $('error').appendChild(document.createTextNode(m));
     $('error').hidden = false;
-    $('viewPlan').hidden = true; $('viewOut').hidden = true; $('bottom').hidden = true; $('steps').hidden = true;
+    $('viewPlan').hidden = true; $('viewText').hidden = true; $('viewOut').hidden = true; $('bottom').hidden = true; $('steps').hidden = true;
     $('errorLinks').hidden = false;
   }
 
   async function init() {
     rooms = await getRooms() || [];
     buildings = await getBuildings();
+    await BuildingDoors.load(API + 'building-doors.php');
     // A reload or a return from the walking guide may arrive without a step: pick up the saved trip when it is the same trip.
     const saved = LamparaTrip.get();
     const same = saved && String(saved.to) === String(q.get('to') || '') && String(saved.from || '') === String(q.get('from') || '');
@@ -150,12 +152,12 @@
       route = leg;
       const cp = leg.label === 'leave' ? camLeave : leg.label === 'find' ? camFind : null;
       if (cp) { const cam = $('camLink'); cam.href = 'indoor-ar.php?' + cp; cam.hidden = false; } else if (legs.length > 1) $('camLink').hidden = true;
-      $('viewOut').hidden = true; $('viewPlan').hidden = false; $('replay').hidden = false;
+      $('viewOut').hidden = true; $('viewPlan').hidden = false; $('viewText').hidden = false; $('replay').hidden = false;
       $('title').textContent = leg.label === 'leave' ? 'Walk to the exit' : leg.label === 'find' ? 'Walk to ' + leg.endLabel : 'Walk to ' + leg.endLabel;
       buildTabs(); start(0);
     } else {
       cancelAnimationFrame(raf); raf = 0;
-      $('viewPlan').hidden = true; $('viewOut').hidden = false; $('replay').hidden = true;
+      $('viewPlan').hidden = true; $('viewText').hidden = true; $('viewOut').hidden = false; $('replay').hidden = true;
       $('title').textContent = 'Walk outside';
       $('outTitle').textContent = 'Walk to ' + leg.buildingName;
       $('outText').textContent = 'Go out through the exit and follow the yellow path on your camera to the entrance of ' + leg.buildingName + '.';
@@ -228,6 +230,7 @@
     const seg = route.segs[i], W = seg.img.naturalWidth, H = seg.img.naturalHeight;
     const g = smoothDense(seg.pts, W, H, Math.max(W, H) * 0.035);
     anim = { g, W, H, t0: performance.now(), dur: 1500 + 2600 * Math.min(1, g.total / (W * 1.1)), doneAt: 0, shown: false };
+    if (still()) anim.t0 -= anim.dur;                       // reduced motion: start from the finished drawing
     const w = cv.parentNode.clientWidth, dpr = Math.min(2, window.devicePixelRatio || 1);
     const cssH = Math.min(Math.max(window.innerHeight * 0.66, 320), w * H / W);
     cv.style.height = cssH + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(cssH * dpr);
@@ -239,6 +242,7 @@
     const doorHere = route.doorGuess && ((route.label === 'leave' && i === route.segs.length - 1) || (route.label === 'find' && i === 0));
     $('hudR').textContent = doorHere ? 'The exact door position is estimated' : total ? 'About ' + Math.round(total) + ' meters, ' + Math.max(1, Math.round(total / 1.3 / 60)) + ' min' : '';
     $('card').classList.remove('on');
+    renderText(i);
     cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
   }
 
@@ -263,7 +267,7 @@
     if (part.pts.length > 1) {
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       const path = () => { ctx.beginPath(); part.pts.forEach((c, i) => i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)); };
-      ctx.setLineDash([13 * px, 15 * px]); ctx.lineDashOffset = -(now / 1000) * 26 * px;
+      ctx.setLineDash([13 * px, 15 * px]); ctx.lineDashOffset = still() ? 0 : -(now / 1000) * 26 * px;
       ctx.strokeStyle = NAVY; ctx.lineWidth = 11 * px; path(); ctx.stroke();
       ctx.strokeStyle = GOLD; ctx.lineWidth = 6.5 * px; path(); ctx.stroke();
       ctx.setLineDash([]);
@@ -275,7 +279,7 @@
     if (last) pin(en, route.endLabel, px, bounce(arrive), GOLD, now, true);
     else stairIcon(en, px, bounce(arrive));
 
-    if (raw < 1) {            // walker: arrow on the head with a pulsing ring
+    if (raw < 1 && !still()) {            // walker: arrow on the head with a pulsing ring
       const h = part.head, pulse = (now % 1100) / 1100;
       ctx.fillStyle = 'rgba(255,209,0,' + (0.35 * (1 - pulse)) + ')'; ctx.beginPath(); ctx.arc(h.x, h.y, (12 + pulse * 22) * px, 0, 7); ctx.fill();
       ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(part.ang + Math.PI / 2); ctx.scale(px, px);
@@ -321,6 +325,39 @@
     ctx.restore();
   }
 
+  // ---------------- directions in words (the same route, for anyone who cannot or would rather not follow the drawing)
+  const bearing = (a, b) => (Math.atan2(b.x - a.x, -(b.y - a.y)) * 180 / Math.PI + 360) % 360;
+  const turnOf = (h1, h2) => ((h2 - h1 + 540) % 360) - 180;       // + = right, - = left (the plan has north at the top)
+  function stepsFor(seg, first, last, leg, nextFloor) {
+    const mx = seg.plan.meters_per_unit_x > 0 ? seg.plan.meters_per_unit_x : null, my = seg.plan.meters_per_unit_y > 0 ? seg.plan.meters_per_unit_y : null;
+    const P = seg.pts.map((p) => ({ x: p.x * (mx || 1), y: p.y * (my || 1) }));
+    const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+    const lines = [];
+    if (first && leg.startLabel) lines.push('Start at ' + (leg.startLabel === 'You' ? 'where you are' : 'the ' + leg.startLabel.toLowerCase()) + '.');
+    // runs of nearly straight walking, split where the direction changes by more than 25 degrees
+    const runs = []; let cur = null;
+    for (let i = 1; i < P.length; i++) {
+      const h = bearing(P[i - 1], P[i]), d = dist(P[i - 1], P[i]);
+      if (d < 1e-6) continue;
+      if (cur && Math.abs(turnOf(cur.h, h)) < 25) { cur.d += d; cur.h = h; } else { runs.push(cur = { h, d, from: cur ? turnOf(cur.h, h) : 0 }); }
+    }
+    runs.forEach((r, i) => {
+      const how = i === 0 ? '' : (Math.abs(r.from) > 135 ? 'Turn around. ' : (Math.abs(r.from) > 70 ? 'Turn ' : 'Bear ') + (r.from > 0 ? 'right' : 'left') + '. ');
+      const length = mx ? 'about ' + (r.d < 8 ? Math.max(2, Math.round(r.d)) : Math.round(r.d / 5) * 5) + ' meters' : (r.d < 8 ? 'a short way' : 'a good way');
+      lines.push(how + 'Walk straight for ' + length + '.');
+    });
+    lines.push(last ? 'You arrive at ' + leg.endLabel + '.' : 'Take the stairs to the ' + nextFloor + '.');
+    return lines;
+  }
+  function renderText(i) {
+    const seg = route.segs[i], last = i === route.segs.length - 1;
+    const lines = stepsFor(seg, i === 0, last, route, last ? null : route.segs[i + 1].plan.floor);
+    $('textTitle').textContent = 'Directions in words: ' + seg.plan.floor;
+    $('textSteps').innerHTML = lines.map((l) => '<li>' + l.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</li>').join('');
+    cv.setAttribute('role', 'img');
+    cv.setAttribute('aria-label', 'Floor plan of the ' + seg.plan.floor + ' with the route drawn on it. The directions are written below the plan.');
+  }
+
   // ---------------- floors
   function buildTabs() {
     $('tabs').innerHTML = '';
@@ -340,6 +377,14 @@
   $('cardGo').onclick = () => { const act = cardAction; $('card').classList.remove('on'); if (act) act(); };
   $('outDone').onclick = () => runLeg(legIdx + 1);
   $('startOver').onclick = () => LamparaTrip.clear();
+  // Share the route: the phone's share sheet where there is one, otherwise the link is copied.
+  function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, 2600); }
+  $('share').onclick = async () => {
+    const url = location.href;
+    try { if (navigator.share) { await navigator.share({ title: 'Lampara route', text: 'The way to ' + journeyTitle(), url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(url); toast('Link copied. Paste it in a message.'); } catch (e) { toast('Copy this address from the top of your browser.'); }
+  };
+  function journeyTitle() { const last = legs[legs.length - 1]; return last && last.endLabel ? last.endLabel : 'your room'; }
   $('replay').onclick = () => { if (route && !$('viewPlan').hidden) goFloor(0); };
   $('back').onclick = () => { if (history.length > 1) history.back(); else location.href = 'where.php'; };
   window.addEventListener('resize', () => { if (route && !$('viewPlan').hidden) start(segIdx); });

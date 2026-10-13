@@ -1,8 +1,7 @@
 <?php
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+require_once __DIR__ . '/../../../Backend/session_boot.php';
+lampara_session_start();
 // Already logged in? Skip straight past the login form.
 if (!empty($_SESSION['admin_id'])) {
     $next = $_GET['next'] ?? 'dashboard.php';

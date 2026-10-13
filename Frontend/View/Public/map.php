@@ -30,8 +30,6 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
-<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <script>LamparaSkeleton.show('map', { manual: true })</script>

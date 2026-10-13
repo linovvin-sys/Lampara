@@ -5,9 +5,8 @@
 // for the breakpoint and drawer/sidebar styles, and Frontend/Js/Include/admin-nav.js
 // for the open/close behavior).
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
+require_once __DIR__ . '/../../../Backend/session_boot.php';
+lampara_session_start();
 $adminUsername = $_SESSION['admin_username'] ?? 'Admin';
 
 $navItems = [
@@ -70,6 +69,11 @@ $navItems = [
             ],
         ],
     ],
+    'doors' => [
+        'label' => 'Doors',
+        'href'  => 'doors.php',
+        'icon'  => '<path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M4 21h16M14 12v.01"/>',
+    ],
     'test-chat' => [
         'label' => 'Test Chat',
         'href'  => 'test-chat.php',
@@ -87,13 +91,13 @@ foreach ($navItems as $k => $it) {
 }
 $navSections = [
     'Overview'            => ['dashboard', 'hazards'],
-    'Buildings and rooms' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration'],
+    'Buildings and rooms' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'doors'],
     'Campus outdoors'     => ['campus-paths', 'building-outlines', 'campus-map'],
 ];
 // The three tabs along the bottom of a phone, and which pages count as "inside" each one.
 $tabs = [
     ['label' => 'Home',      'href' => 'dashboard.php',      'icon' => $leaf['dashboard']['icon'],        'match' => ['dashboard']],
-    ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'test-chat']],
+    ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'doors', 'test-chat']],
     ['label' => 'Campus',    'href' => 'campus-paths.php',   'icon' => $leaf['campus-paths']['icon'],     'match' => ['campus-paths', 'building-outlines', 'campus-map']],
 ];
 

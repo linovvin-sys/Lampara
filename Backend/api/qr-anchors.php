@@ -25,7 +25,6 @@
 // DELETE /api/qr-anchors.php?id=1            -> admin, removes the anchor (the node itself is untouched)
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 

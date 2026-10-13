@@ -18,8 +18,6 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/Student/journey.css?v=<?= $pageCssVer ?>">
-<script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
-<script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
 <body>
 <div class="jr" id="jr">
@@ -31,6 +29,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
   <ol class="jr-steps" id="steps" hidden></ol>
 
   <p class="jr-error" id="error" hidden></p>
+  <div class="jr-toast" id="toast" role="status" hidden></div>
   <div class="jr-error-links" id="errorLinks" hidden>
     <a class="jr-btn" href="manual-search.php">Search for a room instead</a>
     <a class="jr-btn jr-btn-alt" href="where.php">Start over</a>
@@ -48,6 +47,11 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
         <button type="button" class="jr-btn" id="cardGo"></button>
       </div>
     </div>
+  </section>
+
+  <section class="jr-text" id="viewText" aria-labelledby="textTitle">
+    <h2 id="textTitle">Directions in words</h2>
+    <ol id="textSteps"></ol>
   </section>
 
   <!-- Walking between buildings -->
@@ -68,6 +72,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
   <footer class="jr-bottom" id="bottom" hidden>
     <button type="button" class="jr-chip" id="replay">Show again</button>
     <a class="jr-chip" id="camLink" href="#" hidden>Use my camera instead</a>
+    <button type="button" class="jr-chip" id="share">Share this route</button>
     <a class="jr-chip" id="startOver" href="where.php">Start over</a>
     <a class="jr-chip" href="report.php">Report a problem</a>
   </footer>

@@ -1,0 +1,12 @@
+html, body { margin: 0; background: #f2f3fa; color: #161850; font-family: 'Outfit', system-ui, sans-serif; }
+.pv { max-width: 40rem; margin: 0 auto; padding: 1rem 1.2rem 3rem; line-height: 1.55; font-size: 1.1rem; }
+.pv-back { font: 700 1.05rem 'Outfit', system-ui, sans-serif; background: #fff; color: #161850; border: 1px solid #d4d6e6; border-radius: 999px; padding: 0.6rem 1.1rem; cursor: pointer; }
+.pv h1 { font-size: clamp(1.8rem, 6vw, 2.2rem); line-height: 1.15; margin: 1rem 0 0.5rem; letter-spacing: -0.02em; }
+.pv h2 { font-size: 1.35rem; margin: 1.8rem 0 0.5rem; }
+.pv-lead { font-size: 1.2rem; color: #3f4363; margin: 0 0 0.5rem; }
+.pv dl { margin: 0; display: grid; gap: 0.2rem; }
+.pv dt { font-weight: 800; margin-top: 0.6rem; }
+.pv dd { margin: 0; color: #3f4363; }
+.pv ul { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.6rem; color: #3f4363; }
+.pv p { margin: 0 0 0.6rem; color: #3f4363; }
+.pv-small { margin-top: 2rem; font-size: 0.95rem; color: #5d6272; }
