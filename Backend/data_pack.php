@@ -128,12 +128,14 @@ function data_pack_collect(mysqli $conn): array
     }
     $institution = null;
     if (dp_has_table($conn, 'institution')) {
-        $i = dp_rows($conn, 'SELECT name, short_name, tagline, theme, persona, contact_email, contact_phone, center_lat, center_lng, bounds, features FROM institution WHERE id = 1');
+        require_once __DIR__ . '/institution.php';
+        institution_ensure_proximity($conn);
+        $i = dp_rows($conn, 'SELECT name, short_name, tagline, theme, persona, contact_email, contact_phone, center_lat, center_lng, bounds, features, proximity FROM institution WHERE id = 1');
         if ($i) {
             $i = $i[0];
             $institution = ['name' => $i['name'], 'short_name' => $i['short_name'], 'tagline' => $i['tagline'], 'theme' => $i['theme'], 'persona' => $i['persona'],
                 'contact_email' => $i['contact_email'], 'contact_phone' => $i['contact_phone'], 'center_lat' => (float) $i['center_lat'], 'center_lng' => (float) $i['center_lng'],
-                'bounds' => json_decode((string) $i['bounds'], true), 'features' => json_decode((string) $i['features'], true)];
+                'bounds' => json_decode((string) $i['bounds'], true), 'features' => json_decode((string) $i['features'], true), 'proximity' => json_decode((string) ($i['proximity'] ?? ''), true) ?: null];
         }
     }
 

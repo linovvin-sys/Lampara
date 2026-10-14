@@ -4,13 +4,15 @@
   const $ = (id) => document.getElementById(id);
   const TEXT = ['name', 'short_name', 'tagline', 'persona', 'contact_email', 'contact_phone'];
   const FEATURES = ['enrollment', 'game', 'hazards', 'chat'];
+  const PROX = ['arrived_m', 'turn_near_m', 'now_m', 'off_path_m', 'report_m', 'edge_m'];
   let saved = null, bounds = null, center = null, map = null, rect = null;
 
   const msg = (t, bad) => { const m = $('stMsg'); m.textContent = t || ''; m.classList.toggle('bad', !!bad); m.hidden = !t; if (t) m.scrollIntoView({ block: 'nearest' }); };
   const fmt = (n) => Number(n).toFixed(5);
 
   function read() {
-    const o = { theme: $('f-theme').value, bounds, center_lat: center[0], center_lng: center[1], features: {} };
+    const o = { theme: $('f-theme').value, bounds, center_lat: center[0], center_lng: center[1], features: {}, proximity: {} };
+    PROX.forEach((k) => { o.proximity[k] = Number($('px-' + k).value); });
     TEXT.forEach((k) => { o[k] = $('f-' + k).value; });
     FEATURES.forEach((k) => { o.features[k] = $('ft-' + k).checked; });
     return o;
@@ -32,6 +34,7 @@
     TEXT.forEach((k) => { $('f-' + k).value = i[k] || ''; });
     $('f-theme').value = i.theme || 'default';
     FEATURES.forEach((k) => { $('ft-' + k).checked = !!(i.features && i.features[k]); });
+    PROX.forEach((k) => { $('px-' + k).value = i.proximity && i.proximity[k] != null ? i.proximity[k] : ''; });
     bounds = i.bounds; center = [i.center_lat, i.center_lng];
     showLogo(i.logo_path);
     saved = read();

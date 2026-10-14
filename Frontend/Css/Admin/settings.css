@@ -32,3 +32,4 @@
 .st-switch input:focus-visible + .st-track { outline: 3px solid #ffd100; outline-offset: 2px; }
 .st-msg[hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .st-track, .st-track::after { transition: none; } }
+.st-prox input { max-width: 8rem; }

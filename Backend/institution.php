@@ -14,6 +14,10 @@
 
 const INSTITUTION_THEMES = ['default', 'halloween', 'christmas', 'newyear', 'valentine'];
 const INSTITUTION_FEATURES = ['enrollment', 'game', 'hazards', 'chat'];
+// How close counts as close, in metres: key => [default, smallest allowed, largest allowed].
+// arrived_m: you have arrived; off_path_m: farther than this from any walkway the guide says to head to one; turn_near_m: from this close a turn is announced;
+// now_m: the banner says "now" only this close to the turn; report_m: an urgent problem report must be this close to the building; edge_m: extra room allowed beyond the campus edge.
+const INSTITUTION_PROXIMITY = ['arrived_m' => [8, 3, 30], 'off_path_m' => [60, 20, 300], 'turn_near_m' => [30, 15, 100], 'now_m' => [5, 2, 15], 'report_m' => [250, 100, 1000], 'edge_m' => [25, 0, 300]];
 
 function institution_defaults(): array
 {
@@ -30,6 +34,7 @@ function institution_defaults(): array
         'center_lng' => 120.9408,
         'bounds' => [[14.32685, 120.93987], [14.32880, 120.94248]],
         'features' => ['enrollment' => true, 'game' => true, 'hazards' => true, 'chat' => true],
+        'proximity' => array_map(fn($r) => $r[0], INSTITUTION_PROXIMITY),
     ];
 }
 
@@ -52,6 +57,19 @@ function institution_run(mysqli $conn, callable $fn)
     }
 }
 
+// The proximity column was added after the first version: added once, the first time it is needed (never inside a transaction).
+function institution_ensure_proximity(mysqli $conn): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        $r = $conn->query("SHOW COLUMNS FROM institution LIKE 'proximity'");
+        if (!$r || !$r->num_rows) $conn->query('ALTER TABLE institution ADD COLUMN proximity TEXT NULL');
+        $r = $conn->query("SHOW COLUMNS FROM institution LIKE 'proximity'");
+        return $ok = (bool) ($r && $r->num_rows);
+    } catch (Throwable $e) { return $ok = false; }
+}
+
 function institution_get(?mysqli $conn = null): array
 {
     static $cache = null;
@@ -63,7 +81,10 @@ function institution_get(?mysqli $conn = null): array
             $conn = (new Database())->connect();
         }
         $row = institution_run($conn, fn() => $conn->query('SELECT * FROM institution WHERE id = 1')->fetch_assoc());
+        institution_ensure_proximity($conn);
         if ($row) {
+            $px = json_decode((string) ($row['proximity'] ?? ''), true);
+            if (is_array($px)) foreach (INSTITUTION_PROXIMITY as $k => $r) if (isset($px[$k]) && is_numeric($px[$k]) && $px[$k] >= $r[1] && $px[$k] <= $r[2]) $out['proximity'][$k] = (float) $px[$k] + 0;
             foreach (['name', 'short_name', 'tagline', 'theme', 'persona', 'contact_email', 'contact_phone'] as $k) {
                 if (isset($row[$k]) && $row[$k] !== '') $out[$k] = $row[$k];
             }
@@ -116,7 +137,7 @@ function institution_public(): array
     $i = institution_get();
     return [
         'name' => $i['name'], 'shortName' => $i['short_name'], 'tagline' => $i['tagline'], 'theme' => $i['theme'],
-        'logo' => $i['logo_path'], 'center' => [$i['center_lat'], $i['center_lng']], 'bounds' => $i['bounds'], 'features' => $i['features'],
+        'logo' => $i['logo_path'], 'center' => [$i['center_lat'], $i['center_lng']], 'bounds' => $i['bounds'], 'features' => $i['features'], 'proximity' => $i['proximity'],
     ];
 }
 
@@ -174,17 +195,28 @@ function institution_save(mysqli $conn, array $in): array
     if (array_key_exists('features', $in) && is_array($in['features'])) {
         foreach (INSTITUTION_FEATURES as $k) if (array_key_exists($k, $in['features'])) $features[$k] = (bool) $in['features'][$k];
     }
+    $prox = $cur['proximity'];
+    if (array_key_exists('proximity', $in) && is_array($in['proximity'])) {
+        foreach (INSTITUTION_PROXIMITY as $k => $r) {
+            if (!array_key_exists($k, $in['proximity'])) continue;
+            $v = $in['proximity'][$k];
+            if (!is_numeric($v) || $v < $r[1] || $v > $r[2]) $errors[] = "$k must be between {$r[1]} and {$r[2]} metres";
+            else $prox[$k] = (float) $v + 0;
+        }
+    }
     if ($errors) return $errors;
+    institution_ensure_proximity($conn);
 
     $bj = json_encode($bounds);
     $fj = json_encode($features);
     $logo = $cur['logo_path'];
-    $stmt = $conn->prepare('INSERT INTO institution (id, name, short_name, tagline, logo_path, theme, persona, contact_email, contact_phone, center_lat, center_lng, bounds, features)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    $pj = json_encode($prox);
+    $stmt = $conn->prepare('INSERT INTO institution (id, name, short_name, tagline, logo_path, theme, persona, contact_email, contact_phone, center_lat, center_lng, bounds, features, proximity)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE name = VALUES(name), short_name = VALUES(short_name), tagline = VALUES(tagline), logo_path = VALUES(logo_path), theme = VALUES(theme),
             persona = VALUES(persona), contact_email = VALUES(contact_email), contact_phone = VALUES(contact_phone), center_lat = VALUES(center_lat),
-            center_lng = VALUES(center_lng), bounds = VALUES(bounds), features = VALUES(features)');
-    $stmt->bind_param('ssssssssddss', $name, $short, $tagline, $logo, $theme, $persona, $email, $phone, $lat, $lng, $bj, $fj);
+            center_lng = VALUES(center_lng), bounds = VALUES(bounds), features = VALUES(features), proximity = VALUES(proximity)');
+    $stmt->bind_param('ssssssssddsss', $name, $short, $tagline, $logo, $theme, $persona, $email, $phone, $lat, $lng, $bj, $fj, $pj);
     institution_run($conn, function () use ($stmt) { $stmt->execute(); });
     $stmt->close();
     return [];

@@ -70,7 +70,8 @@
       var lat = p.coords.latitude, lng = p.coords.longitude, acc = p.coords.accuracy || 0;
       var out = CampusBounds.outsideBy(lat, lng);
       // Inside buildings the fix is rough: allow for the error it admits to (between 25 m and 80 m).
-      if (out <= Math.max(25, Math.min(acc, 80))) { remember(); release(); return; }
+      var edge = (window.LAMPARA_CONFIG && LAMPARA_CONFIG.proximity && LAMPARA_CONFIG.proximity.edge_m);
+      if (out <= Math.max(edge == null ? 25 : edge, Math.min(acc, 80))) { remember(); release(); return; }
       blocked(out >= 1000 ? (out / 1000).toFixed(1) + ' km' : Math.round(out / 10) * 10 + ' m');
     }, function (err) { noLocation(err && err.code === 1); },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });

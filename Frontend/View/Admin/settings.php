@@ -112,6 +112,20 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/settings.js');
         </div>
       </section>
 
+      <section class="st-card" aria-labelledby="stProxH">
+        <h2 id="stProxH">Proximity</h2>
+        <p class="st-hint">How close counts as close, in metres. The defaults suit most campuses; change one only after testing on a phone.</p>
+        <div class="st-grid st-prox">
+          <label>You have arrived within <small>(3 to 30)</small><input id="px-arrived_m" type="number" min="3" max="30" step="1"></label>
+          <label>The turn is announced within <small>(15 to 100)</small><input id="px-turn_near_m" type="number" min="15" max="100" step="1"></label>
+          <label>"Now" is shown only within <small>(2 to 15)</small><input id="px-now_m" type="number" min="2" max="15" step="1"></label>
+          <label>"Head to the path" when farther than <small>(20 to 300)</small><input id="px-off_path_m" type="number" min="20" max="300" step="5"></label>
+          <label>Urgent report must be within <small>(100 to 1000)</small><input id="px-report_m" type="number" min="100" max="1000" step="10"></label>
+          <label>Room allowed beyond the campus edge <small>(0 to 300)</small><input id="px-edge_m" type="number" min="0" max="300" step="5"></label>
+        </div>
+        <p class="st-hint">With a weak GPS signal (worse than about 12 m) the guide shows approximate distances such as &ldquo;in about 20 m&rdquo; and never &ldquo;now&rdquo;, whatever these say.</p>
+      </section>
+
       <section class="st-card" aria-labelledby="stFeatH">
         <h2 id="stFeatH">Features</h2>
         <label class="st-switch"><input type="checkbox" id="ft-enrollment"><span class="st-track" aria-hidden="true"></span><span><b>Enrollment guide</b><small>The step-by-step enrollment route and its buttons.</small></span></label>

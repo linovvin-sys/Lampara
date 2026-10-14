@@ -28,8 +28,10 @@ const CAMERA_LONG_FOV_DEG = (() => {
   return 67;
 })();
 
-const ARRIVED_METERS = 8;
-const OFF_PATH_METERS = 60;        // farther from any walkway than this: the banner says to head to the nearest one
+// How close counts as close comes from the school's settings (Admin > School settings > Proximity); these are the shipped values.
+const PROX = (window.LAMPARA_CONFIG && LAMPARA_CONFIG.proximity) || {};
+const ARRIVED_METERS = PROX.arrived_m || 8;
+const OFF_PATH_METERS = PROX.off_path_m || 60;        // farther from any walkway than this: the banner says to head to the nearest one
 const ROUTE_MAX_M = 1500;
 // Leaving the campus and coming back: you count as OUTSIDE once you are more than OUTSIDE_M beyond the campus edge, and as
 // inside again within OUTSIDE_BACK_M of it (the gap stops it flipping back and forth right at the fence).
@@ -37,10 +39,17 @@ const ROUTE_MAX_M = 1500;
 // (Js/Public/campus-route.js), shared with the Campus Paths admin page.
 // ---- text directions ("Turn left in 23 m") ----
 const NAV_REACH_M = 3;             // a turn / gate counts as reached when you are this close to it (the route is also rebuilt from where you stand every second or two, which drops a corner you have passed)
-const NAV_TURN_NEAR_M = 30;        // from this close the instruction becomes "Turn left in N m"; farther it is "Continue straight for N m"
+const NAV_TURN_NEAR_M = PROX.turn_near_m || 30;        // from this close the instruction becomes "Turn left in N m"; farther it is "Continue straight for N m"
+const NAV_NOW_M = PROX.now_m || 5;            // the banner says "now" only this close to the turn (a phone's GPS is rarely better than this)
+const NAV_WEAK_GPS_M = 12;         // a position error bigger than this makes distances approximate
 const NAV_TURN_MIN_DEG = 30;       // a change of direction at least this big is a turn
 const NAV_WALK_M_PER_MIN = 78;     // walking pace for the time estimate (about 1.3 m/s)
 const NAV_FACING_DEG = 70;         // facing more than this away from the path: tell the user to turn
+// How far the next turn is, in words. "now" only when really there; with a weak GPS fix the distance is rounded and marked approximate.
+function turnDist(d, acc) {
+  if (acc > NAV_WEAK_GPS_M) return 'in about ' + Math.max(10, Math.round(d / 10) * 10) + ' m';
+  return d <= NAV_NOW_M ? 'now' : 'in ' + d + ' m';
+}
 // The words and the arrow for a turn. angle > 0 = to the right.
 function turnWord(angle) {
   const a = Math.abs(angle), side = angle < 0 ? 'left' : 'right';
@@ -566,6 +575,7 @@ window.LamparaGuide = createApp({
       }
       this.statusOk = true;
       this._pos = { lat: ff.lat, lng: ff.lng };           // live, not reactive: the mini-map reads this every redraw
+      this._acc = ff.acc || 0;                              // how far off that position may be, in metres
       if (!this.locationOn) return;
       // Vue-tracked position and the route search behind it only move about once a second (or on a real step), so GPS
       // readings do not each trigger a re-render and a route search while the AR camera is being moved.
@@ -1064,6 +1074,7 @@ window.LamparaGuide = createApp({
       const tgt = this.target, ri = this.routeInfo, here = this._pos || this.myPos;
       if (!tgt || !ri || !here) { this.guidance = tgt && window.LamparaTutorial && LamparaTutorial.active ? LamparaTutorial.sampleGuidance() : null; return; }
       const eta = (m) => Math.max(1, Math.round(m / NAV_WALK_M_PER_MIN));
+      const acc = this._acc || 0;
       if (ri.status === 'arrived') { try { this.rewardArrival(tgt); } catch (e) { /* the reward must never get in the way of the directions */ } this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name, badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
       if (ri.status === 'far') { this.guidance = { icon: 'warn', title: 'Too far to guide you', dist: '', detail: ri.remaining + ' m from ' + tgt.name + '. Are you on campus?', badge: '', facing: null, totalM: ri.remaining, etaMin: 0, step: -1 }; return; }
       const steps = this._steps || [];
@@ -1077,12 +1088,13 @@ window.LamparaGuide = createApp({
         icon = d <= 12 ? 'arrive' : 'straight'; title = d <= 12 ? 'Arriving' : 'Continue straight'; dist = d <= 12 ? '' : 'for ' + d + ' m'; detail = 'to ' + tgt.name;
       } else if (m.kind === 'gate') {
         icon = near ? (m.word ? m.icon : 'gate') : 'straight';
-        title = near ? m.gateWord : 'Continue straight'; dist = near ? (d <= 10 ? 'now' : 'in ' + d + ' m') : 'for ' + d + ' m';
+        title = near ? m.gateWord : 'Continue straight'; dist = near ? turnDist(d, acc) : 'for ' + d + ' m';
         detail = near ? (m.word ? 'then ' + m.word.toLowerCase() + ' · ' : '') + 'then ' + m.after + ' m to ' + m.nextName : 'to ' + m.gateWord.toLowerCase();
       } else {
-        icon = near ? m.icon : 'straight'; title = near ? m.word : 'Continue straight'; dist = near ? (d <= 10 ? 'now' : 'in ' + d + ' m') : 'for ' + d + ' m';
+        icon = near ? m.icon : 'straight'; title = near ? m.word : 'Continue straight'; dist = near ? turnDist(d, acc) : 'for ' + d + ' m';
         detail = near ? 'at ' + m.name + ' · then ' + m.after + ' m to ' + m.nextName : 'then ' + m.word.toLowerCase() + ' at ' + m.name;
       }
+      if (acc > NAV_WEAK_GPS_M && m.kind !== 'arrive') detail += ' · GPS ±' + Math.round(acc) + ' m';
       // facing the wrong way: say so (the arrow in the AR view is off screen then)
       let facing = null;
       if (this.compassReady && d > 12) {

@@ -344,10 +344,12 @@ if ($method === 'POST') {
             $ok = $jpeg !== null && $lat !== null && $strikes < 2 && $urgentToday < 2;
             if ($ok) {
                 $near = false;
+                require_once __DIR__ . '/../institution.php';
+                $reportM = (float) (institution_get($conn)['proximity']['report_m'] ?? 250);   // School settings > Proximity
                 $res = $conn->query('SELECT id, lat, lng FROM buildings WHERE lat IS NOT NULL AND lng IS NOT NULL');
                 while ($b = $res->fetch_assoc()) {
                     $d = hz_dist($lat, $lng, (float) $b['lat'], (float) $b['lng']);
-                    if ($buildingId !== null ? ((int) $b['id'] === $buildingId && $d <= 250) : $d <= 300) { $near = true; break; }
+                    if ($buildingId !== null ? ((int) $b['id'] === $buildingId && $d <= $reportM) : $d <= $reportM + 50) { $near = true; break; }
                 }
                 $ok = $near;
             }
