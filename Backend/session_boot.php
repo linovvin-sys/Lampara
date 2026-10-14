@@ -38,7 +38,7 @@ if (!function_exists('lampara_admin_role')) {
             'campus'     => ['label' => 'Campus map and paths', 'about' => 'Draw walking paths, link building outlines, and place pins on the campus map.',
                 'home' => 'campus-paths.php',
                 'pages' => ['campus-paths.php', 'building-outlines.php', 'campus-map.php'],
-                'api' => ['campus-graph.php', 'campus-footprints.php', 'static-maps.php', 'static-map-markers.php', 'qr-anchors.php', 'buildings.php']],
+                'api' => ['campus-graph.php', 'campus-footprints.php', 'static-maps.php', 'static-map-markers.php']],
             'reports'    => ['label' => 'Visitor reports', 'about' => 'Approve, confirm and clear closed-building and blocked-path reports.',
                 'home' => 'hazards.php', 'pages' => ['hazards.php'], 'api' => ['hazards.php']],
             'enrollment' => ['label' => 'Enrollment steps', 'about' => 'Edit the enrollment route students follow.',
