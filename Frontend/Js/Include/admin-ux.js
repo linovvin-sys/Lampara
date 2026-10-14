@@ -305,6 +305,41 @@
   }
   window.addEventListener('scroll', spy, { passive: true });
 
+  /* ================= 4. Long editors on a phone: one section open at a time ================= */
+  // The headings of a long form (Basic info, Photo, Location...) become tap-to-open sections. The first one starts open. A section's fields
+  // are the elements after its heading up to the next heading. Everything opens again when the form is saved, so a required field in a
+  // folded section can never stop the save silently.
+  var accOpen = {};            // heading text -> open?
+  function accordion() {
+    var narrow = window.matchMedia && matchMedia('(max-width: 899px)').matches;
+    var heads = Array.prototype.filter.call(document.querySelectorAll('.admin-main .field-divider'), function (h) { return h.offsetParent !== null || h.classList.contains('acc-head'); });
+    var form = heads.length ? heads[0].closest('form') : null;
+    if (!form || heads.length < 3 || !narrow) {
+      document.querySelectorAll('.acc-hide').forEach(function (n) { n.classList.remove('acc-hide'); });
+      document.querySelectorAll('.acc-head').forEach(function (h) { h.classList.remove('acc-head'); h.removeAttribute('role'); h.removeAttribute('aria-expanded'); h.removeAttribute('tabindex'); });
+      return;
+    }
+    if (!form._accBound) { form._accBound = true; form.addEventListener('submit', function () { Object.keys(accOpen).forEach(function (k) { accOpen[k] = true; }); accordion(); }, true); }
+    heads.forEach(function (h, i) {
+      var key = h.textContent.trim();
+      if (!(key in accOpen)) accOpen[key] = i === 0;
+      if (!h.classList.contains('acc-head')) {
+        h.classList.add('acc-head'); h.setAttribute('role', 'button'); h.tabIndex = 0;
+        var flip = function () { accOpen[key] = !accOpen[key]; accordion(); };
+        h.addEventListener('click', flip);
+        h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+      }
+      h.setAttribute('aria-expanded', accOpen[key] ? 'true' : 'false');
+      for (var n = h.nextElementSibling; n && !n.classList.contains('field-divider'); n = n.nextElementSibling) n.classList.toggle('acc-hide', !accOpen[key]);
+    });
+  }
+  // Tapping a section in the jump bar opens it first.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('.ux-jump a'); if (!a) return;
+    var h = document.getElementById(a.hash.slice(1)); if (h && h.classList.contains('acc-head')) { accOpen[h.textContent.trim()] = true; accordion(); }
+  }, true);
+  setInterval(accordion, 500);
+
   setInterval(buildJump, 500);
   function start() { scan(); buildJump(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
