@@ -50,6 +50,29 @@ function turnDist(d, acc) {
   if (acc > NAV_WEAK_GPS_M) return 'in about ' + Math.max(10, Math.round(d / 10) * 10) + ' m';
   return d <= NAV_NOW_M ? 'now' : 'in ' + d + ' m';
 }
+// ---- steady wording and calm speech ----
+// The route is rebuilt from your GPS position every second or two, and GPS jitters, so a corner close to you can flip between
+// "turn left" and "turn right" from one reading to the next. These keep the wording steady and the voice from repeating itself.
+const WORD_SWITCH_MS = 2000;       // a different wording must last this long before it replaces the one on screen
+const SPEAK_GAP_MS = 4000;         // never two spoken directions closer together than this
+const SPEAK_SAME_MS = 15000;       // the same words are not spoken again within this
+const NAV_VOICE_NOW_M = 8;         // the spoken "turn left" (no distance) comes this close to the turn
+// st: { key, word, icon, cand, candIcon, candSince }; returns the wording to show now.
+function holdWord(st, key, word, icon, now) {
+  if (st.key !== key) { st.key = key; st.word = word; st.icon = icon; st.cand = null; return { word, icon }; }
+  if (word === st.word) { st.cand = null; return { word: st.word, icon: st.icon }; }
+  if (st.cand !== word) { st.cand = word; st.candIcon = icon; st.candSince = now; }
+  else if (now - st.candSince >= WORD_SWITCH_MS) { st.word = word; st.icon = st.candIcon; st.cand = null; }
+  return { word: st.word, icon: st.icon };
+}
+// st: { done: {}, lastAt, lastText, lastTextAt }; true when this announcement may be spoken now (and records it).
+function mayUtter(st, id, text, now) {
+  if (st.done[id]) return false;
+  if (now - (st.lastAt || 0) < SPEAK_GAP_MS) return false;
+  if (st.lastText === text && now - (st.lastTextAt || 0) < SPEAK_SAME_MS) return false;
+  st.done[id] = true; st.lastAt = now; st.lastText = text; st.lastTextAt = now;
+  return true;
+}
 // The words and the arrow for a turn. angle > 0 = to the right.
 function turnWord(angle) {
   const a = Math.abs(angle), side = angle < 0 ? 'left' : 'right';
@@ -1082,7 +1105,10 @@ window.LamparaGuide = createApp({
       let idx = Math.min(this._stepIdx || 0, steps.length - 1);
       while (idx < steps.length - 1 && haversineMeters(here, steps[idx].point) < NAV_REACH_M) idx++;
       this._stepIdx = idx;
-      const m = steps[idx], d = Math.round(haversineMeters(here, m.point)), near = d <= NAV_TURN_NEAR_M;
+      this._hold = this._hold || {};
+      const m0 = steps[idx], held = holdWord(this._hold, m0.kind + ':' + m0.name, m0.word, m0.icon, Date.now());
+      const m = held.word === m0.word ? m0 : { ...m0, word: held.word, icon: held.icon };
+      const d = Math.round(haversineMeters(here, m.point)), near = d <= NAV_TURN_NEAR_M;
       let icon, title, dist, detail;
       if (m.kind === 'arrive') {
         icon = d <= 12 ? 'arrive' : 'straight'; title = d <= 12 ? 'Arriving' : 'Continue straight'; dist = d <= 12 ? '' : 'for ' + d + ' m'; detail = 'to ' + tgt.name;
@@ -1114,12 +1140,19 @@ window.LamparaGuide = createApp({
     // Voice and a buzz as a turn comes up: once at about 60 m, once at about 20 m, once at the turn. Only when the voice switch is on.
     announce(idx, m, d, title) {
       if (!this.voiceOn) return;
-      const key = idx + ':' + m.point.lat.toFixed(5) + ',' + m.point.lng.toFixed(5);
-      if (this._annKey !== key) { this._annKey = key; this._ann = {}; }
-      const a = this._ann, word = m.kind === 'arrive' ? 'You have arrived' : (m.kind === 'gate' ? m.gateWord : m.word);
-      if (d <= 60 && d > 25 && !a.far) { a.far = true; this.say(m.kind === 'arrive' ? 'Continue straight for ' + Math.round(d / 10) * 10 + ' meters' : 'In ' + Math.round(d / 10) * 10 + ' meters, ' + word.toLowerCase()); }
-      else if (d <= 25 && d > 10 && !a.near) { a.near = true; this.say(word + ' in ' + Math.round(d / 5) * 5 + ' meters'); this.buzz(120); }
-      else if (d <= 10 && !a.now) { a.now = true; this.say(word); this.buzz([150, 80, 150]); }
+      // one identity per corner: its name (or, for an unnamed one, its place to about 10 m), not its position in the list, which changes with every rebuild
+      const key = m.kind + ':' + (m.name && m.name !== 'the corner' ? m.name : m.point.lat.toFixed(4) + ',' + m.point.lng.toFixed(4));
+      this._speech = this._speech || { done: {} };
+      const word = m.kind === 'arrive' ? 'You have arrived' : (m.kind === 'gate' ? m.gateWord : m.word);
+      const weak = (this._acc || 0) > NAV_WEAK_GPS_M;       // with a weak fix the distance is a guess: no "now"
+      let which = null, text = '';
+      if (d <= 60 && d > 25) { which = 'far'; text = m.kind === 'arrive' ? 'Continue straight for ' + Math.round(d / 10) * 10 + ' meters' : 'In ' + Math.round(d / 10) * 10 + ' meters, ' + word.toLowerCase(); }
+      else if (d <= 25 && d > NAV_VOICE_NOW_M) { which = 'near'; text = word + ' in ' + Math.round(d / 5) * 5 + ' meters'; }
+      else if (d <= NAV_VOICE_NOW_M && !weak) { which = 'now'; text = word; }
+      if (!which || !word) return;
+      if (!mayUtter(this._speech, key + ':' + which, text, Date.now())) return;
+      this.say(text);
+      this.buzz(which === 'now' ? [150, 80, 150] : 120);
     },
     say(text) {
       try {
@@ -1134,7 +1167,7 @@ window.LamparaGuide = createApp({
     toggleVoice() {
       this.voiceOn = !this.voiceOn;
       try { localStorage.setItem('lampara_ar_voice', this.voiceOn ? '1' : '0'); } catch (e) { /* not remembered */ }
-      if (this.voiceOn) { this._annKey = ''; this.say('Voice directions on'); } else { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+      if (this.voiceOn) { this._speech = { done: {} }; this.say('Voice directions on'); this._speech.lastAt = Date.now(); } else { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
     },
     iconDeg(icon) { return NAV_ICON_DEG[icon] || 0; },
     // done / doing / todo for a line of the start-up list
