@@ -1,0 +1,35 @@
+/* The pixel night scene (see Js/Include/pixel-scene.js). Put class "ps" on a box that is position:relative/absolute/fixed. Motion is transform and opacity
+   (the walker slides its position); everything stops with reduced motion. */
+.ps { position: absolute; inset: 0; overflow: hidden; pointer-events: none; --ps-city-h: min(30vh, 16rem); }
+.ps-star { position: absolute; width: 3px; height: 3px; background: var(--t-cream2, #fff3b8); opacity: 0.35; animation: ps-twinkle 3.4s ease-in-out infinite; }
+.ps-star.big { width: 5px; height: 5px; background: #fff; }
+@keyframes ps-twinkle { 0%, 100% { opacity: 0.25; transform: scale(1); } 50% { opacity: 1; transform: scale(1.35); } }
+.ps-moon { position: absolute; right: 24%; top: 2%; opacity: 0.92; image-rendering: pixelated; }
+.ps-cloud { position: absolute; left: 0; opacity: 0.85; animation: ps-drift 70s linear infinite; will-change: transform; }
+.ps-cloud svg { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+@keyframes ps-drift { from { transform: translateX(-30vw); } to { transform: translateX(110vw); } }
+.ps-city { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: var(--ps-city-h); opacity: 0.9; }
+.ps-walker { position: absolute; bottom: calc(var(--ps-city-h) * 0.1); left: 0; width: 40px; height: 40px; image-rendering: pixelated; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); animation: ps-walk 26s linear infinite, ps-step 0.5s ease-in-out infinite; }
+@keyframes ps-walk { from { left: -12%; } to { left: 108%; } }
+@keyframes ps-step { 0%, 100% { margin-bottom: 0; } 50% { margin-bottom: 6px; } }
+/* skyline fills follow the theme colours */
+.ps-city .b1 { fill: var(--t-b1, #1b1e5c); } .ps-city .b2 { fill: var(--t-b2, #23267a); } .ps-city .b3 { fill: var(--t-b3, #161850); }
+.ps-city .roof { fill: var(--t-roof, #2e3192); } .ps-city .win { fill: var(--t-win, #ffd100); } .ps-city .off { fill: var(--t-win-off, #2a2e80); }
+.ps-city .glow { fill: var(--t-win, #ffd100); opacity: 0.25; } .ps-city .ground { fill: var(--t-ground, #0b0d2e); } .ps-city .path { fill: var(--t-path, #23267a); }
+.ps-moon path:first-child { fill: var(--t-moon, #fff3b8); }
+/* seasonal extras: hidden until that theme is on */
+.ps-props { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: var(--ps-city-h); }
+.ps-props rect, .ps-flake, .ps-heart, .ps-bat, .ps-fw { display: none; }
+html[data-theme="halloween"] .ps-props .hw, html[data-theme="christmas"] .ps-props .xm, html[data-theme="valentine"] .ps-props .vd, html[data-theme="newyear"] .ps-props .ny { display: inline; }
+html[data-theme="christmas"] .ps-flake { display: block; position: absolute; top: -4%; width: 5px; height: 5px; background: #fff; opacity: 0.9; animation: ps-fall linear infinite; }
+html[data-theme="valentine"] .ps-heart { display: block; position: absolute; bottom: -4%; width: 8px; height: 7px; background: #ff7aa8; clip-path: polygon(0 20%, 25% 20%, 25% 0, 50% 0, 50% 20%, 75% 0, 100% 20%, 100% 55%, 75% 75%, 50% 100%, 25% 75%, 0 55%); opacity: 0.85; animation: ps-rise linear infinite; }
+html[data-theme="halloween"] .ps-bat { display: block; position: absolute; left: 0; width: 16px; height: 6px; background: #1a0f06; clip-path: polygon(0 0, 30% 40%, 40% 0, 50% 40%, 60% 0, 70% 40%, 100% 0, 80% 100%, 50% 60%, 20% 100%); animation: ps-bat linear infinite; }
+html[data-theme="newyear"] .ps-fw { display: block; position: absolute; width: 0; height: 0; animation: ps-boom 3.3s ease-out infinite; }
+.ps-fw i { position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; background: var(--t-accent, #ffd100); transform: rotate(var(--a)) translateY(0); }
+@keyframes ps-fall { from { transform: translateY(0); } to { transform: translateY(105vh); } }
+@keyframes ps-rise { from { transform: translateY(0); opacity: 0.9; } to { transform: translateY(-80vh); opacity: 0; } }
+@keyframes ps-bat { from { transform: translateX(-10vw); } to { transform: translateX(110vw) translateY(-20px); } }
+@keyframes ps-boom { 0% { transform: scale(0.1); opacity: 1; } 70% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+.ps-fw i { animation: none; }
+html[data-theme="newyear"] .ps-fw i { transform: rotate(var(--a)) translateY(-34px); }
+@media (prefers-reduced-motion: reduce) { .ps-star, .ps-cloud, .ps-walker, .ps-flake, .ps-heart, .ps-bat, .ps-fw { animation: none; } .ps-cloud { left: 12%; } .ps-walker { left: 20%; } }

@@ -10,19 +10,25 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Campus Guide</title>
 <meta name="description" content="Pick a building, follow the path on your phone's camera and read turn-by-turn directions on the NCST campus.">
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
-<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=2">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
+<link rel="manifest" href="manifest.json">   <!-- installable as a home-screen shortcut that opens in the browser (display: browser), so links never jump into a separate app window -->
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=3">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Public/index.css?v=<?= $cssVer ?>">
+<link rel="stylesheet" href="../../Css/Public/index-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/Public/index-pixel.css') ?>">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
+<link rel="stylesheet" href="../../Css/game-hud.css?v=<?= filemtime(__DIR__ . '/../../Css/game-hud.css') ?>">
 </head>
 <body>
 <script>LamparaSkeleton.show('public')</script>
@@ -52,11 +58,15 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
   <!-- ===== Hero: get going ===== -->
   <section class="hero" id="top" aria-labelledby="hero-h">
+    <div class="ps" id="heroScene" aria-hidden="true"></div>
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <p class="locus"><span class="locus-dot" aria-hidden="true"></span>NCST Campus &middot; Live AR</p>
+        <div class="hero-buddy" data-game-buddy data-lines="Hi! Where to today?|Pick a building and I will lead the way.|Earn points every time you arrive.|Tap me for another tip!"></div>
         <h1 id="hero-h">Find your way around campus.</h1>
         <p class="lede">Pick a building, follow the path laid on your phone&rsquo;s camera, and read each turn in plain words. No map reading, no wrong turns.</p>
+
+        <div class="hero-hud" data-game-hud data-href="guide-ar.php?shop=1"></div>
 
         <form class="quick" id="quick" autocomplete="off" aria-label="Choose a destination">
           <label class="quick-label" for="q">Where are you going?</label>
@@ -129,7 +139,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
       <li><a href="../Student/manual-search.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         <span><b>Find a room (inside)</b><small>Scan a sign or search any office or classroom</small></span></a></li>
-      <li><a href="guide-ar.php">
+      <li><a href="ask.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg>
         <span><b>Ask Lampara AI</b><small>Answers from campus records</small></span></a></li>
     </ul>
@@ -170,6 +180,11 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
           <span class="ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span>
           <h3>Walking path (outside)</h3>
           <p>Chevrons on the ground that follow the real walkways, with a marker on your destination.</p>
+        </li>
+        <li>
+          <span class="ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 10h6M15 10h6M9 3v7M15 3v7M9 14v7M15 14v4"/><path d="M12 12l3 3-3 3" stroke-dasharray="2 2"/></svg></span>
+          <h3>Floor plan navigation (inside)</h3>
+          <p>Inside a building, an animated route on the real floor plan walks you from the door to your room, floor by floor, even across stairs.</p>
         </li>
         <li>
           <span class="ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></span>
@@ -224,6 +239,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
   <!-- ===== Closing ===== -->
   <section class="closing" aria-labelledby="end-h">
+    <div class="ps" id="closeScene" aria-hidden="true"></div>
     <div class="wrap closing-in" data-reveal>
       <h2 id="end-h">Ready to find your way?</h2>
       <p>Open the guide on your phone, outside, with your location on.</p>
@@ -239,6 +255,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <p>Find your way around the NCST campus. Directions come from the walkways and rooms the school has registered, kept up to date by its administrators.</p>
     <nav class="foot-links" aria-label="Links">
       <a href="guide-ar.php">Walking guide</a>
+      <a href="ask.php">Ask Lampara</a>
       <a href="map.php">Campus map</a>
       <a href="../Student/manual-search.php">Search rooms</a>
       <a href="guide-ar.php?tutorial=1">Replay tutorial</a>
@@ -249,9 +266,15 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
 <script src="../../Js/Include/offline-cache.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/offline-cache.js') ?>"></script>
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
+<script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
+<script src="../../Js/Include/pixel-scene.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/pixel-scene.js') ?>"></script>
+<script>LamparaPixelScene.mount(document.getElementById('heroScene'), { seed: 7 }); LamparaPixelScene.mount(document.getElementById('closeScene'), { seed: 21, walker: false, moon: false, stars: 30 });</script>
+<script src="../../Js/Include/game-hud.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-hud.js') ?>"></script>
 <script src="../../Js/Public/index.js?v=<?= $jsVer ?>"></script>
 
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 <script src="../../Js/Include/privacy-notice.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/privacy-notice.js') ?>"></script>
+<script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
+<script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
 </body>
 </html>

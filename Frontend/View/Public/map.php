@@ -10,11 +10,11 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Lampara — Campus Map</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
-<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=2">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=3">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -153,5 +153,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../Js/Public/map-street.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/map-street.js') ?>"></script>
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
+<script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
+<script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
 </body>
 </html>

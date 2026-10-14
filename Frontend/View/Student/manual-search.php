@@ -10,23 +10,30 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Manual Search</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
-<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/Student/manual-search.css?v=<?= $pageCssVer ?>">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
+<link rel="stylesheet" href="../../Css/game-hud.css?v=<?= filemtime(__DIR__ . '/../../Css/game-hud.css') ?>">
+<link rel="stylesheet" href="../../Css/Student/manual-search-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/Student/manual-search-pixel.css') ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 </head>
 <body>
 <script>LamparaSkeleton.show('public')</script>
 
+<div class="ps ms-bg" id="msBg" aria-hidden="true"></div>
 <div id="app" v-cloak class="shell">
   <header class="topbar">
     <a href="../Public/guide-ar.php" class="back-btn" aria-label="Back to the guide">
@@ -44,6 +51,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
   </header>
 
   <main class="body">
+    <div class="ms-buddy" v-html="hudBuddy"></div>
+    <div class="ms-hud" v-html="hudStrip"></div>
     <div class="search-box">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
       <input ref="box" v-model="q" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search rooms and offices" placeholder="Room, office, building or number">
@@ -75,13 +84,37 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     </div>
 
     <div v-if="loading" class="empty-state">Loading&hellip;</div>
-    <div v-else-if="filtered.length === 0" class="empty-state">
+    <div v-else-if="filtered.length === 0 && gateMatches.length === 0" class="empty-state">
       <strong>No rooms match<template v-if="q"> &ldquo;{{ q }}&rdquo;</template></strong>
-      <span>Try fewer words, a room number, or a building name.</span>
+      <span>Try fewer words, a room number, a building name, or "gate" or "exit".</span>
       <button v-if="q || filterType !== 'all'" type="button" class="reset-btn" @click="q = ''; filterType = 'all'">Show all rooms</button>
     </div>
 
     <p v-if="!loading && searching && filtered.length" class="result-count" role="status">{{ filtered.length }} result{{ filtered.length === 1 ? '' : 's' }}</p>
+
+    <!-- campus gates: the ways in and out of the campus, for people on foot and for vehicles -->
+    <template v-if="gateMatches.length">
+      <h2 class="group-head"><span>Entrances and exits</span><small class="count">{{ gateMatches.length }}</small></h2>
+      <ul class="room-list">
+        <li v-for="g in gateMatches" :key="g.nodeId" class="room-card gate-card">
+          <div class="room-top">
+            <div class="room-icon kind-gate" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8M20 21V8M4 8l8-4 8 4M8 21v-7h8v7M8 14h8"/></svg>
+            </div>
+            <div class="room-info">
+              <div class="room-name">{{ g.name }}</div>
+              <div class="room-meta">Entrance and exit<template v-if="g.kind !== 'any'"> &middot; <span class="gate-kind" :class="'is-' + g.kind">{{ g.kindLabel }}</span></template></div>
+            </div>
+          </div>
+          <div class="room-actions">
+            <a :href="'../Public/guide-ar.php?gate=' + g.nodeId" class="act act-inside">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
+              Walk to this gate
+            </a>
+          </div>
+        </li>
+      </ul>
+    </template>
 
     <!-- one card per room; a search shows a ranked list, browsing groups rooms by building -->
     <template v-for="g in sections" :key="g.id">
@@ -110,10 +143,6 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
               Find inside
             </a>
-            <a :href="'../Public/guide-ar.php?to=' + r.building_id + '&room=' + r.id" class="act act-outside" @click="remember(r)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
-              Walk there
-            </a>
             <a :href="'../Public/map.php?room=' + r.id" class="act act-map" :aria-label="'Show ' + r.room_name + ' on the campus map'" title="Show on campus map">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z"/><path d="M9 4v13M15 7v13"/></svg>
             </a>
@@ -121,6 +150,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         </li>
       </ul>
     </template>
+    <button v-if="shownCards < totalCards" type="button" class="more-btn" @click="cap += 40">Show {{ Math.min(40, totalCards - shownCards) }} more of {{ totalCards - shownCards }} rooms</button>
   </main>
 
   <p v-if="helpRoom" class="help-line">Still cannot find it? Ask at the <a :href="'scan.php?room=' + helpRoom.id">{{ helpRoom.room_name }}</a><template v-if="helpRoom.hours"> ({{ helpRoom.hours }})</template>.</p>
@@ -134,8 +164,16 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/offline-cache.js?v=<?= $cacheJsVer ?>"></script>
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
+<script src="../../Js/Include/access-points.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/access-points.js') ?>"></script>
+<script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
+<script src="../../Js/Include/game-hud.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-hud.js') ?>"></script>
+<script src="../../Js/Include/pixel-scene.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/pixel-scene.js') ?>"></script>
+<script>LamparaPixelScene.mount(document.getElementById('msBg'), { seed: 33, moon: false, stars: 40 });</script>
+<script src="../../Js/Include/room-search.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-search.js') ?>"></script>
 <script src="../../Js/Student/manual-search.js?v=<?= $pageJsVer ?>"></script>
 
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
+<script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
+<script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
 </body>
 </html>

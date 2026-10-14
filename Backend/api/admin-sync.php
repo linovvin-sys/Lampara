@@ -182,13 +182,13 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             $buildingId = resolveId($conn, $p['building_id'] ?? null, $tempMap);
             $f = roomFields($p);
             if (!$buildingId || $f['room_name'] === '' || $f['floor'] === '') return failure('A room needs a building, a name and a floor.');
-            if (room_number_taken($conn, $f['room_number'])) return failure("Room {$f['room_number']} is already registered.");
+            if (room_number_taken($conn, $f['room_number'], 0, (int) $buildingId)) return failure("Room {$f['room_number']} is already registered in this building.");
             try {
                 $stmt = $conn->prepare("INSERT INTO rooms (building_id, room_number, room_name, floor, room_type, category, hours, notes, map_x, map_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param('isssssssdd', $buildingId, $f['room_number'], $f['room_name'], $f['floor'], $f['room_type'], $f['category'], $f['hours'], $f['notes'], $f['map_x'], $f['map_y']);
                 $stmt->execute();
             } catch (mysqli_sql_exception $e) {
-                if ($conn->errno === 1062) return failure("Room {$f['room_number']} is already registered.");
+                if ($conn->errno === 1062) return failure("Room {$f['room_number']} is already registered in this building.");
                 throw $e;
             }
             $id = $stmt->insert_id;
@@ -208,14 +208,14 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             }
             $f = roomFields($p);
             if ($f['room_name'] === '' || $f['floor'] === '') return failure('A room needs a name and a floor.');
-            if (room_number_taken($conn, $f['room_number'], $id)) return failure("Room {$f['room_number']} is already registered.");
+            if (room_number_taken($conn, $f['room_number'], $id)) return failure("Room {$f['room_number']} is already registered in this building.");
             $beforeRow = change_row($conn, 'rooms', $id);
             try {
                 $stmt = $conn->prepare("UPDATE rooms SET room_number = ?, room_name = ?, floor = ?, room_type = ?, category = ?, hours = ?, notes = ?, map_x = ?, map_y = ? WHERE id = ?");
                 $stmt->bind_param('sssssssddi', $f['room_number'], $f['room_name'], $f['floor'], $f['room_type'], $f['category'], $f['hours'], $f['notes'], $f['map_x'], $f['map_y'], $id);
                 $stmt->execute();
             } catch (mysqli_sql_exception $e) {
-                if ($conn->errno === 1062) return failure("Room {$f['room_number']} is already registered.");
+                if ($conn->errno === 1062) return failure("Room {$f['room_number']} is already registered in this building.");
                 throw $e;
             }
             $stmt->close();

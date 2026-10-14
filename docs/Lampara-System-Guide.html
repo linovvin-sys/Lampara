@@ -1,0 +1,334 @@
+<title>Lampara System Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Pixelify+Sans:wght@600;700&display=swap">
+<style>
+/* Layout: sticky contents rail beside a single reading column; tables and diagrams scroll inside their own boxes.
+   Palette: NCST navy and yellow on a cool grey-blue neutral. Type: Pixelify Sans for headings (the app's own game voice), Outfit for text, JetBrains Mono for code. */
+:root { --bg:#f3f5fb; --card:#ffffff; --fg:#161850; --muted:#555a82; --line:#d9dcee; --accent:#2e3192; --mark:#ffd100; --code-bg:#eceffa; --code-fg:#23267a; --warn-bg:#fff6cc; --warn-line:#e6c200;
+  --head:'Pixelify Sans',system-ui,sans-serif; --body:'Outfit',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0d0f2e; --card:#151845; --fg:#e9ebfb; --muted:#a3a8d6; --line:#2a2e6e; --accent:#ffd100; --mark:#ffd100; --code-bg:#1d2160; --code-fg:#ffe36a; --warn-bg:#2b2a14; --warn-line:#8a7400; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg:#0d0f2e; --card:#151845; --fg:#e9ebfb; --muted:#a3a8d6; --line:#2a2e6e; --accent:#ffd100; --mark:#ffd100; --code-bg:#1d2160; --code-fg:#ffe36a; --warn-bg:#2b2a14; --warn-line:#8a7400; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 var(--body); }
+.wrap { display:grid; grid-template-columns:230px minmax(0,1fr); gap:2rem; max-width:1180px; margin:0 auto; padding-inline:16px; padding-block:1.5rem 4rem; }
+nav.toc { position:sticky; top:calc(env(safe-area-inset-top,0px) + 1rem); align-self:start; display:flex; flex-direction:column; gap:.1rem; max-height:calc(100vh - 2rem); overflow:auto; font-size:.92rem; }
+nav.toc b { font:700 .75rem/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:.5rem; }
+nav.toc a { color:var(--muted); text-decoration:none; padding:.3rem .6rem; border-left:3px solid var(--line); }
+nav.toc a:hover { color:var(--fg); }
+nav.toc a.on { color:var(--fg); border-left-color:var(--mark); font-weight:600; background:linear-gradient(90deg,color-mix(in srgb,var(--mark) 18%,transparent),transparent); }
+main { min-width:0; }
+header.hero { border-bottom:4px solid var(--mark); padding-bottom:1.25rem; margin-bottom:2rem; }
+header.hero p.k { margin:0 0 .5rem; font:500 .8rem/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+h1 { font:700 clamp(2rem,5vw,3rem)/1.05 var(--head); margin:0 0 .6rem; text-wrap:balance; }
+header.hero p { max-width:62ch; color:var(--muted); margin:.3rem 0; }
+section { padding-top:2.2rem; scroll-margin-top:1rem; }
+h2 { font:700 1.7rem/1.15 var(--head); margin:0 0 1rem; text-wrap:balance; }
+h3 { font:700 1.1rem/1.3 var(--body); margin:1.8rem 0 .6rem; }
+p, li { max-width:75ch; } li { margin:.3rem 0; }
+code { font:500 .86em var(--mono); background:var(--code-bg); color:var(--code-fg); padding:.12em .4em; border-radius:4px; word-break:break-word; }
+pre { background:var(--card); border:1px solid var(--line); padding:1rem; overflow-x:auto; border-radius:6px; font:400 .85rem/1.5 var(--mono); }
+pre.tree { white-space:pre; }
+pre.mermaid { background:var(--card); text-align:center; }
+.tw { overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:var(--card); margin:.8rem 0 1.2rem; }
+table { border-collapse:collapse; width:100%; min-width:560px; font-size:.92rem; }
+th { text-align:left; font:600 .76rem/1.2 var(--mono); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding:.65rem .8rem; border-bottom:2px solid var(--line); background:var(--card); position:sticky; top:0; }
+td { padding:.6rem .8rem; border-bottom:1px solid var(--line); vertical-align:top; }
+tr:last-child td { border-bottom:0; }
+td:first-child { white-space:nowrap; }
+td:first-child code { white-space:nowrap; }
+.grid3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1rem 0; }
+.card { background:var(--card); border:1px solid var(--line); border-top:4px solid var(--mark); padding:1rem 1.1rem; border-radius:4px; }
+.card h3 { margin:.1rem 0 .4rem; } .card p { margin:0; font-size:.95rem; }
+p.note { background:var(--warn-bg); border-left:4px solid var(--warn-line); padding:.6rem .9rem; margin:1rem 0; font-size:.92rem; max-width:75ch; }
+.top { position:fixed; right:16px; bottom:calc(env(safe-area-inset-bottom,0px) + 16px); background:var(--accent); color:var(--card); border:0; padding:.55rem .8rem; font:600 .85rem var(--body); border-radius:4px; cursor:pointer; opacity:.9; }
+:focus-visible { outline:3px solid var(--mark); outline-offset:2px; }
+@media (max-width: 860px) { .wrap { grid-template-columns:1fr; } nav.toc { position:static; flex-direction:row; flex-wrap:wrap; gap:.3rem; max-height:none; border-bottom:1px solid var(--line); padding-bottom:1rem; } nav.toc b { width:100%; } nav.toc a { border-left:0; border:1px solid var(--line); border-radius:3px; padding:.25rem .55rem; } nav.toc a.on { background:var(--mark); color:#161850; } }
+</style>
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><b>Contents</b><a href="#overview">What Lampara is</a><a href="#architecture">Architecture</a><a href="#repo">Repository map</a><a href="#setup">Setup</a><a href="#database">Database</a><a href="#backend">Backend</a><a href="#frontend">Frontend</a><a href="#flows">How features work</a><a href="#offline">Offline</a><a href="#game">Game layer</a><a href="#sprites">Sprites and pixel art</a><a href="#audio">Music and sound</a><a href="#external">Everything external</a><a href="#assets">Assets</a><a href="#testing">Testing and tools</a><a href="#risks">Known gaps</a><a href="#conventions">Conventions</a></nav>
+<main>
+<header class="hero"><p class="k">System guide &middot; October 2026</p><h1>Lampara, from database to sprite</h1>
+<p>Everything the system is made of and where to find it: the database, every endpoint, every page and module, the AI, the offline layer, the game and where the pixel characters come from, and every outside service and library.</p>
+<p>Written from the working copy on 14 October 2026, including work not yet committed. Where something could not be verified it is said so in section 16.</p></header>
+<section id="overview"><h2>1. What Lampara is</h2>
+<p>Lampara is a campus navigation web app for NCST. A visitor opens it in a phone browser (no install, no account) and gets to a building, or to a room inside it, using the camera and GPS outdoors and an animated floor plan indoors. An admin side lets staff draw the campus, register rooms and answer visitor reports.</p>
+<div class="grid3">
+ <div class="card"><h3>Visitors</h3><p>Pick a destination, follow the AR path outside, follow the animated floor-plan route inside, scan a door sign, search the directory, ask the AI, report a closed building or blocked path. Works offline after the first visit.</p></div>
+ <div class="card"><h3>Admins</h3><p>Register buildings and rooms with photos, draw outdoor walkways and indoor paths, calibrate floors for indoor AR, set doors, upload the campus map, review visitor reports, undo changes. Also works offline and syncs later.</p></div>
+ <div class="card"><h3>Game layer</h3><p>Points, weekly quests, achievements, a passport, a quiz, 13 pixel mascots, seasonal themes, music and sound effects. All stored on the visitor's phone.</p></div>
+</div>
+<h3>Stack at a glance</h3>
+<div class="tw"><table class=""><thead><tr><th>Layer</th><th>What is used</th></tr></thead><tbody><tr><td>Server</td><td>PHP 8 (no framework), MySQL / MariaDB, runs on MAMP or XAMPP locally and on ordinary PHP hosting</td></tr><tr><td>Pages</td><td>PHP views that output markup; every page has its own .js and .css file. No build step for JS or CSS</td></tr><tr><td>UI code</td><td>Plain JavaScript and Vue 3 (global build); Tailwind precompiled for older pages; hand-written CSS for the pixel / game look</td></tr><tr><td>Maps and AR</td><td>Leaflet, three.js, LocAR.js, Canvas 2D for the floor-plan route, our own Dijkstra routing</td></tr><tr><td>AI</td><td>Google Gemini through the server (chat, sign reading, photo check)</td></tr><tr><td>Offline</td><td>A service worker plus localStorage caches; an offline change queue for admins</td></tr><tr><td>Sound</td><td>Web Audio API, everything synthesised live (no audio files)</td></tr><tr><td>Sprites</td><td>Pixel art stored as text rows in JavaScript, turned into SVG or canvas at runtime (no image files)</td></tr></tbody></table></div>
+<h3>Size of the codebase (lines, excluding vendor libraries and uploaded data)</h3>
+<div class="tw"><table class=""><thead><tr><th>Area</th><th>Files</th><th>Lines</th></tr></thead><tbody><tr><td>Backend PHP</td><td>42</td><td>5,115</td></tr><tr><td>Frontend PHP views</td><td>31</td><td>5,268</td></tr><tr><td>Frontend JavaScript</td><td>66</td><td>15,975</td></tr><tr><td>Frontend CSS</td><td>44</td><td>4,763</td></tr><tr><td>Labs, tests, tools</td><td>21</td><td>4,112</td></tr><tr><td>Docs (markdown)</td><td>11</td><td>1,196</td></tr></tbody></table></div><p class="note">Counted on 14 October 2026 from the working copy. Includes uncommitted work.</p></section>
+<section id="architecture"><h2>2. Architecture</h2>
+<pre class="mermaid">
+flowchart LR
+  subgraph Phone["Visitor's phone (browser)"]
+    P[PHP pages + JS + CSS]
+    SW[Service worker]
+    LS[(localStorage: caches, points, mascots, theme)]
+  end
+  subgraph Server["PHP server"]
+    API[Backend/api/*.php]
+    LIB[chat_lib, photo_upload, rate_limit, session_boot]
+  end
+  DB[(MySQL lampara_db)]
+  FILES[(Frontend/assets/photos, floorplans, maps)]
+  GEM[Google Gemini API]
+  CDN[CDN libraries + Google Fonts]
+  TILES[OSM / Esri map tiles]
+  P --> SW --> API
+  P --- LS
+  API --> LIB
+  API --> DB
+  API --> FILES
+  LIB --> GEM
+  SW -.-> CDN
+  SW -.-> TILES
+</pre>
+<h3>How a request flows</h3>
+<ol>
+ <li>The browser asks for a PHP page. The service worker is <b>network first</b>: it uses the network when there is one, and a saved copy when there is not (10 second limit).</li>
+ <li>The page's script calls an endpoint in <code>Backend/api</code> with <code>fetch</code>, sending and receiving JSON.</li>
+ <li>Writes need an admin session. The same-origin check rejects a write that another website sent from an admin's browser.</li>
+ <li>Directory data (buildings, rooms, graphs, floor plans) is copied into localStorage by <code>student-offline.js</code>, so the student pages can run with no signal.</li>
+ <li>Anything personal (points, mascots, theme, trip in progress) never leaves the phone.</li>
+</ol>
+<h3>Design rules that hold everywhere</h3>
+<ul>
+ <li><b>Network first.</b> Online behaviour is the normal behaviour; saved copies are only a fallback.</li>
+ <li><b>No accounts for visitors.</b> Nothing about a visitor is stored on the server, except an anonymous device cookie used only to limit abusive reports.</li>
+ <li><b>Server validates everything.</b> The browser's checks are for convenience; the API repeats them.</li>
+ <li><b>The AI only answers from our data.</b> It gets the directory as facts and must cite them; the server drops anything it cannot match.</li>
+ <li><b>Cache busting by file time.</b> Every script and stylesheet link ends with <code>?v=&lt;filemtime&gt;</code>, so a changed file is fetched at once.</li>
+</ul></section>
+<section id="repo"><h2>3. Repository map</h2><pre class="tree">lampara/
+├── Backend/                    PHP, no framework
+│   ├── api/                    one file per endpoint (JSON in, JSON out)
+│   ├── scripts/                command-line tools: create-admin, migrations, setup-audit, tidy-paths, name-points
+│   ├── config.php              Database class (reads db.php)
+│   ├── db.php                  this machine's DB settings (gitignored)
+│   ├── secrets.php             Gemini key etc. (gitignored)
+│   ├── session_boot.php        session cookies + same-origin (CSRF) check
+│   ├── rate_limit.php          per-visitor throttle kept in the server temp folder
+│   ├── chat_lib.php            the chatbot: facts, prompt, schema, validation
+│   ├── photo_upload.php        one photo flow for buildings, rooms, hazards
+│   ├── room_number.php         normalising room numbers + per-building duplicate check
+│   ├── change_log.php          change history + undo
+│   ├── point_names.php         "Point A, B, ..." naming
+│   └── schema.sql              base schema (see the drift note in section 5)
+├── Frontend/
+│   ├── View/Public|Student|Admin|Include   PHP pages (markup only)
+│   ├── Js/Public|Student|Admin|Include     one script per page + shared modules
+│   ├── Css/Public|Student|Admin            one stylesheet per page + shared
+│   ├── assets/                 icons, logo, backgrounds, vendor libs, floor plans, photos (user data)
+│   └── sw.js                   the service worker (at the Frontend root so it covers every page)
+├── tools/photo-to-sprite.py    turns a photograph into a pixel mascot (section 11)
+├── tests/e2e/run.py            Playwright end-to-end suites; tests/map-3d-anchor.mjs
+├── ar-lab/                     isolated test bed that compared AR engines (not part of the app)
+├── indoor-lab/                 isolated indoor experiments
+├── docs/                       earlier notes and reviews (setup guides, assessments)
+└── README.md</pre><p>Git remote: <code>github.com/linovvin-sys/Lampara</code>, branch <code>main</code>.</p></section>
+<section id="setup"><h2>4. Setting up and running it</h2>
+<ol>
+ <li><b>Database.</b> Create <code>lampara_db</code> (utf8mb4) and import <code>Backend/schema.sql</code>. Tables created on first use (hazards, change log, settings) need nothing from you.</li>
+ <li><b>Local settings.</b> Copy <code>Backend/db.example.php</code> to <code>Backend/db.php</code> and fill in host, port, user and password. MAMP uses port 8889 and password <code>root</code> by default, XAMPP uses 3306 and none. This file is gitignored so teammates never overwrite each other's.</li>
+ <li><b>Gemini key.</b> Copy <code>Backend/secrets.example.php</code> to <code>Backend/secrets.php</code> and add <code>GEMINI_API_KEY</code>. Optional: <code>GEMINI_MODEL</code> (tried first), <code>HAZARD_ALERT_EMAIL</code>. Also gitignored.</li>
+ <li><b>First admin.</b> From a terminal: <code>php Backend/scripts/create-admin.php</code>. Never create admins through a web page.</li>
+ <li><b>HTTPS on a phone.</b> Camera, GPS and motion sensors only work on HTTPS. Use an ngrok tunnel to the local server while developing.</li>
+ <li><b>Tailwind.</b> Only needed if you add new utility classes: <code>./tailwindcss-cli -i Frontend/assets/css/input.css -o Frontend/assets/css/tailwind.css --minify</code> (the binary is gitignored; download your OS version).</li>
+</ol>
+<h3>Command-line scripts</h3>
+<div class="tw"><table class=""><thead><tr><th>Script</th><th>Use</th></tr></thead><tbody><tr><td><code>create-admin.php</code></td><td>Create or reset an admin login.</td></tr><tr><td><code>setup-audit.php</code></td><td>Read-only checkup of the whole campus setup: what is done, what is missing (paths, calibration, doors, photos).</td></tr><tr><td><code>tidy-paths.php</code></td><td>Straightens drawn walkable paths and removes redundant points.</td></tr><tr><td><code>name-points.php</code></td><td>Gives every unnamed walkway point the next free "Point A, B, ..." name.</td></tr><tr><td><code>migrate-photos.php</code></td><td>Adds the photo columns to buildings and rooms. Safe to repeat.</td></tr><tr><td><code>migrate-round3.php</code></td><td>Adds the optional columns and the change-history table. Safe to repeat.</td></tr></tbody></table></div>
+<h3>Settings stored in the database</h3>
+<p><code>app_settings.campus_fence</code> turns the "you must be on campus" check on (1) or off (0). The admin toggles it on the Campus Paths page. The check runs in the visitor's browser, so it keeps honest visitors off-campus but is not a security boundary. A logged-in admin bypasses it. On the development machine it is currently <b>off</b>.</p></section>
+<section id="database"><h2>5. Database</h2>
+<pre class="mermaid">
+erDiagram
+  buildings ||--o{ rooms : has
+  buildings ||--o{ floor_plans : has
+  buildings }o--|| campus_nodes : entrance
+  floor_plans ||--o{ floor_plan_nodes : has
+  floor_plan_nodes ||--o{ floor_plan_edges : connects
+  rooms }o--o| floor_plan_nodes : doorway
+  buildings ||--o{ building_doors : doors
+  building_doors }o--|| floor_plan_nodes : at
+  campus_nodes ||--o{ campus_edges : connects
+  buildings ||--o{ campus_footprints : outline
+  rooms ||--o{ outdated_flags : reported
+  buildings ||--o{ hazard_reports : reported
+  hazard_reports ||--o{ hazard_flags : noticed
+  buildings ||--o{ static_map_markers : pinned
+  floor_plan_nodes ||--o| qr_anchors : anchor
+  campus_nodes ||--o{ qr_anchors : anchor
+</pre>
+<div class="tw"><table class=""><thead><tr><th>Table</th><th>What it holds</th><th>Points at</th></tr></thead><tbody><tr><td><code>buildings</code></td><td>A campus building: name, GPS position, floor count, building number, directory text, photo, and the walkway node used as its entrance (entrance_node_id).</td><td>campus_nodes</td></tr><tr><td><code>rooms</code></td><td>Every findable place. room_number (unique per building, NULL allowed), room_name, floor, category (office, classroom, cr, canteen), room_type, hours, notes, map_x / map_y (percent on the floor plan), path_node_id (its doorway on the walkable graph), photo_path. Optional columns subtitle and entrance_floor are added on first use.</td><td>buildings, floor_plan_nodes</td></tr><tr><td><code>floor_plans</code></td><td>One image per building and floor, plus indoor-AR calibration (north_offset, meters_per_unit_x / y).</td><td>buildings</td></tr><tr><td><code>floor_plan_nodes</code></td><td>Walkable path points on a floor plan (x, y in percent, name "Point A, B, ...").</td><td>floor_plans</td></tr><tr><td><code>floor_plan_edges</code></td><td>Undirected connections between path points. A link between nodes of two floors is the stairs.</td><td>floor_plan_nodes</td></tr><tr><td><code>building_doors</code></td><td>Which path point is a building's entry door and exit door (kind = entry | exit).</td><td>floor_plan_nodes</td></tr><tr><td><code>campus_nodes</code></td><td>Outdoor walkway points in GPS (lat, lng), typed junction, gate or entrance.</td><td></td></tr><tr><td><code>campus_edges</code></td><td>Connections between outdoor points.</td><td>campus_nodes</td></tr><tr><td><code>campus_footprints</code></td><td>Building outlines and roads as JSON point lists in GPS, optionally linked to a building.</td><td>buildings</td></tr><tr><td><code>qr_anchors</code></td><td>QR start anchors: a random public code that points at one floor-plan node or one campus node, with an optional scan heading.</td><td>floor_plan_nodes, campus_nodes</td></tr><tr><td><code>static_maps</code></td><td>The uploaded 2D and 3D campus map files (one row per kind).</td><td></td></tr><tr><td><code>static_map_markers</code></td><td>Pins on those maps: entrance, gate, landmark.</td><td>buildings</td></tr><tr><td><code>outdated_flags</code></td><td>Visitor reports that a room's info is outdated; resolved by an admin.</td><td>rooms</td></tr><tr><td><code>hazard_reports</code></td><td>Closed-building and blocked-path reports: kind, building, GPS, note, photo, status (pending, active, resolved), urgent, verified, flags, and the reporting phone's device id. Created on first use.</td><td>buildings</td></tr><tr><td><code>hazard_flags</code></td><td>"Photo should not be here" notices, one per phone per report. Created on first use.</td><td>hazard_reports</td></tr><tr><td><code>hazard_strikes</code></td><td>One row each time an admin rejects an unconfirmed report; drives the anti-troll limits. Created on first use.</td><td></td></tr><tr><td><code>admins</code></td><td>Admin accounts (username, bcrypt password hash). Created with a CLI script, never through the web.</td><td></td></tr><tr><td><code>app_settings</code></td><td>Key / value switches. Today: campus_fence (1 or 0).</td><td></td></tr><tr><td><code>sync_ops</code></td><td>Offline changes already applied, so a retried batch cannot duplicate.</td><td></td></tr><tr><td><code>sync_temp_ids</code></td><td>Maps the temporary ids made offline ("t_ab12") to real ids.</td><td></td></tr><tr><td><code>change_log</code></td><td>Who changed what and when for rooms and buildings, with the before / after values for Undo. Created on first use.</td><td></td></tr></tbody></table></div>
+<h3>Rules worth knowing</h3>
+<ul>
+ <li><b>Room numbers are unique per building, not school-wide.</b> The key is <code>room_building_number (building_id, room_number)</code>. Amafel 1101 and NCST-IIRT 1101 can both exist. The first write after an upgrade swaps the old <code>room_number_unique</code> key for the new one automatically (<code>ensure_room_number_key()</code> in <code>room_number.php</code>).</li>
+ <li><b>Room numbers have one canonical form</b> ("1101 - A"), applied on every write. Lookups ignore case, spaces and dashes.</li>
+ <li><b>Positions on floor plans are percentages</b> (0-100) of the image, so they stay right at any display size. Outdoor positions are real GPS.</li>
+ <li><b>Cascades:</b> deleting a building removes its rooms, floor plans, paths and flags. Deleting a path point unlinks any room or building that used it.</li>
+ <li><b>Photos</b> are files under <code>Frontend/assets/photos/{buildings,rooms,hazards}/</code>; the table stores only the path. That folder is user data and is gitignored.</li>
+</ul>
+<h3>Known drift in <code>schema.sql</code></h3>
+<p>The file still shows the old global unique key on <code>rooms.room_number</code> and does not create the tables made on first use. A new install gets the right shape after the first write, but the file should be regenerated from a live database (<code>SHOW CREATE TABLE</code> for each table) the next time someone has a moment. This is the one place the documentation and the code disagree; the live database is the truth.</p></section>
+<section id="backend"><h2>6. Backend</h2>
+<h3>Shared libraries</h3>
+<div class="tw"><table class=""><thead><tr><th>File</th><th>Purpose</th></tr></thead><tbody><tr><td><code>config.php</code></td><td>The Database class (mysqli, exceptions on). Reads db.php if present, else XAMPP defaults. Also sets nosniff and referrer headers for every API.</td></tr><tr><td><code>session_boot.php</code></td><td>lampara_session_start() (HttpOnly, SameSite=Lax, Secure on HTTPS) and lampara_same_origin_or_die() (CSRF defence for every write).</td></tr><tr><td><code>_auth.php</code></td><td>Included at the top of each admin page: redirects to the login screen when there is no admin session.</td></tr><tr><td><code>rate_limit.php</code></td><td>Per-visitor throttle stored as small files in the server temp folder (no database). Optional second key (a device cookie) separates visitors behind one school Wi-Fi address.</td></tr><tr><td><code>photo_upload.php</code></td><td>One flow for every photo: checks the real bytes are a JPEG, PNG or WebP image, size limit 8 MB, saves with a random name, deletes the replaced file.</td></tr><tr><td><code>room_number.php</code></td><td>Normal form for room numbers, the compact comparison key, and the per-building duplicate check.</td></tr><tr><td><code>change_log.php</code></td><td>Writes the change history and applies Undo.</td></tr><tr><td><code>point_names.php</code></td><td>Generates "Point A ... Point Z, Point AA ...".</td></tr><tr><td><code>chat_lib.php</code></td><td>The chatbot: builds the facts, the system prompt, the response schema, and validates what the model returns (section 8).</td></tr></tbody></table></div>
+<h3>Endpoints</h3>
+<p>All live in <code>Backend/api/</code>, answer JSON, and document their own request and response in a comment at the top of the file. "Admin" means a logged-in admin session plus the same-origin check.</p>
+<div class="tw"><table class=""><thead><tr><th>Endpoint</th><th>Methods</th><th>Who can call</th><th>Purpose</th></tr></thead><tbody><tr><td><code>admin_login.php</code></td><td>POST</td><td>public, 8 tries / 10 min</td><td>Admin sign-in. Starts the PHP session (HttpOnly, SameSite=Lax).</td></tr><tr><td><code>admin-sync.php</code></td><td>POST</td><td>admin</td><td>Applies a batch of changes an admin made offline. Idempotent (sync_ops), resolves temp ids (sync_temp_ids), reports conflicts instead of overwriting.</td></tr><tr><td><code>building-doors.php</code></td><td>GET / POST</td><td>GET public, POST admin</td><td>Which floor-plan point is each building's entry and exit door.</td></tr><tr><td><code>buildings.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public, rest admin</td><td>Buildings. PUT with {photo} sets or removes only the photo.</td></tr><tr><td><code>campus-footprints.php</code></td><td>GET / PUT</td><td>GET public, PUT admin</td><td>Building outlines and road lines (GPS) for the AR mini-map and the 3D map; links an outline to a building.</td></tr><tr><td><code>campus-graph.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public, rest admin</td><td>The outdoor walkway graph (nodes, edges). Also ?action=edge, ?action=restore (undo) and delete-all with snapshot.</td></tr><tr><td><code>changes.php</code></td><td>GET / POST</td><td>admin</td><td>Change history for rooms and buildings, and Undo.</td></tr><tr><td><code>chat.php</code></td><td>POST</td><td>public, 90 / min / visitor</td><td>The grounded AI chat. Calls Gemini with the directory as facts; returns reply, room/building/gate cards, follow-ups.</td></tr><tr><td><code>fence.php</code></td><td>GET / POST</td><td>GET public, POST admin</td><td>The "visitor must be on campus" switch (app_settings.campus_fence) and whether this visitor bypasses it (a logged-in admin).</td></tr><tr><td><code>flags.php</code></td><td>GET / POST / PUT</td><td>POST public, rest admin</td><td>"This room info looks outdated" reports and their resolution.</td></tr><tr><td><code>floor-plan-graph.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public, rest admin</td><td>Walkable path graph per floor plan, or combined for a whole building (stairs links between floors). Restore/undo.</td></tr><tr><td><code>floor-plans.php</code></td><td>GET / POST / DELETE</td><td>GET public, rest admin</td><td>Floor plan images per building and floor; ?action=calibrate saves the indoor AR calibration.</td></tr><tr><td><code>hazards.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public (active only), rest admin; POST public, throttled</td><td>Visitor reports of closed buildings or blocked paths. Pending / active / resolved, urgent fast lane, anti-troll rules, AI photo check.</td></tr><tr><td><code>photos.php</code></td><td>POST / DELETE</td><td>admin</td><td>Set or remove a building or room photo.</td></tr><tr><td><code>ping.php</code></td><td>GET</td><td>public</td><td>Is the server reachable, and is the admin session still valid. Never cached.</td></tr><tr><td><code>qr-anchors.php</code></td><td>GET / POST / DELETE</td><td>resolve public, manage admin</td><td>QR start anchors for AR (indoor: one per floor plan, outdoor: many).</td></tr><tr><td><code>rooms.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public, rest admin</td><td>Rooms. GET supports ?building_id, ?q, ?room_number. A room number is unique per building.</td></tr><tr><td><code>scan.php</code></td><td>POST</td><td>public, 90 / min / visitor</td><td>Reads a room number from a photographed sign with Gemini vision.</td></tr><tr><td><code>setup-health.php</code></td><td>GET</td><td>admin</td><td>The "what to fix next" list on the admin dashboard.</td></tr><tr><td><code>static-map-markers.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public, rest admin</td><td>Pins (entrances, gates, landmarks) on the static 2D / 3D campus map.</td></tr><tr><td><code>static-maps.php</code></td><td>GET / POST / PUT / DELETE</td><td>GET public, rest admin</td><td>The two uploaded campus maps (2D: png/jpeg/webp/svg/pdf, 3D: png/jpeg/webp/obj).</td></tr><tr><td><code>_require_admin.php</code></td><td>include</td><td>n/a</td><td>Guard included by every write endpoint: same-origin check, then 401 unless an admin session exists.</td></tr></tbody></table></div>
+<h3>Security model</h3>
+<ul>
+ <li><b>Reads are public, writes are admin.</b> Students need the directory without logging in; every POST, PUT and DELETE (except visitor reports, flags, chat and scan) requires an admin session.</li>
+ <li><b>CSRF.</b> A write whose Origin or Referer names a different host is refused. Requests with neither header (scripts, curl) pass, since they carry no browser cookie to abuse.</li>
+ <li><b>Passwords</b> are stored as bcrypt hashes; login allows 8 wrong tries per address, then waits 10 minutes.</li>
+ <li><b>SQL.</b> All user values go through prepared statements.</li>
+ <li><b>Photos.</b> Only real images are accepted (bytes are checked, not the extension). Report photos must be JPEG, are redrawn in the browser, and have Exif and vendor tags stripped again on the server (so no GPS leaks from a hand-made upload). Uploaded photo folders have their own <code>.htaccess</code>.</li>
+ <li><b>AI cost control.</b> Chat and scan are limited to 90 calls a minute per visitor; repeated first questions are answered from a 15 minute cache.</li>
+ <li><b>Secrets</b> (<code>db.php</code>, <code>secrets.php</code>) are gitignored. The Gemini key never reaches the browser.</li>
+</ul>
+<h3>Visitor reports and trolling</h3>
+<p><code>hazards.php</code> is the one public write that shows content to other people, so it is the most guarded:</p>
+<ol>
+ <li>A new report is <b>pending</b>: only admins see it until one approves it.</li>
+ <li><b>Urgent</b> reports go live at once, marked "not yet checked by staff", but only with a photo, a GPS fix, the phone within 250 m of the chosen building (300 m of any building for a walkway report), and fewer than 2 urgent reports that day. Otherwise they wait like any other.</li>
+ <li><b>Photos are hidden from the public</b> until an admin confirms the report, so a bad photo never reaches students.</li>
+ <li>Every photo is checked by Gemini first; nudity, gore, violence, hate symbols and non-place images are refused, never stored, and cost the phone a strike. If the check cannot run, the report just waits for an admin.</li>
+ <li>Each phone: 5 reports per 10 minutes, 10 a day, no repeat of the same kind and building within 30 minutes. 2 strikes remove the urgent lane, 5 pause reporting.</li>
+ <li>An admin deleting an unconfirmed report is what creates a strike.</li>
+ <li>"Photo should not be here" notices count once per phone; three different phones return a report to the queue, but an admin-confirmed report cannot be taken down this way.</li>
+</ol>
+<p class="note">The phone is identified by a cookie, so clearing cookies starts a phone fresh; the per-address limit is the backstop.</p></section>
+<section id="frontend"><h2>7. Frontend</h2>
+<h3>Student pages</h3>
+<div class="tw"><table class=""><thead><tr><th>Page</th><th>Job</th><th>Main scripts and styles</th></tr></thead><tbody><tr><td><code>Public/index.php</code></td><td>Landing page: destination quick-pick, building list, links to every feature.</td><td>index.js, index.css, index-pixel.css</td></tr><tr><td><code>Public/guide-ar.php</code></td><td>The outdoor walking guide: start screen, tutorial, AR camera with the path, chat, mascot shop.</td><td>guide-ar.js, locar-engine.js, guide-tutorial.js, guide-mascot-shop.js, guide-audio.js</td></tr><tr><td><code>Public/guide.php</code></td><td>The older stable outdoor guide (arrow and chat).</td><td>guide.js</td></tr><tr><td><code>Public/ask.php</code></td><td>Full-screen chat with the campus guide.</td><td>ask.js, chat-core.js, chat-pixel.css</td></tr><tr><td><code>Public/map.php</code></td><td>Static 2D / 3D campus map, satellite view, pins.</td><td>map.js, map-3d.js, map-street.js</td></tr><tr><td><code>Student/where.php</code></td><td>"Where are you right now?": outside or inside.</td><td>where.css</td></tr><tr><td><code>Student/scan.php</code></td><td>Scan a room sign or type its number, then choose a destination and see a floor-plan route.</td><td>scan.js, scan-pixel.css</td></tr><tr><td><code>Student/manual-search.php</code></td><td>Search the directory (rooms, offices, gates), works offline.</td><td>manual-search.js, room-search.js</td></tr><tr><td><code>Student/journey.php</code></td><td>The indoor route: animated floor plan, room details card, stairs and outside legs.</td><td>journey.js, floor-route.js, building-doors.js</td></tr><tr><td><code>Student/indoor-ar.php</code></td><td>Camera guide inside a building (needs calibrated floors).</td><td>indoor-ar.js, locar-indoor.js, indoor-nav.js</td></tr><tr><td><code>Student/report.php</code></td><td>Report a closed building or blocked path with a photo.</td><td>report.js</td></tr><tr><td><code>Student/privacy.php</code></td><td>What the app uses on the phone.</td><td>privacy.css</td></tr><tr><td><code>Student/ar-test.php</code></td><td>Diagnostics page for the camera and sensors.</td><td>ar-test.js</td></tr></tbody></table></div>
+<h3>Admin pages</h3>
+<div class="tw"><table class=""><thead><tr><th>Page</th><th>Job</th></tr></thead><tbody><tr><td><code>login.php / logout.php</code></td><td>Sign in and out.</td></tr><tr><td><code>dashboard.php</code></td><td>Counts, recent changes, open reports and flags, "what to fix next".</td></tr><tr><td><code>buildings.php, building-edit.php</code></td><td>Building list and one building's workspace (details, floors, plans, paths, rooms).</td></tr><tr><td><code>room-edit.php</code></td><td>Add or edit a room, place its marker on the plan, add a photo while adding.</td></tr><tr><td><code>campus-paths.php</code></td><td>Draw and record the outdoor walkway graph; the campus-fence switch.</td></tr><tr><td><code>floor-calibration.php</code></td><td>Real size and compass direction of each floor plan, for indoor AR.</td></tr><tr><td><code>doors.php</code></td><td>Pick each building's entry and exit door.</td></tr><tr><td><code>building-outlines.php</code></td><td>Link drawn outlines to buildings.</td></tr><tr><td><code>campus-map.php</code></td><td>Upload the 2D / 3D map and place its pins.</td></tr><tr><td><code>hazards.php</code></td><td>Review visitor reports and photos.</td></tr><tr><td><code>test-chat.php</code></td><td>Try the chatbot as an admin.</td></tr></tbody></table></div>
+<h3>Shared modules (<code>Js/Include</code>)</h3>
+<div class="tw"><table class=""><thead><tr><th>Module</th><th>Purpose</th></tr></thead><tbody><tr><td><code>mascots.js</code></td><td>The game state and API: mascots, points, quests, achievements, themes, orientation trail, pop-ups, streak.</td></tr><tr><td><code>pixel-scene.js</code></td><td>Draws the pixel night scene (stars, moon, clouds, skyline, seasonal props) as SVG.</td></tr><tr><td><code>game-hud.js, game-feel.js</code></td><td>The player strip and buddy bubble; tap pops and sounds on every button.</td></tr><tr><td><code>theme.js</code></td><td>Applies the chosen seasonal theme before first paint.</td></tr><tr><td><code>student-offline.js</code></td><td>Registers the service worker, copies the directory into localStorage, pre-saves every student page and its files, shows the offline badge.</td></tr><tr><td><code>offline-cache.js</code></td><td>Typed reads and writes of the cached buildings, rooms, graphs and floor plans.</td></tr><tr><td><code>admin-offline.js</code></td><td>Admin offline layer: queues changes, shows pending count, syncs through admin-sync.php.</td></tr><tr><td><code>room-search.js, room-number.js</code></td><td>One way to search and normalise rooms, shared by search, the guide and the chat fallback.</td></tr><tr><td><code>chat-core.js</code></td><td>Chat behaviour shared by the Ask page and the guide: send, retry, offline answer from the directory.</td></tr><tr><td><code>floor-route.js</code></td><td>Dijkstra over a floor plan graph, multi-floor, stairs.</td></tr><tr><td><code>indoor-nav.js</code></td><td>Indoor AR maths (steps to metres, heading). No DOM.</td></tr><tr><td><code>ar-ribbon.js</code></td><td>The chevron ribbon drawn on the ground in AR.</td></tr><tr><td><code>geofence.js, campus-bounds.js</code></td><td>The on-campus check and the single definition of campus.</td></tr><tr><td><code>access-points.js</code></td><td>Gates as search and route targets.</td></tr><tr><td><code>hazard-feed.js</code></td><td>The live banner of active reports; for admins, pending ones.</td></tr><tr><td><code>trip.js</code></td><td>Remembers a trip in progress through reloads and the outside leg.</td></tr><tr><td><code>plan-zoom.js</code></td><td>Pinch, wheel and button zoom for floor plans (admin and student).</td></tr><tr><td><code>skeleton.js</code></td><td>Loading placeholders.</td></tr><tr><td><code>privacy-notice.js</code></td><td>One-time notice of what the app uses.</td></tr><tr><td><code>photo-upload.js, photo-pick.js, dropzone.js</code></td><td>Admin photo pickers with crop and drag-and-drop.</td></tr><tr><td><code>admin-*.js</code></td><td>Admin chrome: nav groups, save status, toasts, Ctrl+K search, editor lock.</td></tr></tbody></table></div>
+<h3>Look and feel</h3>
+<ul>
+ <li><b>Brand.</b> Navy and yellow (NCST), Outfit for text, JetBrains Mono for numbers, Pixelify Sans for game headings.</li>
+ <li><b>Pixel style.</b> Corners are cut with a stepped <code>clip-path</code> polygon (<code>--px</code>), buttons have an inset darker band at the bottom, strips use yellow dashes. Motion is limited to transform and opacity, and stops with <code>prefers-reduced-motion</code>.</li>
+ <li><b>Themes.</b> <code>Css/theme-vars.css</code> defines <code>--t-*</code> colour variables. Every student stylesheet reads <code>var(--t-x, #original)</code>, so the original colours remain the fallback. <code>html[data-theme="halloween|christmas|newyear|valentine"]</code> redefines them. Admin pages do not use themes.</li>
+ <li><b>No framework build.</b> Edit a file, reload. Scripts are plain files, loaded with <code>&lt;script&gt;</code> in a fixed order.</li>
+</ul>
+<h3>What the phone stores (localStorage)</h3>
+<div class="tw"><table class=""><thead><tr><th>Key</th><th>Holds</th></tr></thead><tbody><tr><td><code>lampara_mascots</code></td><td>Game state: points earned and spent, owned and equipped mascot, owned and equipped theme, streak, weekly quest progress, event counters.</td></tr><tr><td><code>lampara_theme</code></td><td>The equipped theme id (mirror of the above, read before paint).</td></tr><tr><td><code>lampara_music</code></td><td>Shared mute choice for music and sound.</td></tr><tr><td><code>lampara_tutorial_done</code></td><td>The tutorial was finished.</td></tr><tr><td><code>lampara_privacy_ok</code></td><td>The privacy notice was accepted.</td></tr><tr><td><code>lampara_trip</code></td><td>The route in progress.</td></tr><tr><td><code>lampara_my_floor, lampara_last_building, lampara_recent_rooms</code></td><td>Where the visitor last was; used for quick picks and the scan tiebreaker.</td></tr><tr><td><code>lampara_buildings_cache, lampara_rooms_cache, lampara_campus_graph_cache, lampara_floorplans_cache, lampara_graphs_cache, lampara_doors_cache</code></td><td>The offline copy of the directory and graphs (+ time and signature keys).</td></tr><tr><td><code>lampara_hazards_dismissed, lampara_fence, lampara_ar_*, lampara_map_tab</code></td><td>Small per-visitor preferences.</td></tr><tr><td><code>lampara_admin_*</code></td><td>Admin sidebar state and offline queue.</td></tr></tbody></table></div><p class="note">If storage is blocked, everything still works for that visit; it is only not remembered.</p></section>
+<section id="flows"><h2>8. How the main features work</h2>
+<h3>Outdoor guide (guide-ar)</h3>
+<p>The start screen loads buildings and rooms, lets the visitor pick a destination, and on Start asks for camera, GPS and motion permission. <code>locar-engine.js</code> (LocAR.js on three.js) filters GPS fixes, holds the compass heading, and lays a chevron ribbon along the shortest route over the campus walkway graph (<code>campus-route.js</code>, Dijkstra) from the visitor to the building's entrance node. The status banner gives turn hints and distance, and "You have arrived" within 8 m of the entrance. A room or gate can be the target. Arriving awards points and a passport stamp.</p>
+<h3>Indoor route (journey)</h3>
+<p>One trip is a list of <b>legs</b>: inside to a room in the same building (one leg), or leave the building, walk outside, find the room (three legs). Inside legs run Dijkstra on that building's floor-plan graph (<code>floor-route.js</code>), across floors via stairs links, and are drawn on a canvas as a growing broken line with the equipped mascot walking it and footsteps. Before the first leg a <b>room details card</b> shows the photo, type, floor, hours and notes; a Room info button reopens it. The floor plan can be zoomed and panned. At the exit the card hands over to the outdoor guide with the next building already chosen, and a pop-up greets the visitor on arrival there. Finishing awards points and an orientation stamp when the room is one of the key offices.</p>
+<h3>Scan a sign</h3>
+<p>The camera frame is sent to <code>scan.php</code>, which asks Gemini for the room number only. The number is normalised and looked up. If the same number exists in more than one building the app decides which one: GPS clearly nearest to one of them (within 150 m and 40 m closer than the next), else the building of the last scan, else it asks "Which building are you in?". Typing a number follows the same path.</p>
+<h3>The AI chat</h3>
+<ol>
+ <li><code>chat_lib.php</code> builds a compact list of facts: every room as <code>[R12] 1101 Admission, 1st Floor, Amafel...</code>, buildings <code>[B#]</code>, campus gates <code>[G#]</code>, and current visitor reports.</li>
+ <li>The system prompt tells the model to answer only from those facts, in short plain sentences, and to return JSON with the ids it used.</li>
+ <li><code>chat.php</code> calls Gemini with a structured-output schema, trying <code>gemini-3.5-flash</code> then <code>gemini-3.1-flash-lite</code> (the "-latest" aliases stopped answering once, so real versions are pinned).</li>
+ <li>The server keeps only ids that exist, removes any "[R#]" tags that leaked into the text, validates follow-up suggestions against the facts, salvages half-finished JSON, and adds room cards for rooms the reply clearly names.</li>
+ <li>A first question is cached for 15 minutes (key includes the facts, so new data invalidates it).</li>
+ <li>With no signal or no AI, <code>chat-core.js</code> answers from the directory on the phone using <code>RoomSearch</code>, and says so.</li>
+</ol>
+<h3>Search</h3>
+<p><code>room-search.js</code> scores each word against room number, name, subtitle, initials ("hr", "osa"), building, floor and category, with one-letter typo tolerance, so "annex registrar" and "1101" both work. Gates are searchable through <code>access-points.js</code>.</p>
+<h3>Indoor AR and QR anchors</h3>
+<p>Indoor AR needs every floor on the route calibrated (real size and compass bearing of the plan). Steps are counted to move along the ribbon, with manual nudges. A QR anchor fixes the starting point. The outdoor guide and indoor guide were chosen after the AR Lab compared five engines (AR.js, LocAR, 8th Wall, WebXR, custom); that lab is kept in <code>ar-lab/</code> and changes nothing in the app.</p></section>
+<section id="offline"><h2>9. Offline</h2>
+<p>Both sides keep working with no signal. The rules are in the header of <code>Frontend/sw.js</code>.</p>
+<div class="tw"><table class=""><thead><tr><th>What</th><th>Strategy</th></tr></thead><tbody><tr><td>Pages (student and admin)</td><td>Network first, saved copy on failure or after 10 s. Pages that redirected (for example to login) are never saved.</td></tr><tr><td>API reads</td><td>Network first, saved copy on failure. Admin-only reads are saved in a private cache and wiped on logout.</td></tr><tr><td>Own scripts, styles, images</td><td>Network first, saved copy on failure.</td></tr><tr><td>CDN libraries and fonts</td><td>Saved copy first (versions are pinned).</td></tr><tr><td>Map tiles</td><td>Saved copy first, capped at 700.</td></tr><tr><td>Never saved</td><td>Logins, the AI endpoints (chat, scan), pings, sync, anything that is not a GET.</td></tr></tbody></table></div>
+<ul>
+ <li><b>Student data.</b> <code>student-offline.js</code> downloads buildings, rooms, the walkway graph, every floor plan and its graph, the static maps, and now every room and building photo, then pre-saves each student page with its scripts. It refreshes at most hourly and tells the visitor with a small badge and a toast.</li>
+ <li><b>Admin changes offline.</b> The admin pages queue edits; on reconnect the admin approves a sync. <code>admin-sync.php</code> applies them in order, each under its own savepoint, never creating a duplicate and returning a conflict instead of overwriting a newer change.</li>
+ <li><b>What does not work offline:</b> the AI (the chat falls back to directory answers), reading a sign with the AI, sending a report, map tiles never loaded, AR libraries never loaded on that phone.</li>
+ <li><b>First visit.</b> The phone must open the app once online. The service worker version (<code>VERSION</code> in sw.js, now <code>lampara-sw-v21</code>) must be raised whenever phones should drop old saved files.</li>
+</ul></section>
+<section id="game"><h2>10. The game layer</h2>
+<h3>Points and unlocks</h3>
+<ul>
+ <li><b>Earning.</b> 10 points per new building reached, 5 to 17 for the daily visit (it grows over a 7 day streak), tutorial steps, routes, scans, questions, the daily quiz, weekly quests, orientation stamps (15 each, 50 for all) and 22 milestone awards.</li>
+ <li><b>Spending.</b> Mascots (20 to 1000) and seasonal themes (200, half price during the season). Points are total earned minus spent.</li>
+ <li><b>Weekly quests.</b> Three picked each Monday from a pool of 13 (deterministic by week, so everyone has the same three). Progress counts real actions only.</li>
+ <li><b>Passport.</b> A stamp per building really reached; the orientation trail for key offices (registrar, library, clinic, cashier, guidance, student affairs).</li>
+ <li><b>Quiz.</b> Five questions a day from the real directory: which building a named office is in, which floor, building numbers. Generic rooms such as "Lecture Room" are never asked. Points once a day, practice any time.</li>
+ <li><b>Seasonal themes.</b> Halloween (Oct 15 to Nov 2), Christmas (Dec), New Year (Dec 26 to Jan 7), Valentine (Feb 1 to 20). Each recolours the student UI and adds scene decorations (pumpkins and bats, snow and trees, fireworks, floating hearts).</li>
+ <li><b>Owner tools.</b> A logged-in admin sees an "Unlock all mascots" button in the shop (it also unlocks every theme) for testing.</li>
+ <li><b>Tutorial.</b> An interactive tour of about two dozen steps of the guide; it awards points per step.</li>
+</ul>
+<p>All of this is in <code>mascots.js</code> (state and rules) and <code>guide-mascot-shop.js</code> (the shop UI), saved only in <code>lampara_mascots</code>. There is no server copy and no sync, so clearing browser data resets it.</p></section>
+<section id="sprites"><h2>11. Sprites and pixel art: where they are built</h2>
+<p>There are no image files for the characters or the scene. Pixel art is stored as <b>text</b> in JavaScript and drawn at runtime, which keeps it tiny, themeable and available offline.</p>
+<h3>Mascot sprites</h3>
+<ul>
+ <li><b>Where:</b> the <code>LIST</code> array in <code>Frontend/Js/Include/mascots.js</code>.</li>
+ <li><b>Format:</b> each mascot has <code>rows</code>, an array of equal-length strings (16 rows of 16 characters, 48 for the mythic one). <code>.</code> is see-through; every other letter is a colour looked up in the shared palette <code>PAL</code> (for example <code>k</code> navy outline, <code>y</code> yellow, <code>Y</code> light yellow, <code>w</code> white). A mascot can add its own letters with <code>pal</code>.</li>
+ <li><b>Drawing:</b> <code>LamparaMascots.svg(id, size)</code> turns the rows into an SVG, one rectangle per run of the same colour, <code>shape-rendering: crispEdges</code>. <code>canvas(id)</code> and <code>draw()</code> paint the same rows on a canvas (used by the walking mascot on the route page and the share card). Any <code>&lt;img data-mascot&gt;</code> is filled with the equipped mascot automatically.</li>
+ <li><b>Editing a mascot:</b> change its rows, add it to <code>LIST</code> with an id, name, price, and a one-line blurb, and it appears in the shop. Keep every row the same length.</li>
+</ul>
+<div class="tw"><table class=""><thead><tr><th>Id</th><th>Name</th><th>Price</th><th>Grid</th><th>Notes</th></tr></thead><tbody><tr><td><code>lumi</code></td><td>Lumi</td><td>0</td><td>16x16</td><td>The default, the real Lampara lamp. Also the source of the logo and app icons.</td></tr><tr><td><code>bulby</code></td><td>Bulby</td><td>20</td><td>16x16</td><td></td></tr><tr><td><code>shade</code></td><td>Shade</td><td>20</td><td>16x16</td><td></td></tr><tr><td><code>waxy</code></td><td>Waxy</td><td>30</td><td>16x16</td><td></td></tr><tr><td><code>parol</code></td><td>Parol</td><td>40</td><td>16x16</td><td></td></tr><tr><td><code>farol</code></td><td>Farol</td><td>50</td><td>16x16</td><td></td></tr><tr><td><code>genie</code></td><td>Genie</td><td>60</td><td>16x16</td><td></td></tr><tr><td><code>desk</code></td><td>Deskie</td><td>80</td><td>16x16</td><td></td></tr><tr><td><code>jar</code></td><td>Glowjar</td><td>100</td><td>16x16</td><td></td></tr><tr><td><code>post</code></td><td>Lampost</td><td>120</td><td>16x16</td><td></td></tr><tr><td><code>torch</code></td><td>Blaze</td><td>150</td><td>16x16</td><td></td></tr><tr><td><code>beacon</code></td><td>Beacon</td><td>200</td><td>16x16</td><td></td></tr><tr><td><code>guardian</code></td><td>Mythic Guardian</td><td>1000</td><td>48x48</td><td>Mythic. Drawn from a photograph with tools/photo-to-sprite.py, with its own palette (pal), wings and a flame crown. Gold frame in the shop.</td></tr></tbody></table></div>
+<h3>The Mythic Guardian (made from a photograph)</h3>
+<p>Built with <code>tools/photo-to-sprite.py</code> (Python, Pillow). It enlarges and smooths the photo, cuts out the head and shoulders with a mask, scales it to a 30 x 34 portrait, reduces it to a 17-colour palette, then composes a 48 x 48 grid: feathered wings, the portrait, a flame crown and a navy outline. It prints the rows and the palette ready to paste into <code>mascots.js</code>. The script has the source photo path written inside it; change <code>SRC</code> to reuse it. It needs <code>pip install pillow</code>.</p>
+<h3>Other pixel art</h3>
+<div class="tw"><table class=""><thead><tr><th>What</th><th>Where</th><th>How it is made</th></tr></thead><tbody><tr><td>Night scene (stars, moon, clouds, skyline, trees, lamp posts, seasonal props)</td><td><code>Js/Include/pixel-scene.js</code> + <code>Css/pixel-scene.css</code></td><td>SVG rectangles on a 120 x 56 grid; fills are CSS classes that read the theme colours; falling snow, hearts, bats and fireworks are CSS animations shown only for their theme.</td></tr><tr><td>Small icons (star, flame, tree, building, pin, replay, share, flag, home, back)</td><td><code>LamparaMascots.icon()</code></td><td>Tiny SVG pixel icons inside mascots.js.</td></tr><tr><td>Logo and app icons</td><td><code>Frontend/assets/logo.svg, favicon.*, apple-touch-icon.png, icon-192.png, icon-512.png</code></td><td>Regenerated from the Lumi sprite (the real lamp). The app icon is fixed; it does not follow the equipped mascot.</td></tr><tr><td>Pixel corners</td><td><code>--px, --px-s in the page stylesheets</code></td><td>clip-path polygons with stepped corners.</td></tr><tr><td>Empty-state pictures</td><td><code>Frontend/assets/illustrations/*.svg</code></td><td>Four small SVGs for empty admin lists.</td></tr></tbody></table></div><p class="note">Backgrounds <code>lampara-bg.jpg</code>, <code>ncst-bg.jpg</code> and <code>ncst-new-bg.webp</code> are photographs used on the landing and admin login.</p></section>
+<section id="audio"><h2>12. Music and sound effects</h2>
+<p>Everything is synthesised live with the Web Audio API in <code>Js/Public/guide-audio.js</code>. There are no audio files, so it works offline and costs nothing to host. A master compressor keeps the level steady.</p>
+<ul>
+ <li><b>Five music styles,</b> each its own instrument and groove: dawn bells (bell arpeggios over a soft pad), drift lo-fi (electric piano, swung beat, vinyl crackle), dusk pads (slow wide pads, no beat), rain bossa (nylon guitar, walking bass, brushes) and porch ukulele (strums, shaker, a whistled tune).</li>
+ <li><b>Pools per screen.</b> tour, start, where, pick, shop and route choose different styles, so each part of the app has its own mood.</li>
+ <li><b>Effects.</b> click, blip, chime, stairs, footstep and the typing chirp used by the typewriter cards; <code>game-feel.js</code> adds a pop to every tap.</li>
+ <li><b>Mute.</b> One shared preference (<code>lampara_music</code>) for the whole app. Browsers only allow sound after a first tap, so audio starts then.</li>
+</ul>
+<p class="note">Sound was tested only by checking that the code runs; it could not be heard in the automated browser. It still needs listening tests on real phones.</p></section>
+<section id="external"><h2>13. Everything external</h2>
+<h3>Services</h3>
+<div class="tw"><table class=""><thead><tr><th>Service</th><th>Address</th><th>Used for</th><th>Notes</th></tr></thead><tbody><tr><td>Google Gemini API</td><td><code>generativelanguage.googleapis.com/v1beta</code></td><td>Chat (gemini-3.5-flash, then gemini-3.1-flash-lite), sign reading (scan.php, gemini-flash-lite-latest), report photo check (gemini-3.1-flash-lite, then gemini-3.5-flash)</td><td>Key in Backend/secrets.php (GEMINI_API_KEY, optional GEMINI_MODEL). Free-tier quota applies. Called only from the server, never from the browser.</td></tr><tr><td>OpenStreetMap tiles</td><td><code>tile.openstreetmap.org</code></td><td>Street layer in admin maps and the student map</td><td>Needs attribution (already shown). Not available offline beyond what the worker saved (capped at 700 tiles).</td></tr><tr><td>Esri World Imagery</td><td><code>server.arcgisonline.com</code></td><td>Satellite layer</td><td>Same limits as OSM tiles.</td></tr><tr><td>Google Maps link</td><td><code>google.com/maps?q=</code></td><td>Admin "open in maps" link on a report</td><td>A plain link, no API.</td></tr><tr><td>Email (optional)</td><td><code>PHP mail()</code></td><td>Alert for each new visitor report when HAZARD_ALERT_EMAIL is set in secrets.php</td><td>Needs the host to send mail.</td></tr><tr><td>ngrok (development only)</td><td><code>ngrok.io</code></td><td>HTTPS tunnel so a phone can use camera, GPS and motion sensors against a laptop server</td><td>Not part of the product.</td></tr></tbody></table></div>
+<h3>Libraries and fonts</h3>
+<div class="tw"><table class=""><thead><tr><th>Library</th><th>Where it comes from</th><th>Used for</th><th>Offline</th></tr></thead><tbody><tr><td>Vue 3 (global build)</td><td>vendored: Frontend/assets/vendor/vue.global.prod.js</td><td>Reactive UI on the guide, scan, manual search and the admin editors</td><td>Yes (own file)</td></tr><tr><td>Leaflet</td><td>vendored: assets/vendor/leaflet/</td><td>Admin and student maps (walkway editor, building picker, outline linking)</td><td>Yes (own file); tiles are not</td></tr><tr><td>PDF.js 3.11.174</td><td>vendored: assets/vendor/pdfjs/, cdnjs fallback</td><td>Opens a PDF as the 2D campus map</td><td>Yes</td></tr><tr><td>AR.js / A-Frame 1.4.0</td><td>vendored: assets/vendor/aframe-ar.js; aframe.io (ar-test page only)</td><td>Older AR camera pages and the diagnostics page</td><td>Partly</td></tr><tr><td>three.js 0.181.0</td><td>cdn.jsdelivr.net (import map)</td><td>The 3D layer of both AR guides</td><td>Saved by the service worker after first load</td></tr><tr><td>three.js 0.160.0 + addons</td><td>cdn.jsdelivr.net (import map)</td><td>3D campus map (.obj viewer)</td><td>Saved after first load</td></tr><tr><td>LocAR.js 0.2.12</td><td>cdn.jsdelivr.net, imported by Js/Public/locar-engine.js</td><td>GPS and compass placement of the path in the outdoor AR view</td><td>Saved after first load</td></tr><tr><td>jsQR 1.4.0</td><td>cdn.jsdelivr.net</td><td>Reading QR start anchors from the camera</td><td>Saved after first load</td></tr><tr><td>qrcodejs 1.0.0</td><td>cdn.jsdelivr.net</td><td>Drawing QR codes for anchors (admin)</td><td>Saved after first load</td></tr><tr><td>SweetAlert2 11</td><td>cdn.jsdelivr.net</td><td>Dialogs on the admin pages</td><td>Saved after first load</td></tr><tr><td>Tesseract.js 5.1.1</td><td>unpkg.com</td><td>Live on-device text box while aiming the scanner</td><td>Saved after first load</td></tr><tr><td>Tailwind CSS (precompiled)</td><td>Frontend/assets/css/tailwind.css, built with the standalone CLI</td><td>Utility classes on older pages (guide, scan, admin)</td><td>Yes</td></tr><tr><td>Google Fonts</td><td>fonts.googleapis.com / fonts.gstatic.com</td><td>Outfit (body), JetBrains Mono (numbers, code), Pixelify Sans (game headings)</td><td>Saved after first load</td></tr></tbody></table></div>
+<p class="note">Versions are pinned in each page. Upgrading three.js or LocAR can change AR behaviour; test on a phone before changing either.</p></section>
+<section id="assets"><h2>14. Assets and uploaded data</h2>
+<div class="tw"><table class=""><thead><tr><th>Folder</th><th>Contents</th><th>In git?</th></tr></thead><tbody><tr><td><code>Frontend/assets/*.png|svg|ico</code></td><td>Logo, favicon, app icons (generated from the Lumi sprite)</td><td>Yes</td></tr><tr><td><code>Frontend/assets/vendor/</code></td><td>Vue, Leaflet, PDF.js, AR.js files</td><td>Yes</td></tr><tr><td><code>Frontend/assets/css/</code></td><td>Compiled tailwind.css and its input</td><td>Yes</td></tr><tr><td><code>Frontend/assets/illustrations/</code></td><td>Empty-state SVGs</td><td>Yes</td></tr><tr><td><code>Frontend/assets/floorplans/</code></td><td>Uploaded floor plan images</td><td>Yes (14 files tracked today). They are user data too, so back them up with the database</td></tr><tr><td><code>Frontend/assets/maps/</code></td><td>The uploaded 2D / 3D campus map</td><td>Check: not all files are tracked</td></tr><tr><td><code>Frontend/assets/photos/</code></td><td>Building, room and report photos (random file names)</td><td>No (user data); only .gitkeep and .htaccess are tracked</td></tr></tbody></table></div><p>Back up the database <b>and</b> the <code>photos</code>, <code>floorplans</code> and <code>maps</code> folders together: the database only stores their paths.</p></section>
+<section id="testing"><h2>15. Testing and tools</h2>
+<div class="tw"><table class=""><thead><tr><th>What</th><th>Where</th><th>Notes</th></tr></thead><tbody><tr><td>End-to-end suites</td><td><code>tests/e2e/run.py</code></td><td>Playwright (Edge) at phone size with fake GPS, camera and sensors. Suites: fence, journey, outside, camera, map, reports, admin, security, smoke. Adds a few rows and cleans them up. Its base URL assumes <code>http://localhost/Lampara/</code> (XAMPP); on MAMP change BASE and API.</td></tr><tr><td>3D map anchor check</td><td><code>tests/map-3d-anchor.mjs</code></td><td>Node script for the 3D map pin placement.</td></tr><tr><td>AR engine comparison</td><td><code>ar-lab/</code></td><td>Five engines tested side by side with the same path. Informational; delete it and nothing changes.</td></tr><tr><td>Indoor experiments</td><td><code>indoor-lab/index.html</code></td><td>Scratch page.</td></tr><tr><td>Setup audit</td><td><code>Backend/scripts/setup-audit.php</code></td><td>Checks the data a working AR guide needs.</td></tr><tr><td>Admin dashboard health</td><td><code>api/setup-health.php</code></td><td>The same checks as a list on the dashboard.</td></tr></tbody></table></div>
+<p>The recent game, theme, chat and offline work was verified with throwaway headless-Chrome scripts at 360 px width. Those scripts were kept outside the repository and are not part of the test suite; the checks they made are described in the commit notes and in this document.</p>
+<h3>What no automated test can cover</h3>
+<ul><li>Real GPS drift, compass quality and step counting.</li><li>Safari on an iPhone (camera, motion permission, add to home screen).</li><li>Whether the music and effects sound right.</li><li>The admin pages behind a login, apart from what <code>run.py</code> covers.</li></ul></section>
+<section id="risks"><h2>16. Known gaps and things to watch</h2>
+<ol>
+ <li><b>scan.php uses an alias model.</b> It calls <code>gemini-flash-lite-latest</code>. The chat once hung on the same kind of alias and was moved to pinned versions with a fallback list. Give <code>scan.php</code> the same treatment before relying on sign scanning.</li>
+ <li><b>schema.sql is behind the live database</b> (section 5). Regenerate it.</li>
+ <li><b>Game progress lives only on the phone.</b> Clearing browser data or switching phones resets points, mascots and themes. This is deliberate (no accounts) but visitors should know.</li>
+ <li><b>The campus fence is off</b> on the development database. Turn it on for the real deployment if visitors must be on campus.</li>
+ <li><b>Anti-troll limits rely on a cookie</b> and a per-address cap. A determined person can still send some reports; the protection is that nothing reaches students unchecked except short, located, photographed urgent reports with the photo hidden.</li>
+ <li><b>Photo check is a filter, not a guarantee.</b> Admins should look at a photo before approving.</li>
+ <li><b>Flaky inputs for AR.</b> GPS and compass are the weakest part of the whole system. The path engine (<code>locar-engine.js</code>) has not been changed during the game work and needs outdoor testing on real phones.</li>
+ <li><b>Duplicate room numbers across buildings</b> are now allowed. The IIRT building must keep its building number empty, or the admin form's "starts with building number + floor" rule will reject its 1101 to 1103.</li>
+ <li><b>Local file names.</b> The Playwright tests assume a URL with a capital L; the local folder is lowercase.</li>
+ <li><b>Not yet verified on a real phone:</b> sound, install to home screen behaviour, camera scan end to end, GPS tiebreaker, pinch and double-tap zoom on the route plan, and the AR path.</li>
+</ol></section>
+<section id="conventions"><h2>17. Conventions for working in this codebase</h2>
+<ul>
+ <li>Every API file starts with a comment that lists its methods, body and reply. Keep that true when you change it.</li>
+ <li>Do not put <code>&lt;style&gt;</code> or <code>&lt;script&gt;</code> blocks in pages; each page has its own .css and .js file.</li>
+ <li>New student colours go through <code>var(--t-*, #fallback)</code> so themes keep working. Admin CSS stays on its own colours.</li>
+ <li>Link scripts and styles with <code>?v=&lt;filemtime&gt;</code>.</li>
+ <li>Never commit <code>Backend/db.php</code>, <code>Backend/secrets.php</code> or uploaded photos.</li>
+ <li>Copy in the app avoids em-dashes, purple and anything that sounds like marketing; messages say what happened and what to do.</li>
+ <li>When you change files that visitors cache, raise <code>VERSION</code> in <code>Frontend/sw.js</code>.</li>
+ <li>Anything that touches location, camera or personal data must be explained on the privacy page.</li>
+</ul>
+<h3>Glossary</h3>
+<div class="tw"><table class=""><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody><tr><td>Leg</td><td>One part of a trip: inside a building, or outside between buildings.</td></tr><tr><td>Walkable graph</td><td>The points and connections an admin draws; routes are shortest paths over it.</td></tr><tr><td>Entrance node</td><td>The outdoor walkway point at a building's door; where an outdoor route ends.</td></tr><tr><td>Door (entry / exit)</td><td>The indoor path point you come in by or leave by.</td></tr><tr><td>Calibration</td><td>The real metres per plan unit and the compass bearing of "up", needed for indoor AR.</td></tr><tr><td>Fence</td><td>The on-campus check.</td></tr><tr><td>Pending / active / verified</td><td>A report waiting for an admin / shown to everyone / confirmed by an admin.</td></tr><tr><td>Strike</td><td>A mark against a phone when an admin rejects an unconfirmed report.</td></tr><tr><td>Mythic</td><td>A rarity tier with a gold frame in the shop.</td></tr></tbody></table></div></section>
+</main></div>
+<button class="top" id="top" type="button" aria-label="Back to top">Top</button>
+<script>
+(function () {
+  var links = [].slice.call(document.querySelectorAll('nav.toc a')), secs = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+  function spy() { var y = window.scrollY + 120, cur = 0; secs.forEach(function (s, i) { if (s && s.offsetTop <= y) cur = i; }); links.forEach(function (a, i) { a.classList.toggle('on', i === cur); }); }
+  window.addEventListener('scroll', spy, { passive: true }); spy();
+  document.getElementById('top').onclick = function () { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+})();
+</script>

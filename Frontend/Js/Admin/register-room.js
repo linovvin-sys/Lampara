@@ -57,6 +57,7 @@ window.LamparaRoomApp = createApp({
       selected: [],
       bulk: { open: false, busy: false, start: '08:00', end: '17:00', days: 'Mon–Fri' },
       photoBusy: false,
+      pendingPhoto: '',        // a photo picked for a room that is not saved yet (a ready-to-upload JPEG); sent right after the room is created
       photoOver: false,
       loaded: false,
       nameOther: false,          // "Something else — type a name" picked in the Room name dropdown
@@ -110,7 +111,10 @@ window.LamparaRoomApp = createApp({
     },
     // The room list on the left, narrowed by the search box.
     // ---- photo ----
-    roomPhoto() { return this.editingRoom && this.editingRoom.photo_path ? this.editingRoom.photo_path : ''; },
+    // adding a room: the photo picked so far (not uploaded yet); editing one: the saved photo
+    adding() { return this.editingId === null; },
+    roomPhoto() { return this.adding ? this.pendingPhoto : (this.editingRoom && this.editingRoom.photo_path ? this.editingRoom.photo_path : ''); },
+    photoSrc() { return this.roomPhoto && this.roomPhoto.indexOf('data:') === 0 ? this.roomPhoto : '../../' + this.roomPhoto; },
     editingIsTemp() { return this.editingId !== null && AdminOffline.isTemp(this.editingId); },
     // ---- the student preview ----
     categoryLabel() { return { office: 'Office', classroom: 'Classroom / Lab', cr: 'Comfort room', canteen: 'Canteen' }[this.form.category] || 'Room'; },
@@ -224,8 +228,8 @@ window.LamparaRoomApp = createApp({
       const num = this.roomNumberNormalized;
       if (num) {
         const key = RoomNumber.compact(num);
-        const dupe = this.rooms.find((r) => r.room_number && RoomNumber.compact(r.room_number) === key && r.id !== this.editingId);
-        if (dupe) return `Room ${num} is already registered (${dupe.room_name}, ${dupe.building_name}).`;
+        const dupe = this.rooms.find((r) => r.room_number && RoomNumber.compact(r.room_number) === key && r.id !== this.editingId && String(r.building_id) === String(this.form.building_id));
+        if (dupe) return `Room ${num} is already registered in this building (${dupe.room_name}).`;
       }
       if (!this.expectedPrefix || !num) return '';
       if (!RoomNumber.isValidFormat(num)) return 'Room number should be digits, optionally followed by a section, like 1101 or 1101 - A.';
@@ -412,6 +416,7 @@ window.LamparaRoomApp = createApp({
     // cancelling an edit, or building_id + room_type + floor when batching
     // in several similar rooms back to back via "Add another?").
     blankForm(overrides) {
+      this.pendingPhoto = '';   // a fresh form starts without a picked photo
       return {
         building_id: '', room_number: '', room_name: '', subtitle: '', floor: '', category: 'office', hours: '',
         hoursStart: '', hoursEnd: '', hasLunchBreak: false, lunchStart: '', lunchEnd: '',
@@ -474,7 +479,12 @@ window.LamparaRoomApp = createApp({
     },
     // ---- photo ----
     async choosePhoto(file) {
-      if (this.editingId === null || this.editingIsTemp) return;
+      if (this.editingIsTemp) { AdminOffline.toast('This room is only saved on this device so far. Add its photo after it has synced.', 'info'); return; }
+      if (this.adding) {   // a new room: pick it now (works offline too), it is uploaded as soon as the room is saved
+        const picked = await LamparaPhoto.pick({ title: 'Photo of ' + (this.form.room_name || 'the room'), file, portrait: true });
+        if (picked) { this.pendingPhoto = picked; AdminOffline.toast('Photo ready. It is saved together with the room.', 'success'); }
+        return;
+      }
       if (!(await AdminOffline.guardOnline('Uploading a photo'))) return;
       const data = await LamparaPhoto.pick({ title: 'Photo of ' + (this.form.room_name || 'the room'), file, portrait: true });
       if (!data) return;
@@ -493,6 +503,7 @@ window.LamparaRoomApp = createApp({
       if (f) this.choosePhoto(f);
     },
     async removePhoto() {
+      if (this.adding) { this.pendingPhoto = ''; return; }
       if (!(await AdminOffline.guardOnline('Removing a photo'))) return;
       if (!(await AdminConfirm({ title: 'Remove this photo?', text: 'Students will see no photo for this room.', confirmText: 'Remove photo', danger: true }))) return;
       this.photoBusy = true;
@@ -567,6 +578,7 @@ window.LamparaRoomApp = createApp({
       this.submitting = true;
       const editing = this.editingId;
       const wasAdding = !editing; // captured before cancelEdit() clears it
+      const photoToSend = wasAdding ? this.pendingPhoto : '';
       const fields = {
         room_number: (this.form.noSignage || this.forcesNoNumber) ? '' : this.roomNumberNormalized,
         room_name: this.form.room_name, subtitle: (this.form.subtitle || '').trim(), floor: this.form.floor, category: this.form.category,
@@ -588,6 +600,14 @@ window.LamparaRoomApp = createApp({
         const justAdded = { building_id: this.form.building_id, category: this.form.category, floor: this.form.floor };
         this.cancelEdit();
         if (out.queued) this.applyPending(); else await this.loadRooms();
+        // The photo picked while adding goes up now that the room has an id. If the room was only saved on this device (offline),
+        // there is no id yet, so say so: the photo can be added from the room's edit screen once it has synced.
+        if (photoToSend && !out.queued && out.result && out.result.id) {
+          try { await LamparaPhoto.upload('room', out.result.id, photoToSend); await this.loadRooms(); }
+          catch (e) { Swal.fire({ icon: 'warning', title: 'The room was saved, but the photo was not', text: (e && e.message ? e.message + '. ' : '') + 'Open the room and add the photo again.' }); }
+        } else if (photoToSend && out.queued) {
+          AdminOffline.toast('The room is saved on this device. Add its photo after it syncs.', 'info');
+        }
         // Only after adding a NEW room (not editing one) — "add another?"
         // doesn't make sense mid-edit. Keeping building/type/floor on yes
         // is what actually fixes "it resets to Office every time": you're

@@ -7,13 +7,13 @@
 // Plain <script>; needs offline-cache.js, floor-route.js and building-doors.js loaded first.
 (() => {
   const API = '../../../Backend/api/', IMG = '../../';
-  const NAVY = '#161850', GOLD = '#ffd100';
+  const cssVar = (n, d) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;   // follows the chosen theme
+  const NAVY = cssVar('--t-ink2', '#161850'), GOLD = cssVar('--t-accent', '#ffd100');
   const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
 
-  let rooms = [], buildings = [];
+  let rooms = [], buildings = [], tripTo = null, lastStepPh = -1;
   let legs = [], legIdx = 0, route = null;      // route = the inside leg on screen
-  let camLeave = null, camFind = null;
   let segIdx = 0, anim = null, raf = 0, switching = false, cardAction = null;
   const cv = $('cv'), ctx = cv.getContext('2d');
   const still = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -84,7 +84,7 @@
     $('title').textContent = 'Sorry';
     $('error').innerHTML = ''; $('error').appendChild(document.createTextNode(m));
     $('error').hidden = false;
-    $('viewPlan').hidden = true; $('viewText').hidden = true; $('viewOut').hidden = true; $('bottom').hidden = true; $('steps').hidden = true;
+    $('viewPlan').hidden = true; $('viewOut').hidden = true; $('bottom').hidden = true; $('steps').hidden = true;
     $('errorLinks').hidden = false;
   }
 
@@ -98,6 +98,7 @@
     const startStep = parseInt(q.get('step') || (same ? saved.step : 0) || 0, 10);
     const to = rooms.find((r) => String(r.id) === q.get('to'));
     const from = rooms.find((r) => String(r.id) === q.get('from'));
+    tripTo = to;
     if (!to) return fail("We couldn't find that room.");
     if (to.map_x === null || to.map_y === null) return fail("This room isn't marked on its floor plan yet.");
     const toB = bOf(to.building_id);
@@ -105,7 +106,6 @@
       if (from && String(from.building_id) === String(to.building_id)) {
         if (from.map_x === null || from.map_y === null) throw new Error("Your starting room isn't marked on its floor plan yet.");
         legs = [await insideLeg(to.building_id, pt(from), pt(to), 'You', roomName(to), 'room')];
-        const cam = $('camLink'); cam.href = 'indoor-ar.php?from=' + from.id + '&to=' + to.id; cam.hidden = false;
       } else if (from) {
         if (from.map_x === null || from.map_y === null) throw new Error("Your starting room isn't marked on its floor plan yet.");
         const fB = bOf(from.building_id), A = await buildingData(from.building_id), B = await buildingData(to.building_id);
@@ -132,9 +132,45 @@
     $('bottom').hidden = false;
     LamparaTrip.set({ to: String(to.id), from: from ? String(from.id) : '', arrived: q.get('arrived') ? 1 : 0, label: roomName(to) + ' (' + to.building_name + ')' });
     // the camera version of the inside steps: room -> exit, or door -> room (it needs the floors calibrated; the page says so if not)
-    camLeave = from ? 'from=' + from.id + '&to=' + to.id : null; camFind = 'arrived=1&to=' + to.id;
-    runLeg(Math.max(0, Math.min(legs.length - 1, startStep)));
+    const go = () => runLeg(Math.max(0, Math.min(legs.length - 1, startStep)));
+    $('infoBtn').hidden = false;
+    // a new trip opens with the room's details; a reload part-way along goes straight back to the route
+    if (startStep === 0 && !q.get('arrived')) openInfo(go); else go();
   }
+
+  // ---------------- details of the destination room
+  function roomKind(r) {
+    const n = String(r.room_name || '').toLowerCase(), c = String(r.category || r.room_type || '').toLowerCase();
+    if (c === 'cr' || /comfort|restroom|toilet/.test(n)) return 'Restroom';
+    if (c === 'canteen') return 'Canteen';
+    if (/cubicle|counter|window/.test(n)) return 'Cubicle';
+    if (/\blab/.test(n)) return 'Laboratory';
+    if (c === 'office') return 'Office';
+    return 'Lecture room';
+  }
+  let infoDone = null;
+  function openInfo(after) {
+    const r = tripTo; if (!r) { if (after) after(); return; }
+    infoDone = after || null;
+    $('infoType').textContent = roomKind(r);
+    $('infoName').textContent = roomName(r);
+    $('infoWhere').textContent = [r.building_name, r.floor].filter(Boolean).join(' \u00b7 ');
+    const ph = $('infoPhoto');
+    if (r.photo_path) { ph.src = IMG + r.photo_path; ph.alt = 'Photo of ' + roomName(r); ph.hidden = false; ph.onerror = () => { ph.hidden = true; }; } else ph.hidden = true;
+    const facts = [];
+    if (r.hours) facts.push(['Hours', r.hours]);
+    if (r.notes) facts.push(['How to spot it', r.notes]);
+    $('infoFacts').innerHTML = facts.map((f) => '<li><b></b><span></span></li>').join('');
+    $('infoFacts').querySelectorAll('li').forEach((li, k) => { li.firstChild.textContent = facts[k][0]; li.lastChild.textContent = facts[k][1]; });
+    $('infoGo').textContent = after ? 'Show me the way' : 'Close';
+    $('info').hidden = false; $('infoGo').focus();
+    if (window.LamparaAudio) LamparaAudio.chime();
+  }
+  function closeInfo() { $('info').hidden = true; const f = infoDone; infoDone = null; if (f) f(); }
+  $('infoGo').onclick = closeInfo;
+  $('infoBtn').onclick = () => openInfo(null);
+  $('info').addEventListener('click', (e) => { if (e.target === $('info')) closeInfo(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('info').hidden) closeInfo(); });
 
   function buildSteps() {
     if (legs.length < 2) { $('steps').hidden = true; return; }
@@ -150,14 +186,12 @@
     $('card').classList.remove('on'); cardAction = null; $('error').hidden = true;
     if (leg.kind === 'inside') {
       route = leg;
-      const cp = leg.label === 'leave' ? camLeave : leg.label === 'find' ? camFind : null;
-      if (cp) { const cam = $('camLink'); cam.href = 'indoor-ar.php?' + cp; cam.hidden = false; } else if (legs.length > 1) $('camLink').hidden = true;
-      $('viewOut').hidden = true; $('viewPlan').hidden = false; $('viewText').hidden = false; $('replay').hidden = false;
+      $('viewOut').hidden = true; $('viewPlan').hidden = false; $('replay').hidden = false;
       $('title').textContent = leg.label === 'leave' ? 'Walk to the exit' : leg.label === 'find' ? 'Walk to ' + leg.endLabel : 'Walk to ' + leg.endLabel;
       buildTabs(); start(0);
     } else {
       cancelAnimationFrame(raf); raf = 0;
-      $('viewPlan').hidden = true; $('viewText').hidden = true; $('viewOut').hidden = false; $('replay').hidden = true;
+      $('viewPlan').hidden = true; $('viewOut').hidden = false; $('replay').hidden = true;
       $('title').textContent = 'Walk outside';
       $('outTitle').textContent = 'Walk to ' + leg.buildingName;
       $('outText').textContent = 'Go out through the exit and follow the yellow path on your camera to the entrance of ' + leg.buildingName + '.';
@@ -175,9 +209,50 @@
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
+  // The card's words appear a letter at a time with a game-style chirp (title first, then the line under it). The whole text is
+  // already in the box, hidden, so the card never changes size, and a screen reader gets the full sentence at once.
+  // A tap on the words finishes them. With reduced motion they simply appear.
+  let typer = 0, typeFinish = null;
+  function typeCard(title, sub) {
+    clearInterval(typer); typer = 0; typeFinish = null;
+    const nodes = [[$('cardTitle'), title], [$('cardSub'), sub]];
+    const parts = nodes.map(([n, t]) => {
+      n.textContent = '';
+      const sr = document.createElement('span'), shown = document.createElement('span'), rest = document.createElement('span');
+      sr.className = 'jr-sr'; sr.textContent = t; shown.setAttribute('aria-hidden', 'true'); rest.setAttribute('aria-hidden', 'true'); rest.className = 'jr-rest'; rest.textContent = t;
+      n.append(sr, shown, rest);
+      return { shown, rest, t };
+    });
+    if (still()) { parts.forEach((p) => { p.shown.textContent = p.t; p.rest.textContent = ''; }); return; }
+    let k = 0, i = 0;
+    const done = () => { clearInterval(typer); typer = 0; typeFinish = null; parts.forEach((p) => { p.shown.textContent = p.t; p.rest.textContent = ''; }); };
+    typeFinish = done;
+    typer = setInterval(() => {
+      const p = parts[k];
+      i++; p.shown.textContent = p.t.slice(0, i); p.rest.textContent = p.t.slice(i);
+      const ch = p.t.charAt(i - 1);
+      if (ch.trim() && i % 2 === 0 && window.LamparaAudio) LamparaAudio.blip(ch);
+      if (i >= p.t.length) { k++; i = 0; if (k >= parts.length) done(); }
+    }, 28);
+  }
+  $('card').addEventListener('click', (e) => { if (typeFinish && e.target.closest('h2, p')) typeFinish(); });
+
+  // Finishing an indoor route earns points (once per room per day, a little more for stairs or another building), counts toward
+  // the weekly quests, and stamps the orientation trail when the room is one of the offices on it. All kept on this phone.
+  function rewardRoute() {
+    const M = window.LamparaMascots;
+    if (!M || !tripTo) return;
+    const pts = 10 + (legs.length > 1 ? 5 : 0) + (route.segs.length > 1 ? 5 : 0);
+    if (M.award('route:' + tripTo.id + ':' + M.today(), pts)) M.toast('Route complete', pts);
+    M.event('route', String(tripTo.id));
+    M.stampRoom(tripTo, rooms);
+  }
+
   function showCard(title, sub, btn, action) {
-    $('cardTitle').textContent = title; $('cardSub').textContent = sub; $('cardGo').textContent = btn; cardAction = action;
-    $('card').classList.add('on');
+    if (window.LamparaAudio) { if (/^take the stairs/i.test(title)) LamparaAudio.stairs(); else LamparaAudio.chime(); }
+    $('cardGo').textContent = btn; cardAction = action;
+    typeCard(title, sub);
+    setMin(false); $('card').classList.add('on');
   }
 
   // ---------------- path geometry (plan pixels)
@@ -225,8 +300,48 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const bounce = (t) => { if (t <= 0) return 0; if (t >= 1) return 1; const c = 2.2; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 
+  // ---------------- zoom and pan: + / - buttons, pinch, mouse wheel, double tap, and drag when zoomed in
+  const view = { z: 1, ox: 0, oy: 0, s0: 1, cx: 0, cy: 0, tx: 0, ty: 0 };
+  const ZMIN = 1, ZMAX = 5;
+  function syncZoomUi() { $('zIn').disabled = view.z >= ZMAX - 0.01; $('zOut').disabled = view.z <= ZMIN + 0.01; $('zFit').hidden = view.z <= ZMIN + 0.01; }
+  // Zooms to `nz`, keeping the point under (fx, fy) (canvas pixels) where it is.
+  function zoomTo(nz, fx, fy) {
+    nz = Math.min(ZMAX, Math.max(ZMIN, nz));
+    if (fx === undefined) { fx = cv.width / 2; fy = cv.height / 2; }
+    const f = nz / view.z, cw = cv.width, ch = cv.height;
+    const ntx = fx - (fx - view.tx) * f, nty = fy - (fy - view.ty) * f;
+    view.z = nz;
+    const s = view.s0 * nz;
+    view.ox = nz === 1 ? 0 : ntx - (cw / 2 - view.cx * s); view.oy = nz === 1 ? 0 : nty - (ch / 2 - view.cy * s);
+    syncZoomUi();
+  }
+  const toCanvas = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
+  $('zIn').onclick = () => zoomTo(view.z * 1.5);
+  $('zOut').onclick = () => zoomTo(view.z / 1.5);
+  $('zFit').onclick = () => zoomTo(1);
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); const c = toCanvas(e); zoomTo(view.z * (e.deltaY < 0 ? 1.2 : 1 / 1.2), c.x, c.y); }, { passive: false });
+  const ptrs = new Map(); let pinch = null, lastTap = 0;
+  cv.addEventListener('pointerdown', (e) => {
+    cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, toCanvas(e));
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: view.z }; }
+    else if (e.pointerType !== 'mouse') {
+      const now = Date.now(), c = toCanvas(e);
+      if (now - lastTap < 300) { zoomTo(view.z > 1.2 ? 1 : 2.4, c.x, c.y); lastTap = 0; } else lastTap = now;
+    }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!ptrs.has(e.pointerId)) return;
+    const prev = ptrs.get(e.pointerId), c = toCanvas(e); ptrs.set(e.pointerId, c);
+    if (ptrs.size === 2 && pinch) {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch.d > 0) zoomTo(pinch.z * d / pinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    } else if (ptrs.size === 1 && view.z > 1) { view.ox += c.x - prev.x; view.oy += c.y - prev.y; }
+  });
+  const lift = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; };
+  cv.addEventListener('pointerup', lift); cv.addEventListener('pointercancel', lift);
+
   function start(i) {
-    segIdx = i; switching = false;
+    segIdx = i; switching = false; view.z = 1; view.ox = 0; view.oy = 0; syncZoomUi();
     const seg = route.segs[i], W = seg.img.naturalWidth, H = seg.img.naturalHeight;
     const g = smoothDense(seg.pts, W, H, Math.max(W, H) * 0.035);
     anim = { g, W, H, t0: performance.now(), dur: 1500 + 2600 * Math.min(1, g.total / (W * 1.1)), doneAt: 0, shown: false };
@@ -236,11 +351,10 @@
     cv.style.height = cssH + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(cssH * dpr);
     anim.dpr = dpr;
     $('tabs').querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === i));
-    const total = route.segs.reduce((s, x) => s + (metres(x) || 0), 0);
     const multi = route.segs.length > 1;
     $('hudL').textContent = seg.plan.floor + (multi ? ' (' + (i + 1) + ' of ' + route.segs.length + ')' : '');
     const doorHere = route.doorGuess && ((route.label === 'leave' && i === route.segs.length - 1) || (route.label === 'find' && i === 0));
-    $('hudR').textContent = doorHere ? 'The exact door position is estimated' : total ? 'About ' + Math.round(total) + ' meters, ' + Math.max(1, Math.round(total / 1.3 / 60)) + ' min' : '';
+    $('hudR').textContent = doorHere ? 'The exact door position is estimated' : '';   // no distance or time shown any more
     $('card').classList.remove('on');
     renderText(i);
     cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
@@ -256,10 +370,18 @@
 
     // the camera follows the head while the line grows, then settles on the whole plan
     const z = lerp(1.9, 1, ease(Math.min(1, raw * 1.15))), cx = lerp(part.head.x, W / 2, ease(raw)), cy = lerp(part.head.y, H / 2, ease(raw));
-    const s = k * z;
+    const s0 = k * z, s = s0 * view.z;       // view.z is the student's own zoom (buttons, pinch, double tap)
+    let tx = cw / 2 - cx * s + view.ox, ty = ch / 2 - cy * s + view.oy;
+    if (view.z > 1) {                         // keep some of the plan in view when panning
+      const mx = cw * 0.15, my = ch * 0.15;
+      tx = W * s <= cw ? (cw - W * s) / 2 : Math.min(mx, Math.max(cw - W * s - mx, tx));
+      ty = H * s <= ch ? (ch - H * s) / 2 : Math.min(my, Math.max(ch - H * s - my, ty));
+      view.ox = tx - (cw / 2 - cx * s); view.oy = ty - (ch / 2 - cy * s);
+    }
+    view.s0 = s0; view.cx = cx; view.cy = cy; view.tx = tx; view.ty = ty;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#0b1220'; ctx.fillRect(0, 0, cw, ch);
-    ctx.setTransform(s, 0, 0, s, cw / 2 - cx * s, ch / 2 - cy * s);
+    ctx.setTransform(s, 0, 0, s, tx, ty);
     ctx.drawImage(seg.img, 0, 0, W, H);
     const px = dpr / s;       // one CSS pixel in plan space
 
@@ -279,12 +401,23 @@
     if (last) pin(en, route.endLabel, px, bounce(arrive), GOLD, now, true);
     else stairIcon(en, px, bounce(arrive));
 
-    if (raw < 1 && !still()) {            // walker: arrow on the head with a pulsing ring
-      const h = part.head, pulse = (now % 1100) / 1100;
+    if (raw < 1 && !still()) {            // walker: the student's mascot walks the route, with a pulsing ring under its feet
+      const h = part.head, pulse = (now % 1100) / 1100, M = window.LamparaMascots;
       ctx.fillStyle = 'rgba(255,209,0,' + (0.35 * (1 - pulse)) + ')'; ctx.beginPath(); ctx.arc(h.x, h.y, (12 + pulse * 22) * px, 0, 7); ctx.fill();
-      ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(part.ang + Math.PI / 2); ctx.scale(px, px);
-      ctx.fillStyle = '#fff'; ctx.strokeStyle = NAVY; ctx.lineWidth = 3; ctx.beginPath();
-      ctx.moveTo(0, -13); ctx.lineTo(10, 10); ctx.lineTo(0, 5); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+      if (M) {
+        const ph = Math.floor(now / (Math.PI * 130));          // one footstep each time the mascot lands from a hop
+        if (ph !== lastStepPh) { lastStepPh = ph; if (window.LamparaAudio) LamparaAudio.step(); }
+        const size = 36, step = Math.abs(Math.sin(now / 130)), face = Math.cos(part.ang) < -0.2 ? -1 : 1;   // hops with each step, turns to face left or right
+        ctx.save(); ctx.translate(h.x, h.y); ctx.scale(px, px);
+        ctx.fillStyle = 'rgba(11,18,32,0.28)'; ctx.beginPath(); ctx.ellipse(0, 0, 11 - step * 3, 4, 0, 0, 7); ctx.fill();   // shadow
+        ctx.translate(0, -step * 6); ctx.scale(face, 1); ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(M.canvas(M.equipped()), -size / 2, -size + 2, size, size);
+        ctx.restore();
+      } else {                            // no mascot script: the old arrow
+        ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(part.ang + Math.PI / 2); ctx.scale(px, px);
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = NAVY; ctx.lineWidth = 3; ctx.beginPath();
+        ctx.moveTo(0, -13); ctx.lineTo(10, 10); ctx.lineTo(0, 5); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+      }
     }
 
     if (raw >= 1 && !a.doneAt) a.doneAt = now;
@@ -295,9 +428,10 @@
         showCard('Take the stairs to ' + nf, 'Then your route continues on the ' + nf + '.', 'I am on the ' + nf, () => goFloor(segIdx + 1));
       } else if (legIdx < legs.length - 1) {
         const nxt = legs[legIdx + 1];
-        showCard('You are at the exit', 'Next, walk outside to ' + nxt.buildingName + '.', 'I am outside now', () => runLeg(legIdx + 1));
+        showCard('You are at the exit', 'Next stop: ' + nxt.buildingName + '. We will set it as your destination.', 'Go to ' + nxt.buildingName, () => { location.href = '../Public/guide-ar.php?exit=1&to=' + nxt.to.id + '&room=' + nxt.room.id; });
       } else {
-        showCard('You have arrived', route.endLabel, 'Done', () => { LamparaTrip.clear(); location.href = 'where.php'; });
+        rewardRoute();
+        showCard('You have arrived', route.endLabel, 'Done', () => { LamparaTrip.clear(); });   // stays here: the plan, Show again, Share and Start over are still below
       }
     }
   }
@@ -355,7 +489,7 @@
     $('textTitle').textContent = 'Directions in words: ' + seg.plan.floor;
     $('textSteps').innerHTML = lines.map((l) => '<li>' + l.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</li>').join('');
     cv.setAttribute('role', 'img');
-    cv.setAttribute('aria-label', 'Floor plan of the ' + seg.plan.floor + ' with the route drawn on it. The directions are written below the plan.');
+    cv.setAttribute('aria-label', 'Floor plan of the ' + seg.plan.floor + ' with the route drawn on it. The step-by-step directions are available to screen readers on this page.');
   }
 
   // ---------------- floors
@@ -374,6 +508,8 @@
   }
 
   // ---------------- buttons
+  function setMin(m) { $('card').classList.toggle('min', m); $('cardMin').textContent = m ? 'Show' : 'Hide'; $('cardMin').setAttribute('aria-expanded', String(!m)); }
+  $('cardMin').onclick = () => setMin(!$('card').classList.contains('min'));
   $('cardGo').onclick = () => { const act = cardAction; $('card').classList.remove('on'); if (act) act(); };
   $('outDone').onclick = () => runLeg(legIdx + 1);
   $('startOver').onclick = () => LamparaTrip.clear();
@@ -389,5 +525,25 @@
   $('back').onclick = () => { if (history.length > 1) history.back(); else location.href = 'where.php'; };
   window.addEventListener('resize', () => { if (route && !$('viewPlan').hidden) start(segIdx); });
 
+  // pixel icons on the buttons (they follow each button's text colour)
+  document.querySelectorAll('[data-px]').forEach((el) => { if (window.LamparaMascots) el.innerHTML = LamparaMascots.icon(el.getAttribute('data-px'), 22); });
+
   init();
+
+  // ---------------- background music (a quiet original walking tune; Web Audio, so it works offline)
+  // On by default, off after a tap on the speaker (remembered on this phone). Browsers keep sound back until the first tap.
+  (() => {
+    const A = window.LamparaAudio, btn = $('snd');
+    if (!A || !btn) { if (btn) btn.hidden = true; return; }
+    let on = true;
+    try { on = localStorage.getItem('lampara_music') !== '0'; } catch (e) { /* default on */ }
+    const paint = () => { btn.setAttribute('aria-pressed', String(on)); btn.setAttribute('aria-label', on ? 'Music is on. Tap to mute' : 'Music is off. Tap to turn on'); };
+    const apply = () => { A.mute(!on); if (on && !document.hidden) A.play('route'); else A.stop(); };
+    btn.addEventListener('click', () => { on = !on; try { localStorage.setItem('lampara_music', on ? '1' : '0'); } catch (e) { /* not remembered */ } paint(); apply(); });
+    const unlock = () => { if (on) A.play('route'); };
+    document.addEventListener('pointerdown', unlock, { once: true, capture: true });
+    document.addEventListener('visibilitychange', apply);
+    window.addEventListener('pagehide', () => A.stop());
+    paint(); apply();
+  })();
 })();

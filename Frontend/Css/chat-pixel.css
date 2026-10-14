@@ -1,0 +1,59 @@
+/* The chat as a game screen, shared by the Ask page and the walking guide's chat: your mascot answers in cream pixel bubbles,
+   you answer in yellow ones, rooms come back as little cards you can tap, and follow-up questions are one-tap chips.
+   Motion is transform and opacity only. */
+:root {
+  --ch-px: polygon(0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
+  --ch-px-s: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --ch-font: 'Pixelify Sans', 'Outfit', system-ui, sans-serif; --ch-night: var(--t-night, #0f1138); --ch-cream: var(--t-cream, #fff8d6); --ch-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes ch-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes ch-dot { 0%, 80%, 100% { transform: translateY(0); opacity: 0.45; } 40% { transform: translateY(-5px); opacity: 1; } }
+
+.ch-log { display: flex; flex-direction: column; gap: 0.9rem; padding: 1rem 0.9rem 1.2rem; }
+.ch-msg { display: flex; align-items: flex-end; gap: 0.5rem; animation: ch-pop 320ms var(--ch-ease) both; max-width: 100%; }
+.ch-msg.me { justify-content: flex-end; }
+.ch-av { flex: none; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; background: var(--t-light, #dcddf4); clip-path: var(--ch-px-s); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2); }
+.ch-av img { width: 2.1rem; height: 2.1rem; image-rendering: pixelated; display: block; }
+.ch-body { min-width: 0; max-width: calc(100% - 3.4rem); display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+.ch-msg.me .ch-body { align-items: flex-end; max-width: 88%; }
+.ch-bubble { padding: 0.7rem 0.95rem 0.8rem; background: var(--ch-cream); color: var(--t-ink, #15173f); clip-path: var(--ch-px); box-shadow: inset 0 -5px 0 rgba(22, 24, 80, 0.1); font-size: 0.97rem; line-height: 1.5; overflow-wrap: anywhere; }
+.ch-msg.me .ch-bubble { background: var(--t-accent, #ffd100); box-shadow: inset 0 -5px 0 var(--t-accent-dark, #d4ab00); font-weight: 600; }
+.ch-bubble p { margin: 0 0 0.5rem; } .ch-bubble p:last-child { margin-bottom: 0; }
+.ch-bubble ul { margin: 0.2rem 0 0.5rem; padding-left: 1.15rem; display: grid; gap: 0.25rem; } .ch-bubble ul:last-child { margin-bottom: 0; }
+.ch-bubble strong { font-weight: 800; }
+.ch-msg.offline .ch-bubble { background: #ffe9c2; }
+
+/* a room the answer is about */
+.ch-cards { display: grid; gap: 0.5rem; width: 100%; }
+.ch-card { display: grid; gap: 0.5rem; padding: 0.7rem 0.8rem 0.8rem; background: var(--ch-night); color: #fff; clip-path: var(--ch-px); box-shadow: inset 0 0 0 3px var(--t-blue, #2e3192); }
+.ch-card-top { display: flex; align-items: center; gap: 0.6rem; }
+.ch-num { flex: none; padding: 0.15rem 0.5rem; background: var(--t-accent, #ffd100); color: var(--t-ink, #15173f); font: 700 0.85rem var(--ch-font); clip-path: var(--ch-px-s); font-variant-numeric: tabular-nums; }
+.ch-card strong { font: 700 1rem/1.2 var(--ch-font); overflow-wrap: anywhere; }
+.ch-meta { font-size: 0.84rem; color: rgba(255, 255, 255, 0.78); line-height: 1.35; }
+.ch-go { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 2.6rem; padding: 0 1rem; background: var(--t-accent, #ffd100); color: var(--t-ink, #15173f); text-decoration: none; font: 600 0.92rem var(--ch-font); clip-path: var(--ch-px-s); box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); transition: transform 160ms var(--ch-ease); }
+.ch-go:active { transform: scale(0.97); }
+.ch-go:focus-visible, .ch-chip:focus-visible, .ch-send:focus-visible, .ch-icon:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #fff; }
+
+/* follow-up questions and the starters */
+.ch-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ch-chip { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.6rem; padding: 0.3rem 0.85rem 0.4rem; border: 0; background: var(--t-blue, #2e3192); color: #fff; font: 600 0.88rem/1.2 var(--ch-font); text-align: left; cursor: pointer; clip-path: var(--ch-px-s); box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.3); transition: transform 160ms var(--ch-ease); }
+.ch-chip svg { flex: none; color: var(--t-accent, #ffd100); }
+.ch-try { flex-basis: 100%; font: 600 0.78rem var(--ch-font); color: var(--t-cream2, #fff3b8); letter-spacing: 0.04em; text-transform: uppercase; }
+.ch-chip:hover { background: #3a3eae; } .ch-chip:active { transform: scale(0.97); }
+
+.ch-typing { display: inline-flex; gap: 5px; padding: 0.85rem 1rem; background: var(--ch-cream); clip-path: var(--ch-px-s); }
+.ch-typing i { width: 8px; height: 8px; background: var(--t-ink, #15173f); animation: ch-dot 1s ease-in-out infinite; }
+.ch-typing i:nth-child(2) { animation-delay: 140ms; } .ch-typing i:nth-child(3) { animation-delay: 280ms; }
+
+/* the box you type in */
+.ch-composer { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0.8rem max(0.7rem, env(safe-area-inset-bottom)); background: var(--ch-night); position: relative; }
+.ch-composer::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: repeating-linear-gradient(90deg, var(--t-accent, #ffd100) 0 14px, transparent 14px 22px); }
+.ch-composer input { flex: 1; min-width: 0; min-height: 3rem; padding: 0 0.9rem; border: 0; outline: 0; background: #fff; color: var(--t-ink, #15173f); font: 500 1rem 'Outfit', system-ui, sans-serif; clip-path: var(--ch-px-s); }
+.ch-composer input::placeholder { color: #7b7e99; }
+.ch-composer input:focus { box-shadow: inset 0 0 0 3px var(--t-accent, #ffd100); }
+.ch-send { flex: none; width: 3.1rem; min-height: 3rem; display: grid; place-items: center; border: 0; background: var(--t-accent, #ffd100); color: var(--t-ink, #15173f); cursor: pointer; clip-path: var(--ch-px-s); box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); transition: transform 160ms var(--ch-ease); }
+.ch-send:active { transform: scale(0.95); } .ch-send:disabled { opacity: 0.55; cursor: default; }
+.ch-icon { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border: 0; background: var(--t-light, #dcddf4); color: var(--t-ink, #15173f); cursor: pointer; clip-path: var(--ch-px-s); box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.25); transition: transform 160ms var(--ch-ease); text-decoration: none; }
+.ch-icon:active { transform: scale(0.95); }
+
+@media (prefers-reduced-motion: reduce) { .ch-msg { animation: none; } .ch-typing i { animation: none; opacity: 0.8; } .ch-go, .ch-chip, .ch-send, .ch-icon { transition: none; } }

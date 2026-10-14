@@ -13,13 +13,15 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Lampara — Walking Guide</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
-<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
@@ -28,6 +30,9 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide-ar.css?v=<?= $pageCssVer ?>">
+<link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
+<link rel="stylesheet" href="../../Css/chat-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/chat-pixel.css') ?>">
+<link rel="stylesheet" href="../../Css/game-hud.css?v=<?= filemtime(__DIR__ . '/../../Css/game-hud.css') ?>">
 <link rel="stylesheet" href="../../Css/Public/guide-tutorial.css?v=<?= filemtime(__DIR__ . '/../../Css/Public/guide-tutorial.css') ?>">
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
@@ -81,10 +86,17 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
   <!-- Pre-app overlay: silent permission check, then (if needed) the gate screen. -->
   <transition name="gate-transition">
     <div v-if="!started" class="start">
+      <div v-if="checking && gateStage" class="ps gate-scene" aria-hidden="true" v-html="sceneHtml"></div>
       <div class="start-inner">
         <header class="start-brand">
+          <button type="button" class="start-back" aria-label="Go back" @click="goBack">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
           <span class="start-logo"><img src="../../assets/logo.svg" alt="" width="26" height="26"></span>
           <span>Lampara</span>
+          <button v-if="hasMusic" type="button" class="start-snd" :aria-pressed="musicOn" :aria-label="musicOn ? 'Music is on. Tap to mute' : 'Music is off. Tap to turn on'" @click="toggleMusic">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z"/><path v-if="musicOn" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path v-else d="m16 9.5 5 5m0-5-5 5"/></svg>
+          </button>
         </header>
 
         <!-- checking what the phone already allows -->
@@ -92,18 +104,42 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
         <!-- getting ready: one line per thing the app is doing, so it never looks frozen -->
         <div v-else-if="checking" class="start-progress" role="status" aria-live="polite">
+          <div class="gate-radar" aria-hidden="true">
+            <span class="gate-ring"></span><span class="gate-ring r2"></span><span class="gate-ring r3"></span>
+            <span class="gate-pin" v-html="pinIcon"></span>
+          </div>
           <h1>Getting ready&hellip;</h1>
           <p class="start-sub">{{ pendingTarget ? 'Navigating to ' + pendingTarget.name : 'You can pick a destination once it is ready.' }}</p>
+          <div class="gate-bar" aria-hidden="true"><span :class="stageClass('map')"></span><span :class="stageClass('camera')"></span><span :class="stageClass('gps')"></span></div>
           <ol class="start-steps">
             <li :class="stageClass('map')"><span class="start-dot" aria-hidden="true"></span>Loading the campus map</li>
             <li :class="stageClass('camera')"><span class="start-dot" aria-hidden="true"></span>Starting the camera and compass</li>
             <li :class="stageClass('gps')"><span class="start-dot" aria-hidden="true"></span>Finding where you are<span v-if="gateAcc !== null" class="start-acc">&plusmn;{{ gateAcc }} m</span></li>
           </ol>
+          <div v-if="gateAcc !== null" class="gate-acc" aria-hidden="true"><span class="gate-acc-fill" :style="{ transform: 'scaleX(' + accFill + ')' }"></span></div>
           <p class="start-hint">Hold your phone upright. A clear view of the sky gives the best location.</p>
+          <div class="gate-tip" aria-hidden="true">
+            <span class="gate-tip-sprite"><img data-mascot alt="" width="56" height="56"></span>
+            <p class="gate-tip-text">{{ gateTips[gateTip] }}</p>
+          </div>
         </div>
 
         <!-- the start form -->
         <div v-else>
+          <div v-if="exitCard && pendingTarget" class="exit-pop" role="dialog" aria-labelledby="exitTitle">
+            <div class="exit-box">
+              <img data-mascot class="exit-mascot" alt="" width="64" height="64">
+              <div class="exit-in">
+                <h2 id="exitTitle">You made it out!</h2>
+                <p v-if="pendingRoom">Your room, <strong>{{ pendingRoom.room_name }}</strong>, is inside <strong>{{ pendingTarget.name }}</strong>. Your destination is already set, so keep it and follow the path on your camera.</p>
+                <p v-else>Next stop: <strong>{{ pendingTarget.name }}</strong>. Your destination is already set. Follow the path on your camera.</p>
+                <button type="button" class="start-btn" @click="start">Start walking</button>
+                <button type="button" class="start-link" @click="exitCard = false">I want a different destination</button>
+              </div>
+            </div>
+          </div>
+          <div v-html="hudBuddy"></div>
+          <div class="start-hud" v-html="hudStrip"></div>
           <h1>Where are you going?</h1>
           <p class="start-sub">Pick a building now, or start and search later. You will get turn-by-turn directions in text as well as the path on the ground.</p>
 
@@ -117,6 +153,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
               <button type="button" class="start-item" :class="{ on: pendingTarget && pendingTarget.id === b.id }" :aria-pressed="!!(pendingTarget && pendingTarget.id === b.id)" @click="pickDestination(b)">
                 <span class="start-pin" aria-hidden="true"></span>
                 <span class="start-item-name">{{ b.name }}<small v-if="b.room_count === 0" class="start-tag">Outside route only</small></span>
+                <span v-if="stamped(b.id)" class="start-stamp" role="img" aria-label="You have been here" v-html="stampIcon"></span>
                 <svg class="start-check" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
             </li>
@@ -231,7 +268,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       <section class="nav-card" aria-live="polite" aria-label="Directions">
         <div class="nav-main">
           <div class="nav-ico" :class="'is-' + guidance.icon" aria-hidden="true">
-            <svg v-if="guidance.icon === 'arrive'" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <img v-if="guidance.icon === 'arrive'" data-mascot class="nav-mascot" alt="">
             <svg v-else-if="guidance.icon === 'warn'" viewBox="0 0 24 24" fill="none"><path d="M12 7v6m0 3.5v.01" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
             <svg v-else-if="guidance.icon === 'gate'" viewBox="0 0 24 24" fill="none"><path d="M5 20V5.5A1.5 1.5 0 0 1 6.5 4h11A1.5 1.5 0 0 1 19 5.5V20M3 20h18M9.5 20v-6.5h5V20" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" :style="{ transform: 'rotate(' + iconDeg(guidance.icon) + 'deg)' }"><path d="M12 3.5 19 12h-4.2v8.5H9.2V12H5L12 3.5Z" fill="currentColor"/></svg>
@@ -276,11 +313,11 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
   <!-- bottom: scan a room sign (indoor) and Ask Lampara; the other links are in the menu -->
   <div v-if="started && !scanningAnchor" class="bottom-bar">
-    <a v-if="!clearActive && !arrivedAtTarget" :href="insideHref" class="scan-btn" aria-label="I am inside a building: say which room I am in">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/><path d="M3 21h18"/></svg>
+    <a v-if="!clearActive && !arrivedAtTarget" :href="insideHref" class="scan-btn" aria-label="Scan a room sign (indoor)">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>
       <span class="scan-label">{{ insideLabel }}</span>
     </a>
-    <button v-if="target" type="button" class="ask-btn" @click="openChat(target)">
+    <button v-if="target && !target.gate" type="button" class="ask-btn" @click="openChat(target)">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12c0 4.418-4.03 8-9 8-1.06 0-2.078-.163-3.024-.463L3 21l1.5-4.5C3.55 15.06 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Ask Lampara
     </button>
@@ -312,41 +349,50 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     </div>
   </transition>
 
-  <!-- chat panel (identical to the main guide) -->
+  <!-- Ask Lampara: the same chat as the Ask page, focused on the building you are walking to -->
   <transition name="sheet">
-    <div v-if="chatOpenFor" class="absolute inset-0 z-40 bg-zinc-950/60" @click.self="chatOpenFor = null">
-      <div class="chat-panel bg-white text-zinc-900 w-full h-full flex flex-col">
-        <div class="flex justify-between items-center px-5 pt-5 pb-3 border-b border-zinc-100">
-          <h2 class="font-bold">Ask Lampara</h2>
-          <button @click="chatOpenFor = null" data-tut="chat-close" aria-label="Close chat" class="press text-zinc-400 text-2xl leading-none">&times;</button>
+    <div v-if="chatOpenFor" class="chat-overlay" @click.self="chatOpenFor = null">
+      <div class="chat-panel">
+        <div class="ps chat-scene" aria-hidden="true" v-html="sceneHtml"></div>
+        <div class="chat-head">
+          <div class="chat-head-text">
+            <h2>Ask Lampara</h2>
+            <p>Answers only from {{ chatOpenFor.name }}'s records</p>
+          </div>
+          <button type="button" data-tut="chat-close" aria-label="Close chat" class="ch-icon" @click="chatOpenFor = null">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
         </div>
-        <div class="px-5 pt-3">
-          <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 text-[11px] font-medium rounded-xl px-3 py-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
-            Grounded on {{ chatOpenFor.name }}'s registered directory only
+        <div class="ch-log chat-scroll" ref="chatLog" role="log" aria-live="polite" aria-label="Conversation">
+          <div v-for="(m, i) in chatMessages" :key="i" class="ch-msg" :class="{ me: m.role === 'user', offline: m.offline }">
+            <span v-if="m.role !== 'user'" class="ch-av" aria-hidden="true"><img data-mascot alt=""></span>
+            <div class="ch-body">
+              <div class="ch-bubble" v-html="chatFormat(m.text)"></div>
+              <div v-if="m.rooms && m.rooms.length" class="ch-cards">
+                <article v-for="r in m.rooms" :key="r.id" class="ch-card">
+                  <div class="ch-card-top"><span v-if="r.room_number" class="ch-num">{{ r.room_number }}</span><strong>{{ r.room_name }}</strong></div>
+                  <div class="ch-meta">{{ r.floor }} &middot; {{ r.building_name }}<template v-if="r.hours"> &middot; open {{ r.hours }}</template></div>
+                  <a :href="chatRoomHref(r.id)" class="ch-go">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                    Show me the way
+                  </a>
+                </article>
+              </div>
+              <div v-if="i === chatMessages.length - 1 && m.role !== 'user' && !chatLoading && ((m.followups && m.followups.length) || chatMessages.length === 1)" class="ch-chips" aria-label="Questions to try"><span class="ch-try">Tap to ask:</span>
+                <button v-for="f in (m.followups && m.followups.length ? m.followups : chatStarters)" :key="f" type="button" class="ch-chip" @click="sendChat(f)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span>{{ f }}</span></button>
+              </div>
+            </div>
+          </div>
+          <div v-if="chatLoading" class="ch-msg" aria-label="Lampara is typing">
+            <span class="ch-av" aria-hidden="true"><img data-mascot alt=""></span>
+            <div class="ch-body"><div class="ch-typing" aria-hidden="true"><i></i><i></i><i></i></div></div>
           </div>
         </div>
-        <transition-group tag="div" name="msg" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm" ref="chatLog">
-          <div v-for="(m, i) in chatMessages" :key="i" class="flex items-end gap-2" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div v-if="m.role !== 'user'" class="rounded-full bg-white flex items-center justify-center flex-shrink-0" style="width:34px;height:34px">
-              <img data-mascot alt="" width="30" height="30" style="display:block;image-rendering:pixelated">
-            </div>
-            <div class="inline-block px-3.5 py-2.5 rounded-2xl max-w-[75%] text-left" :class="m.role === 'user' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-800'" v-html="formatMessage(m.text)"></div>
-          </div>
-          <div v-if="chatLoading" key="typing" class="flex items-end gap-2 justify-start">
-            <div class="rounded-full bg-white flex items-center justify-center flex-shrink-0" style="width:34px;height:34px">
-              <img data-mascot alt="" width="30" height="30" style="display:block;image-rendering:pixelated">
-            </div>
-            <span class="inline-flex items-center gap-1 bg-zinc-100 rounded-2xl px-4 py-3.5">
-              <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-            </span>
-          </div>
-        </transition-group>
-        <form @submit.prevent="sendChat" class="flex gap-2 p-4 pb-6 border-t border-zinc-100">
-          <input v-model="chatInput" type="text" placeholder="Ask about this building…" :disabled="chatLoading"
-                 class="flex-1 bg-zinc-100 rounded-full px-4 py-3 text-sm focus:outline-none disabled:opacity-60">
-          <button class="press w-11 h-11 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 disabled:opacity-60" :disabled="chatLoading">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12.5 20 4l-4.5 16-4-6.5L4 12.5Z" stroke="#111" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <form class="ch-composer" @submit.prevent="sendChat()">
+          <label class="sr-only" for="chatq">Your question</label>
+          <input id="chatq" v-model="chatInput" type="text" maxlength="300" autocomplete="off" enterkeyhint="send" placeholder="Ask about this building…" :disabled="chatLoading">
+          <button class="ch-send" :disabled="chatLoading || !chatInput.trim()" aria-label="Send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </form>
       </div>
@@ -360,11 +406,18 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Public/campus-route.js?v=<?= $routeJsVer ?>"></script>
 <script type="module" src="../../Js/Public/locar-engine.js?v=<?= $engineJsVer ?>"></script>
 <script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
-<script src="../../Js/Public/guide-ar.js?v=<?= $pageJsVer ?>"></script>
+<script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
+<script src="../../Js/Include/room-search.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-search.js') ?>"></script>
+<script src="../../Js/Include/access-points.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/access-points.js') ?>"></script>
+<script src="../../Js/Include/chat-core.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/chat-core.js') ?>"></script>
+<script src="../../Js/Include/pixel-scene.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/pixel-scene.js') ?>"></script>
+<script src="../../Js/Include/game-hud.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-hud.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
+<script src="../../Js/Public/guide-ar.js?v=<?= $pageJsVer ?>"></script>
 <script src="../../Js/Public/guide-mascot-shop.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-mascot-shop.js') ?>"></script>
 <script src="../../Js/Public/guide-tutorial.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-tutorial.js') ?>"></script>
 
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
+<script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
 </body>
 </html>

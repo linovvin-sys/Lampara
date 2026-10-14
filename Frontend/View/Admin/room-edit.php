@@ -269,19 +269,16 @@ include __DIR__ . '/../Include/buildings-head.php';
                   <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 17l-5-5-8 7"/></svg>Photo</div>
                   <div class="photo-field" :class="{ 'is-over': photoOver }" @dragover.prevent="photoOver = true" @dragleave="photoOver = false" @drop.prevent="dropPhoto($event)">
                     <div class="photo-preview" :class="{ 'is-empty': !roomPhoto }">
-                      <img v-if="roomPhoto" :src="'../../' + roomPhoto" :alt="'Photo of ' + (form.room_name || 'the room')" @load="$event.target.classList.toggle('is-portrait', $event.target.naturalHeight > $event.target.naturalWidth)">
+                      <img v-if="roomPhoto" :src="photoSrc" :alt="'Photo of ' + (form.room_name || 'the room')" @load="$event.target.classList.toggle('is-portrait', $event.target.naturalHeight > $event.target.naturalWidth)">
                       <div v-else class="photo-empty"><img src="../../assets/illustrations/empty-room.svg" alt="" width="88" height="66"><span>No photo yet</span></div>
                     </div>
                     <div class="photo-side">
-                      <template v-if="editingId !== null && !editingIsTemp">
-                        <p class="hint">Students see it on the room's result screen, so they know what the door or sign looks like.</p>
-                        <div class="photo-actions">
-                          <button type="button" class="btn btn-secondary" :disabled="photoBusy" @click="choosePhoto()">{{ photoBusy ? 'Saving…' : (roomPhoto ? 'Replace photo' : 'Add a photo') }}</button>
-                          <button v-if="roomPhoto" type="button" class="btn-link danger" :disabled="photoBusy" @click="removePhoto">Remove</button>
-                        </div>
-                        <p class="hint">You can also drop a picture onto this box.</p>
-                      </template>
-                      <p v-else class="hint">Save the room first, then add its photo here.</p>
+                      <p class="hint">{{ adding ? 'Add a photo now: it is saved together with the room.' : "Students see it on the room's result screen, so they know what the door or sign looks like." }}</p>
+                      <div class="photo-actions">
+                        <button type="button" class="btn btn-secondary" :disabled="photoBusy" @click="choosePhoto()">{{ photoBusy ? 'Saving…' : (roomPhoto ? 'Replace photo' : 'Add a photo') }}</button>
+                        <button v-if="roomPhoto" type="button" class="btn-link danger" :disabled="photoBusy" @click="removePhoto">Remove</button>
+                      </div>
+                      <p class="hint">You can also drop a picture onto this box.</p>
                     </div>
                   </div>
 
@@ -336,7 +333,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                     <div class="pp-label">What students see</div>
                     <div class="phone">
                       <div class="pp-photo" :class="{ empty: !roomPhoto }">
-                        <img v-if="roomPhoto" :src="'../../' + roomPhoto" alt="" @load="$event.target.classList.toggle('is-portrait', $event.target.naturalHeight > $event.target.naturalWidth)">
+                        <img v-if="roomPhoto" :src="photoSrc" alt="" @load="$event.target.classList.toggle('is-portrait', $event.target.naturalHeight > $event.target.naturalWidth)">
                         <img v-else src="../../assets/illustrations/empty-room.svg" alt="" aria-hidden="true">
                       </div>
                       <div class="pp-body">

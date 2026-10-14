@@ -1,0 +1,51 @@
+/* Seasonal themes for the student side. Every student stylesheet reads its brand colours from these variables (with the original
+   colour as a fallback), and a theme changes them all at once. js/Include/theme.js puts the chosen theme on <html data-theme="...">.
+   The admin pages do not use this file and stay as they are.
+   --t-accent / -dark   the lively colour: buttons, frames, highlights        --t-ink / -ink2   dark text and outlines
+   --t-night / -sky2    the night sky and dark panels                          --t-blue / -blue2 / -blue3   the second button colour and its shades
+   --t-cream / -cream2  the light cards and bubbles                            --t-light         light tiles
+   --t-b1..3 / -roof / -win / -win-off / -ground / -path   the skyline in the pixel scene */
+:root {
+  --t-accent: #ffd100; --t-accent-dark: #d4ab00; --t-accent-hover: #ffdb2e;
+  --t-ink: #15173f; --t-ink2: #161850; --t-night: #0f1138; --t-sky2: #1b1f6e;
+  --t-blue: #2e3192; --t-blue2: #23267a; --t-blue3: #1d2060;
+  --t-cream: #fff8d6; --t-cream2: #fff3b8; --t-light: #dcddf4;
+  --t-b1: #1b1e5c; --t-b2: #23267a; --t-b3: #161850; --t-roof: #2e3192; --t-win: #ffd100; --t-win-off: #2a2e80; --t-ground: #0b0d2e; --t-path: #23267a;
+  --t-moon: #fff3b8;
+}
+/* Halloween: black and pumpkin orange, with a slime-green second colour */
+html[data-theme="halloween"] {
+  --t-accent: #ff8a1f; --t-accent-dark: #c25a00; --t-accent-hover: #ff9d42;
+  --t-ink: #1a0f06; --t-ink2: #21140a; --t-night: #0c0805; --t-sky2: #3a2210;
+  --t-blue: #3f7d1f; --t-blue2: #2f5e17; --t-blue3: #274d12;
+  --t-cream: #ffe9cf; --t-cream2: #ffd7a1; --t-light: #f2d8b6;
+  --t-b1: #1f140b; --t-b2: #2c1b0e; --t-b3: #160d06; --t-roof: #5b3414; --t-win: #ffb02e; --t-win-off: #3b2412; --t-ground: #0a0603; --t-path: #3a2210;
+  --t-moon: #ff9a2e;
+}
+/* Christmas: deep green night, red and snow white */
+html[data-theme="christmas"] {
+  --t-accent: #ff5a5f; --t-accent-dark: #b92b30; --t-accent-hover: #ff7a7e;
+  --t-ink: #0b2418; --t-ink2: #0d2c1d; --t-night: #06150d; --t-sky2: #12402a;
+  --t-blue: #1f7a45; --t-blue2: #176037; --t-blue3: #124d2c;
+  --t-cream: #fff6f0; --t-cream2: #ffe3de; --t-light: #e3f3e8;
+  --t-b1: #10331f; --t-b2: #15452a; --t-b3: #0b2417; --t-roof: #e8f3ec; --t-win: #ffe28a; --t-win-off: #1b4d31; --t-ground: #eef6f0; --t-path: #b8d4c2;
+  --t-moon: #f4fbff;
+}
+/* New Year: black, gold and silver, with fireworks */
+html[data-theme="newyear"] {
+  --t-accent: #ffcf33; --t-accent-dark: #c9a000; --t-accent-hover: #ffdc66;
+  --t-ink: #0c0c18; --t-ink2: #11111f; --t-night: #07070e; --t-sky2: #1d1d33;
+  --t-blue: #565c78; --t-blue2: #424760; --t-blue3: #343850;
+  --t-cream: #f6f2e6; --t-cream2: #ebdfae; --t-light: #e4e6ee;
+  --t-b1: #14142a; --t-b2: #1d1d38; --t-b3: #0e0e1e; --t-roof: #565c78; --t-win: #ffe27a; --t-win-off: #2a2a45; --t-ground: #05050b; --t-path: #2a2a45;
+  --t-moon: #e8ecf5;
+}
+/* Valentine: wine and rose, with floating hearts */
+html[data-theme="valentine"] {
+  --t-accent: #ff7aa8; --t-accent-dark: #d04a7c; --t-accent-hover: #ff93b9;
+  --t-ink: #3a0a1f; --t-ink2: #430d25; --t-night: #1f0612; --t-sky2: #5c1232;
+  --t-blue: #b8325f; --t-blue2: #8e2149; --t-blue3: #6e1838;
+  --t-cream: #fff0f4; --t-cream2: #ffd4e2; --t-light: #ffe3ec;
+  --t-b1: #3a0f26; --t-b2: #4d1632; --t-b3: #2a0a1b; --t-roof: #b8325f; --t-win: #ffb3cf; --t-win-off: #5c1b3c; --t-ground: #1a050f; --t-path: #5c1b3c;
+  --t-moon: #ffd4e2;
+}

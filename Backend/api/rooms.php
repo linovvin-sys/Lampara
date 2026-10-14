@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $extra = (column_exists($conn, 'rooms', 'subtitle') ? 'r.subtitle' : 'NULL AS subtitle') . ', '
            . (column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor AS building_entrance_floor' : 'NULL AS building_entrance_floor') . ',';
-    $sql = "SELECT r.id, r.building_id, b.name AS building_name, r.room_number, r.room_name, $extra
+    $sql = "SELECT r.id, r.building_id, b.name AS building_name, b.building_number, r.room_number, r.room_name, $extra
                    r.floor, r.room_type, r.category, r.hours, r.notes, r.map_x, r.map_y, r.path_node_id, r.photo_path, r.updated_at,
                    (SELECT COUNT(*) FROM outdated_flags f WHERE f.room_id = r.id AND f.resolved = 0) AS open_flags
             FROM rooms r
@@ -147,9 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    if (room_number_taken($conn, $roomNumber)) {
+    if (room_number_taken($conn, $roomNumber, 0, (int) $buildingId)) {
         http_response_code(409);
-        echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered."]);
+        echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered in this building."]);
         exit;
     }
 
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // or anything hitting this API directly, could still race past
             // a client-only check.
             http_response_code(409);
-            echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered."]);
+            echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered in this building."]);
         } else {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Insert failed']);
@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
     if (room_number_taken($conn, $roomNumber, $id)) {
         http_response_code(409);
-        echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered."]);
+        echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered in this building."]);
         exit;
     }
 
@@ -224,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     } catch (mysqli_sql_exception $e) {
         if ($conn->errno === 1062) {
             http_response_code(409);
-            echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered."]);
+            echo json_encode(['success' => false, 'error' => "Room $roomNumber is already registered in this building."]);
         } else {
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Update failed']);

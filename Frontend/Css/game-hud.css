@@ -1,0 +1,33 @@
+/* Game touches (player strip, mascot buddy, pixel icons). Navy and yellow, stepped pixel corners, motion on transform and opacity only. */
+:root {
+  --gh-px: polygon(0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
+  --gh-px-s: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --gh-font: 'Pixelify Sans', 'Outfit', ui-monospace, monospace;
+}
+@keyframes gh-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes gh-bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-4px) rotate(3deg); } }
+
+.gh-strip { display: block; padding: 4px; background: var(--t-accent, #ffd100); clip-path: var(--gh-px); text-decoration: none; color: #fff; font-family: var(--gh-font); -webkit-tap-highlight-color: transparent; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); animation: gh-rise 420ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+.gh-strip:active { transform: scale(0.98); }
+.gh-in { display: flex; align-items: center; gap: 0.65rem; padding: 0.5rem 0.7rem 0.5rem 0.5rem; background: var(--t-ink, #15173f); clip-path: var(--gh-px); }
+.gh-strip:focus-visible { outline: none; }
+.gh-strip:focus-visible .gh-in { box-shadow: inset 0 0 0 3px #fff; }
+.gh-mascot { flex: none; display: grid; place-items: center; width: 48px; height: 48px; background: var(--t-light, #dcddf4); clip-path: var(--gh-px-s); }
+.gh-mascot svg { display: block; image-rendering: pixelated; }
+.gh-stats { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.85rem; }
+.gh-stat { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.95rem; line-height: 1; white-space: nowrap; }
+.gh-stat b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.gh-stat small { font-size: 0.78rem; color: rgba(255, 255, 255, 0.7); }
+.gh-stat svg { display: block; image-rendering: pixelated; }
+.gh-segs { display: inline-flex; gap: 3px; }
+.gh-seg { width: 10px; height: 10px; background: var(--t-blue2, #23267a); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3); }
+.gh-seg.on { background: var(--t-accent, #ffd100); box-shadow: none; }
+.gh-go { flex: none; font-size: 1.6rem; line-height: 1; color: var(--t-accent, #ffd100); }
+
+.gh-buddy { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; border-radius: 0.5rem; animation: gh-rise 420ms 60ms cubic-bezier(0.23, 1, 0.32, 1) both; -webkit-tap-highlight-color: transparent; }
+.gh-buddy:focus-visible { outline: 3px solid var(--t-accent, #ffd100); outline-offset: 3px; }
+.gh-sprite { flex: none; display: block; line-height: 0; animation: gh-bob 2.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.gh-sprite svg { display: block; image-rendering: pixelated; filter: drop-shadow(0 4px 0 rgba(21, 23, 63, 0.25)); }
+.gh-buddy .gh-bubble { margin: 0; padding: 0.6rem 0.85rem 0.6rem 1.15rem; background: var(--t-cream2, #fff3b8); color: var(--t-ink, #15173f); font: 600 0.98rem/1.3 var(--gh-font); color: var(--t-ink, #15173f); clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 10px 62%, 0 50%, 10px 38%); text-align: left; }
+.gh-px { display: inline-grid; place-items: center; }
+@media (prefers-reduced-motion: reduce) { .gh-strip, .gh-buddy { animation: none; } .gh-sprite { animation: none; } .gh-strip { transition: none; } }

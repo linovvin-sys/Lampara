@@ -12,19 +12,24 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Scan Signage</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
-<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
 <meta name="theme-color" content="#09090b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
+<link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <link rel="stylesheet" href="../../Css/brand-ar.css?v=<?= filemtime(__DIR__ . '/../../Css/brand-ar.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <link rel="stylesheet" href="../../Css/Student/scan.css?v=<?= $pageCssVer ?>">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
+<link rel="stylesheet" href="../../Css/Student/scan-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/Student/scan-pixel.css') ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
@@ -95,12 +100,30 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 
   <!-- ===== STAGE 2: result (full white/green card redesign) ===== -->
   <template v-else-if="stage === 'result'">
+    <div class="ps rs-bg" aria-hidden="true" v-html="sceneHtml"></div>
     <div class="result-shell">
+      <div v-if="hasMusic" class="hr-top">
+        <button type="button" class="hr-snd" :aria-pressed="musicOn" :aria-label="musicOn ? 'Music is on. Tap to mute' : 'Music is off. Tap to turn on'" @click="toggleMusic">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z"/><path v-if="musicOn" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path v-else d="m16 9.5 5 5m0-5-5 5"/></svg>
+        </button>
+      </div>
       <!-- Entered from Manual Search: the room the visitor tapped is the
            DESTINATION, not "where they are" — there was no scan to establish
            that, so asking "where are you now?" comes first instead of the
            scanned flow's "You're at X" framing. -->
-      <div v-if="planningMode && destination && !room" class="wy">
+      <!-- The same number is in more than one building and we could not tell which: ask -->
+      <div v-if="pickRooms.length" class="bp" role="group" aria-labelledby="bpTitle">
+        <img data-mascot class="bp-mascot" alt="" width="64" height="64">
+        <div class="bp-in">
+          <h1 id="bpTitle">Room {{ pickRooms[0].room_number }} is in {{ pickRooms.length }} buildings</h1>
+          <p>Which building are you in?</p>
+          <button v-for="r in pickRooms" :key="r.id" type="button" class="bp-btn" @click="chooseBuilding(r)">
+            <img v-if="r.photo_path" :src="'../../' + r.photo_path" alt="" class="bp-photo" @error="$event.target.hidden = true">
+            <span><b>{{ buildingLabel(r) }}</b><small>{{ r.room_name }} &middot; {{ r.floor }}</small></span>
+          </button>
+        </div>
+      </div>
+      <div v-else-if="planningMode && destination && !room" class="wy">
         <a href="manual-search.php" class="wy-back" aria-label="Back to the directory">
           <span class="wy-back-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></span>
           Directory
@@ -183,26 +206,37 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
              useful next step underneath it. This is now a quiet, compact
              confirmation; "where do you want to go" (below) is the headline.
              Skipped entirely in planning mode — nothing was actually scanned. -->
-        <div v-if="!planningMode" class="here-pill">
-          <span class="here-pill-check">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="here-pill-text">
-            You're at <strong>{{ room.room_number ? room.room_number + ' — ' : '' }}{{ room.room_name }}</strong>
-            <span class="here-pill-sub">{{ room.floor }} &middot; {{ room.building_name }}</span>
-          </span>
-          <span v-if="detectedNumber" class="source-tag ai here-pill-source"><span class="dot"></span> AI</span>
-          <span v-else class="source-tag manual here-pill-source">Manual</span>
-        </div>
+        <section v-if="!planningMode" class="wy-dest hr" aria-label="Where you are now">
+          <div class="wy-dest-body">
+            <img data-mascot class="hr-mascot" alt="" width="60" height="60">
+            <span class="wy-eyebrow hr-eyebrow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>
+              You are here
+            </span>
+            <h1>{{ room.room_number ? room.room_number + ' \u2014 ' : '' }}{{ room.room_name }}</h1>
+            <p class="wy-dest-meta">{{ buildingLabel(room) }}<template v-if="room.notes"> &middot; {{ room.notes }}</template></p>
+            <button v-if="altRooms.length" type="button" class="bp-switch" @click="notThisBuilding">Not this building?</button>
+            <div class="hr-row">
+              <span class="hr-tags">
+                <span class="wy-chip">{{ room.floor }}</span>
+                <span class="wy-chip">{{ room.room_type === 'office' ? (room.hours ? 'Open ' + room.hours : 'Office') : 'Classroom / Lab' }}</span>
+              </span>
+              <button type="button" class="hr-wrong" :disabled="reported" aria-label="Report wrong info about this room" @click="reportOutdated">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 22 20.5H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor"/></svg>
+                {{ reported ? 'Reported' : 'Report' }}
+              </button>
+            </div>
+          </div>
+        </section>
 
         <!-- Destination picker — THIS is the actual headline now. Gives a
              relative hint (same floor/building vs a different one), not
              real turn-by-turn steps — no corridor/floor-plan data exists
              to generate an actual route, that's the thesis's pathfinding
              scope, not this feature's. -->
-        <div v-if="!planningMode" class="result-heading">
-          <h1>Where do you want to go?</h1>
-          <p>Search a room, office, or lab to get directions from here.</p>
+        <div v-if="!planningMode" class="hr-ask">
+          <h2>Where to?</h2>
+          <p>Tap a room to start your route from here.</p>
         </div>
         <!-- Planning mode: both ends are picked, so show them as a route (from -> to), not a prompt. -->
         <section v-else class="rt-sum" aria-label="Your route">
@@ -231,23 +265,39 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           </ol>
         </section>
 
-        <div v-if="!planningMode" class="info-card" style="margin-top:0.25rem;">
-          <input v-model="destQuery" @input="searchDestinations" type="text"
-                 placeholder="Search a room, office, or lab…"
-                 style="width:100%; box-sizing:border-box; padding:0.7rem 0.9rem; border:1px solid var(--line); border-radius:0.75rem; font-family:inherit; font-size:0.875rem;">
-          <div v-if="destResults.length" style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.4rem; max-height:16rem; overflow-y:auto;">
-            <button v-for="d in destResults" :key="d.id" @click="pickDestination(d)"
-                    style="text-align:left; background:var(--green-50); border:none; border-radius:0.6rem; padding:0.55rem 0.75rem; font-family:inherit; cursor:pointer;">
-              <span style="font-weight:700; font-size:0.8125rem; color:var(--ink);">{{ d.room_number ? d.room_number + ' — ' : '' }}{{ d.room_name }}</span>
-              <span style="display:block; font-size:0.75rem; color:var(--muted);">{{ d.building_name }} &middot; {{ d.floor }}</span>
+        <section v-if="!planningMode" class="wy-ask hr-find" aria-label="Choose a destination">
+          <label class="wy-search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
+            <input v-model="destQuery" @input="searchDestinations" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search for a room, office or lab" placeholder="Room name or number">
+            <button v-if="destQuery" type="button" class="wy-clear" aria-label="Clear" @click="destQuery = ''; destResults = []">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-          </div>
-          <!-- Was silently truncated with no signal before — now says so,
-               so "why don't I see room X" has an obvious answer: type more
-               to narrow it down, instead of wondering if the room exists. -->
-          <div v-if="destResultsTruncated" style="margin-top:0.4rem; font-size:0.75rem; color:var(--muted);">More matches exist — keep typing to narrow it down.</div>
-          <div v-if="destQuery && !destResults.length" style="margin-top:0.5rem; font-size:0.8125rem; color:var(--muted);">No matching room found.</div>
-        </div>
+          </label>
+          <ul v-if="destResults.length" class="wy-list">
+            <li v-for="d in destResults" :key="d.id">
+              <button type="button" class="wy-opt" @click="pickDestination(d)">
+                <span class="wy-opt-main">{{ d.room_number ? d.room_number + ' \u2014 ' : '' }}{{ d.room_name }}</span>
+                <span class="wy-opt-sub">{{ d.subtitle ? d.subtitle + ' \u00b7 ' : '' }}{{ d.floor }} &middot; {{ d.building_name }}</span>
+                <svg class="wy-go" width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </li>
+          </ul>
+          <p v-if="destResultsTruncated" class="wy-none">More rooms match. Keep typing to narrow it down.</p>
+          <p v-if="destQuery && !destResults.length" class="wy-none">No room matches &ldquo;{{ destQuery }}&rdquo;. Try its number, or fewer words.</p>
+
+          <template v-if="!destQuery && !destination">
+            <template v-for="g in quickGroups" :key="g.title">
+              <p class="wy-label hr-label"><span class="hr-dot" :class="{ here: g.here }" aria-hidden="true"></span>{{ g.title }}</p>
+              <ul class="hr-chips">
+                <li v-for="r in g.rooms" :key="r.id">
+                  <button type="button" class="hr-chip" @click="pickDestination(r)">
+                    <b v-if="r.room_number">{{ r.room_number }}</b><span class="hr-chip-name">{{ r.room_name }}</span>
+                  </button>
+                </li>
+              </ul>
+            </template>
+          </template>
+        </section>
 
         <div v-if="destination" class="info-card" :style="{ marginTop: planningMode ? '0.25rem' : '1rem' }">
           <!-- keyed per room, so a photo that failed to load for one room is not hidden for the next -->
@@ -369,10 +419,10 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         <!-- Only offered once every floor on the route has been calibrated by an
              admin (Floor Calibration) — otherwise there's no way to turn plan
              coordinates into real walking distance and direction. -->
-        <!-- Destination in another building: leave this one, walk outside, then find the room (Student/journey.php). -->
+        <!-- The animated floor-plan route (Student/journey.php): this room to the destination, or leave this building, walk outside, then find the room. -->
         <a v-if="journeyUrl" :href="journeyUrl" class="rt-cta">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          Show me the way to {{ destination.building_name }}
+          {{ room.building_id === destination.building_id ? 'Watch the route to ' + destination.room_name : 'Show me the way to ' + destination.building_name }}
         </a>
         <a v-if="arGuideUrl" :href="arGuideUrl" class="rt-cta rt-cta-alt">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>
@@ -381,32 +431,24 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 
         <!-- Secondary: details about the CURRENT room — still useful, just
              no longer competing with "where do you want to go" for top billing. -->
-        <div v-if="!planningMode" class="info-card">
-          <div v-if="room.notes">
-            <span class="notes-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>
-              {{ room.notes }}
-            </span>
-          </div>
-          <div v-if="room.room_type === 'office'" class="hours-badge" :style="{ marginTop: room.notes ? '0.6rem' : '0' }"><span class="dot"></span> {{ room.hours || 'Hours not set' }}</div>
-          <div v-else class="no-hours" :style="{ marginTop: room.notes ? '0.6rem' : '0' }">Classroom/Lab — no fixed hours</div>
-        </div>
-
         <button v-if="planningMode" @click="reportOutdated" :disabled="reported" class="report-btn">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5 22 20.5H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/></svg>
           {{ reported ? 'Thanks. Reported to the campus admin' : 'Something here looks wrong? Report it' }}
         </button>
-        <template v-if="!planningMode">
-          <button @click="reportOutdated" :disabled="reported" class="report-btn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3.5 22 20.5H2L12 3.5Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/></svg>
-            {{ reported ? 'Thanks — reported to the campus admin' : 'This seems outdated — report it' }}
+        <nav v-if="!planningMode" class="hr-bar" aria-label="Other options">
+          <button type="button" class="hr-bar-btn primary" @click="reset">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>
+            Scan another sign
           </button>
-          <button @click="reset" class="btn-dark">Scan Another</button>
-        </template>
+          <a href="../Public/guide-ar.php" class="hr-bar-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            Outside guide
+          </a>
+        </nav>
         <template v-else>
           <a href="manual-search.php" class="back-link">Pick a different destination</a>
         </template>
-        <a href="../Public/guide-ar.php" class="back-link">Back to the outside guide</a>
+        <a v-if="planningMode" href="../Public/guide-ar.php" class="back-link">Back to the outside guide</a>
       </div>
 
       <div v-else class="not-found">
@@ -427,8 +469,12 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <script src="../../Js/Include/floor-route.js?v=<?= $routeJsVer ?>"></script>
 <script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
 <script src="../../Js/Include/plan-zoom.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/plan-zoom.js') ?>"></script>
+<script src="../../Js/Include/pixel-scene.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/pixel-scene.js') ?>"></script>
+<script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
+<script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Student/scan.js?v=<?= $pageJsVer ?>"></script>
 
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
+<script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
 </body>
 </html>
