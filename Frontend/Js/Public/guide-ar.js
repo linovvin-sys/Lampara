@@ -9,7 +9,7 @@ const AR_BUILD = 'AR build: v29 (clear navigation + switch destination)';
 // floats or sinks, tune it without editing code: add ?h=1.3 (or 1.5 ...) to the page URL.
 const EYE_HEIGHT_M = (() => {
   try { const v = parseFloat(new URLSearchParams(location.search).get('h')); if (v > 0.5 && v < 2.5) return v; } catch (e) { /* default */ }
-  return 1.6;
+  return 1.9;
 })();
 
 // Top-down mini-map (north up) — lets you check, anywhere, that the drawn paths and your

@@ -363,7 +363,7 @@ const E = {
         E._refreshWait = null; clearTimeout(timer); clearTimeout(goodTimer);
         if (best) {
           E._last = E._filt.reset({ lat: best.lat, lng: best.lng, acc: Math.max(best.acc, 3) }, true);
-          E._locar.fakeGps(best.lng, best.lat, null, best.acc);
+          E._locar.fakeGps(best.lng, best.lat, null, best.acc); E._shown = null;
         }
         E.clearRoute();
         const pos = E._last || best;
@@ -544,6 +544,12 @@ const E = {
         if (w && w.off <= 15) placed = r.tracker.pointAt(w.along);
         r.tracker.update(p);
       }
+      // Hold the camera still while the estimate only wobbles (GPS jitter slides the whole path under your feet); once it has
+      // really moved more than ~1 m, glide to it instead of jumping. The path is fixed in the world, so this is what makes it feel stuck.
+      const sh = E._shown;
+      if (!sh || distance(sh, placed) > 25) E._shown = { lat: placed.lat, lng: placed.lng };
+      else if (distance(sh, placed) > 1) { sh.lat += (placed.lat - sh.lat) * 0.12; sh.lng += (placed.lng - sh.lng) * 0.12; }
+      placed = { lat: E._shown.lat, lng: E._shown.lng };
       E._locar.fakeGps(placed.lng, placed.lat, null, p.acc);
       E._placed = placed;
     }
