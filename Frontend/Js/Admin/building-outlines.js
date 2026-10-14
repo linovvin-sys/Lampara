@@ -7,7 +7,7 @@
   var buildings = [];
   var selected = null;
 
-  var map = L.map('map', CampusBounds.mapOptions()).setView([14.3273, 120.9407], 19);
+  var map = L.map('map', CampusBounds.mapOptions()).setView(CampusBounds.CENTER, 19);
   var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19 }).addTo(map);
   var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19 });
   L.control.layers({ Satellite: sat, Streets: osm }, null, { position: 'topright' }).addTo(map);

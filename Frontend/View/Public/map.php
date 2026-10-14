@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../../Backend/security_headers.php';
+require_once __DIR__ . '/../../../Backend/institution.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../Css/Public/map.css');
 // one version for map.js and the 3D viewer it imports, so a change to either reaches phones together
@@ -43,7 +44,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
     </a>
     <div class="titles">
       <h1>Campus Map</h1>
-      <p id="caption">NCST campus</p>
+      <p id="caption"><?= inst_h('short_name') ?> campus</p>
     </div>
     <div class="seg" role="tablist" aria-label="Map type">
       <button type="button" role="tab" id="tab-2d" data-kind="2d" aria-selected="true">2D</button>
@@ -151,6 +152,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <script src="../../Js/Include/student-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/student-offline.js') ?>"></script>
 <script src="../../Js/Public/map.js?v=<?= $jsVer ?>"></script>
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../Js/Public/map-street.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/map-street.js') ?>"></script>
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>

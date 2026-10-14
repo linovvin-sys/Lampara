@@ -31,6 +31,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <link rel="stylesheet" href="../../assets/vendor/leaflet/leaflet.css">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 <script src="../../assets/vendor/qrcodejs/qrcode.min.js"></script>

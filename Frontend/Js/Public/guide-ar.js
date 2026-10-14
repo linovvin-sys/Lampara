@@ -60,8 +60,8 @@ const OUTSIDE_DETOUR = 1.3;
 // A vehicle gate is for vehicles; on foot it is only chosen when it clearly saves this much over the main gate.
 const VEHICLE_GATE_PENALTY_M = 40;          // a building farther away than this (you are not on campus) gets no path
 const PROJ_M_PER_DEG = 111320;
-const DEFAULT_CAMPUS_LAT = 14.3283;
-const DEFAULT_CAMPUS_LNG = 120.9408;
+const DEFAULT_CAMPUS_LAT = (window.LAMPARA_CONFIG && LAMPARA_CONFIG.center ? LAMPARA_CONFIG.center[0] : 14.3283);
+const DEFAULT_CAMPUS_LNG = (window.LAMPARA_CONFIG && LAMPARA_CONFIG.center ? LAMPARA_CONFIG.center[1] : 120.9408);
 // The building's own pin is usually mid-building, tens of meters past the door. The ribbon
 // stops at the entrance; it is only carried on to the marker when that is this close.
 const MARKER_EXTEND_MAX_M = 12;

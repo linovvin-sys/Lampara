@@ -50,7 +50,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                 <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1.2"/></svg>Basic Info</div>
                 <div class="field">
                   <label>Building name</label>
-                  <input v-model="form.name" type="text" required placeholder="e.g. Amafel Building (NCST)">
+                  <input v-model="form.name" type="text" required placeholder="e.g. Main Building">
                 </div>
 
                 <button type="button" @click="captureLocation" class="btn btn-secondary geo-btn">
@@ -103,7 +103,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                   <p class="hint">Where people walk in. The student guide uses it for "I just arrived at the entrance".</p>
                 </div>
                 <p style="color: var(--muted); font-size:0.75rem; margin:-0.75rem 0 1rem;">
-                  First digit of every room number in this building (e.g. Amafel = 1, so its rooms are 1101, 1204… and may carry a section, like 1101 - A). Leave blank for buildings with no numbered rooms.
+                  First digit of every room number in this building (e.g. Main Building = 1, so its rooms are 1101, 1204… and may carry a section, like 1101 - A). Leave blank for buildings with no numbered rooms.
                 </p>
 
                 <div v-if="nearbyWarnings.length" class="tinted-card warn-card">

@@ -38,6 +38,7 @@ $needsMap = $needsMap ?? false;
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 <?php if ($needsMap): ?>
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <?php endif; ?>
 <script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>

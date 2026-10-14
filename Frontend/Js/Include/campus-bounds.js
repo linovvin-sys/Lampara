@@ -10,7 +10,8 @@
            CampusBounds.outsideBy(lat, lng)  -> metres from the area (0 when inside) */
 (function () {
   // South-west and north-east corners, read off the campus satellite reference view (about 280 m wide, 215 m tall).
-  var BOUNDS = [[14.32685, 120.93987], [14.32880, 120.94248]];
+  var CFG = window.LAMPARA_CONFIG || {};   // the school's settings (Backend/api/institution.php); the numbers below are the fallback
+  var BOUNDS = (CFG.bounds && CFG.bounds.length === 2) ? CFG.bounds : [[14.32685, 120.93987], [14.32880, 120.94248]];
   var CENTER = [(BOUNDS[0][0] + BOUNDS[1][0]) / 2, (BOUNDS[0][1] + BOUNDS[1][1]) / 2];
   var MIN_ZOOM = 17, MAX_ZOOM = 21;
   var M_PER_DEG = 111320;

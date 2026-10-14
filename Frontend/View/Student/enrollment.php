@@ -17,6 +17,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/enrollment.css');
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
 <link rel="stylesheet" href="../../Css/game-hud.css?v=<?= filemtime(__DIR__ . '/../../Css/game-hud.css') ?>">
@@ -41,7 +42,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/enrollment.css');
   <ol class="en-steps" id="enSteps" aria-label="Enrollment steps"></ol>
 
   <div class="en-foot">
-    <p>Office hours are in each room's details. Rooms are in the Amafel Building (Main), 1st Floor.</p>
+    <p>Office hours are in each room's details.</p>
     <button type="button" class="en-reset" id="enReset">Start over</button>
   </div>
 </main>

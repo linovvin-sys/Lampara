@@ -382,7 +382,7 @@ createApp({
       if (this.showingQrFor === anchor.id) this.showingQrFor = null;
     },
     initMap() {
-      // Amafel Building as a sane default center before real data loads.
+      // The campus centre (from the school's settings) until real data loads.
       const map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView(CampusBounds.CENTER, 18);
       const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

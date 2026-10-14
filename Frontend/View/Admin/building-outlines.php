@@ -26,6 +26,7 @@ $v = fn($f) => filemtime(__DIR__ . '/../../' . $f);
 <link rel="stylesheet" href="../../Css/Admin/building-outlines.css?v=<?= $v('Css/Admin/building-outlines.css') ?>">
 <link rel="stylesheet" href="../../assets/vendor/leaflet/leaflet.css">
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= $v('Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 </head>

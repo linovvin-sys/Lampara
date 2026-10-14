@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../../Backend/security_headers.php';
+require_once __DIR__ . '/../../../Backend/institution.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $f = fn($p) => filemtime(__DIR__ . '/../../' . $p);
 ?>
@@ -9,7 +10,7 @@ $f = fn($p) => filemtime(__DIR__ . '/../../' . $p);
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Ask Lampara</title>
-<meta name="description" content="Ask Lampara about any room, office, building or gate on the NCST campus. Answers come only from the registered campus records.">
+<meta name="description" content="Ask Lampara about any room, office, building or gate on the <?= inst_h('short_name') ?> campus. Answers come only from the registered campus records.">
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
@@ -20,6 +21,7 @@ $f = fn($p) => filemtime(__DIR__ . '/../../' . $p);
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= $f('Css/pixel-scene.css') ?>">
 <link rel="stylesheet" href="../../Css/chat-pixel.css?v=<?= $f('Css/chat-pixel.css') ?>">

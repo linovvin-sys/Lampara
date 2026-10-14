@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../../Backend/security_headers.php';
+require_once __DIR__ . '/../../../Backend/institution.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../Css/Public/index.css');
 $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
@@ -10,7 +11,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Campus Guide</title>
-<meta name="description" content="Pick a building, follow the path on your phone's camera and read turn-by-turn directions on the NCST campus.">
+<meta name="description" content="Pick a building, follow the path on your phone's camera and read turn-by-turn directions on the <?= inst_h('short_name') ?> campus.">
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
@@ -22,6 +23,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<script src="../../../Backend/api/institution.php?format=js"></script>
 <script src="../../Js/Include/theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/theme.js') ?>"></script>
 <link rel="stylesheet" href="../../Css/skeleton.css?v=<?= filemtime(__DIR__ . '/../../Css/skeleton.css') ?>">
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
@@ -39,7 +41,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <header class="top">
   <div class="top-inner">
     <a href="#top" class="brand" aria-label="Lampara, back to the top">
-      <span class="brand-mark"><img src="../../assets/logo.svg" alt="" width="20" height="20"></span>
+      <span class="brand-mark"><img src="<?= inst_h('logo_path') ? '../../' . inst_h('logo_path') : '../../assets/logo.svg' ?>" alt="" width="20" height="20"></span>
       <span>Lampara</span>
     </a>
     <nav class="top-nav" aria-label="Sections">
@@ -62,15 +64,15 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <div class="ps" id="heroScene" aria-hidden="true"></div>
     <div class="wrap hero-grid">
       <div class="hero-copy">
-        <p class="locus"><span class="locus-dot" aria-hidden="true"></span>NCST Campus &middot; Live AR</p>
+        <p class="locus"><span class="locus-dot" aria-hidden="true"></span><?= inst_h('short_name') ?> Campus &middot; Live AR</p>
         <div class="hero-buddy" data-game-buddy data-lines="Hi! Where to today?|Pick a building and I will lead the way.|Earn points every time you arrive.|Tap me for another tip!"></div>
-        <h1 id="hero-h">Find your way around campus.</h1>
+        <h1 id="hero-h"><?= inst_h('tagline') ?></h1>
         <p class="lede">Pick a building, follow the path laid on your phone&rsquo;s camera, and read each turn in plain words. No map reading, no wrong turns.</p>
 
         <!-- Enrolling is a different journey from "find a building": it gets its own clear way in, right under the first sentence -->
         <a class="enroll-cta" href="../Student/enrollment.php">
           <span class="enroll-cta-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg></span>
-          <span class="enroll-cta-txt"><b>Enrolling at NCST?</b><small>Follow the enrollment steps, office by office</small></span>
+          <span class="enroll-cta-txt"><b>Enrolling at <?= inst_h('short_name') ?>?</b><small>Follow the enrollment steps, office by office</small></span>
           <span class="enroll-cta-go" aria-hidden="true">&rsaquo;</span>
         </a>
 
@@ -263,8 +265,8 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
 <footer class="foot">
   <div class="wrap foot-in">
-    <div class="foot-brand"><span class="brand-mark"><img src="../../assets/logo.svg" alt="" width="18" height="18"></span><span>Lampara</span></div>
-    <p>Find your way around the NCST campus. Directions come from the walkways and rooms the school has registered, kept up to date by its administrators.</p>
+    <div class="foot-brand"><span class="brand-mark"><img src="<?= inst_h('logo_path') ? '../../' . inst_h('logo_path') : '../../assets/logo.svg' ?>" alt="" width="18" height="18"></span><span>Lampara</span></div>
+    <p>Find your way around the <?= inst_h('short_name') ?> campus. Directions come from the walkways and rooms the school has registered, kept up to date by its administrators.</p>
     <nav class="foot-links" aria-label="Links">
       <a href="guide-ar.php">Walking guide</a>
       <a href="../Student/enrollment.php">Enrollment guide</a>
