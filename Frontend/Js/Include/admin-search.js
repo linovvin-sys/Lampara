@@ -5,13 +5,11 @@
   var PAGES = [
     { label: 'Dashboard', href: 'dashboard.php', hint: 'Page' },
     { label: 'Buildings', href: 'buildings.php', hint: 'Page' },
-    { label: 'Add / Edit Building', href: 'building-edit.php', hint: 'Page' },
-    { label: 'Add / Edit Room', href: 'room-edit.php', hint: 'Page' },
-    { label: 'Floor Calibration', href: 'floor-calibration.php', hint: 'Page' },
     { label: 'Campus Paths', href: 'campus-paths.php', hint: 'Page' },
     { label: 'Building Outlines', href: 'building-outlines.php', hint: 'Page' },
     { label: 'Campus Map', href: 'campus-map.php', hint: 'Page' },
-    { label: 'Test Chat', href: 'test-chat.php', hint: 'Page' }
+    { label: 'Entrance and exit', href: 'doors.php', hint: 'Page' },
+    { label: 'Try the chat', href: 'test-chat.php', hint: 'Page' }
   ];
   var API = '../../../Backend/api/';
   var dlg, input, list, items = [], active = 0, data = null, loading = false;
@@ -71,8 +69,8 @@
       data.buildings.forEach(function (b) {
         var m = q.length ? match(b.name, q) : -1;
         if (m >= 0) {
-          out.push({ rank: m, group: 'Buildings', label: b.name, hint: b.room_count + ' rooms', href: 'building-edit.php?edit=' + b.id });
-          out.push({ rank: m + 0.5, group: 'Buildings', label: 'Rooms in ' + b.name, hint: 'Room list', href: 'room-edit.php?building=' + b.id });
+          out.push({ rank: m, group: 'Buildings', label: b.name, hint: b.room_count + ' rooms', href: 'buildings.php?b=' + b.id + '&tab=details' });
+          out.push({ rank: m + 0.5, group: 'Buildings', label: 'Rooms in ' + b.name, hint: 'Room list', href: 'buildings.php?b=' + b.id + '&tab=rooms' });
         }
       });
       data.rooms.forEach(function (r) {

@@ -25,7 +25,7 @@ const AdminOffline = (() => {
   const POLL_MS = 20000;
 
   const API = new URL('../../../Backend/api/', location.href).href;
-  const ADMIN_PAGES = ['dashboard.php', 'buildings.php', 'building-edit.php', 'room-edit.php', 'campus-paths.php', 'floor-calibration.php', 'test-chat.php'];
+  const ADMIN_PAGES = ['dashboard.php', 'buildings.php', 'building-edit.php', 'room-edit.php', 'campus-paths.php', 'test-chat.php'];
 
   // ---------- small helpers ----------
   const same = (a, b) => a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b);
@@ -177,7 +177,7 @@ const AdminOffline = (() => {
       const p = o.payload;
       if (o.type === 'building.create') {
         out.push({ id: p.temp_id, name: p.name, lat: p.lat, lng: p.lng, floor_count: p.floor_count || 1, building_number: p.building_number ?? null,
-          directory: p.directory || '', entrance_node_id: null, room_count: 0, open_flags: 0, updated_at: null, _pending: true });
+          directory: p.directory || '', is_open: !!p.is_open, entrance_node_id: null, room_count: 0, open_flags: 0, updated_at: null, _pending: true });
       } else if (o.type === 'building.update') {
         const b = find(p.id);
         if (b) Object.assign(b, { name: p.name, lat: p.lat, lng: p.lng, floor_count: p.floor_count || 1, building_number: p.building_number ?? null, directory: p.directory || '', _pending: true });
@@ -318,7 +318,7 @@ const AdminOffline = (() => {
     if (!swalLoading) {
       swalLoading = new Promise((resolve) => {
         const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+        s.src = '../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js';
         s.onload = () => resolve(window.Swal || null);
         s.onerror = () => resolve(null);
         document.head.appendChild(s);

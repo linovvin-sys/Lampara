@@ -1,8 +1,25 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 require_once __DIR__ . '/../../../Backend/_auth.php';
+// This page now runs inside the Buildings workspace; opened on its own it forwards there.
+if (!isset($_GET['embed'])) {
+    $b = (int) ($_GET['building'] ?? 0);
+    $r = (int) ($_GET['room'] ?? 0);
+    if (!$b && $r) {
+        require_once __DIR__ . '/../../../Backend/config.php';
+        $c = (new Database())->connect();
+        $st = $c->prepare('SELECT building_id FROM rooms WHERE id = ?');
+        $st->bind_param('i', $r);
+        $st->execute();
+        $row = $st->get_result()->fetch_row();
+        $b = (int) ($row[0] ?? 0);
+    }
+    header('Location: buildings.php?tab=rooms' . ($b ? '&b=' . $b : '') . ($r ? '&room=' . $r : ''));
+    exit;
+}
 $activeNav = 'room-edit';
 $workspace = 'room';
-$pageTitle = 'Add / Edit Room';
+$pageTitle = 'Rooms';
 $needsMap = true;
 
 include __DIR__ . '/../Include/buildings-head.php';
@@ -18,7 +35,7 @@ include __DIR__ . '/../Include/buildings-head.php';
       <a class="back-link" href="buildings.php">&larr; All buildings</a>
       <div class="page-head">
         <div>
-          <h1>Add / Edit Room</h1>
+          <h1>Rooms</h1>
           <p>Add or change a room, set its hours, and place its marker on the floor plan.</p>
         </div>
       </div>
@@ -32,7 +49,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                   <h2 class="rooms-title" id="roomsTitle">Rooms</h2>
                   <div v-if="form.building_id" class="seg-mini" role="group" aria-label="How to show the rooms">
                     <button type="button" :class="{ on: viewMode === 'list' }" :aria-pressed="viewMode === 'list'" @click="setView('list')">List</button>
-                    <button type="button" :class="{ on: viewMode === 'plan' }" :aria-pressed="viewMode === 'plan'" @click="setView('plan')">Floor plan</button>
+                    <button v-if="!isOpen" type="button" :class="{ on: viewMode === 'plan' }" :aria-pressed="viewMode === 'plan'" @click="setView('plan')">Floor plan</button>
                   </div>
                 </div>
                 <div class="field">
@@ -74,12 +91,12 @@ include __DIR__ . '/../Include/buildings-head.php';
                       <label v-if="selectMode" class="rooms-row" :class="{ 'is-checked': isSelected(r.id) }">
                         <input type="checkbox" :checked="isSelected(r.id)" @change="toggleSelected(r.id)">
                         <span class="rooms-num">{{ r.room_number || '—' }}</span>
-                        <span class="rooms-name">{{ r.room_name || 'Unnamed' }}<small>{{ r.floor }}</small></span>
+                        <span class="rooms-name">{{ r.room_name || 'Unnamed' }}<small v-if="!isOpen">{{ r.floor }}</small></span>
                       </label>
                       <button v-else type="button" class="rooms-row" :class="{ 'is-current': editingId === r.id }" :aria-current="editingId === r.id ? 'true' : null" @click="pickRoom(r.id)">
                         <img v-if="r.photo_path" class="rooms-thumb" :src="'../../' + r.photo_path" alt="">
                         <span class="rooms-num">{{ r.room_number || '—' }}</span>
-                        <span class="rooms-name">{{ r.room_name || 'Unnamed' }}<small>{{ r.floor }}</small></span>
+                        <span class="rooms-name">{{ r.room_name || 'Unnamed' }}<small v-if="!isOpen">{{ r.floor }}</small></span>
                         <span v-if="editingId === r.id" class="rooms-flag">Editing</span>
                       </button>
                     </li>
@@ -161,7 +178,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                       <input v-else type="text" value="No number" disabled
                              style="font-family:'JetBrains Mono',monospace; color:var(--muted); background:#f4f6f4;">
                       <p v-if="!form.noSignage && !forcesNoNumber && (expectedPrefix || roomNumberError)" style="font-size: 0.75rem; margin:0.3rem 0 0;" :style="{ color: roomNumberError ? '#ff0000' : 'var(--muted)' }">
-                        {{ roomNumberError || ('Should start with ' + expectedPrefix + ' — building ' + selectedBuilding.building_number + ', floor ' + floorDigit + '. A section can follow a dash, like ' + expectedPrefix + '01 - A.') }}
+                        {{ roomNumberError || ('Should start with ' + expectedPrefix + ' — building ' + selectedBuilding.building_number + (isOpen ? '' : ', floor ' + floorDigit) + '. A section can follow a dash, like ' + expectedPrefix + '01 - A.') }}
                       </p>
                       <p v-if="roomNumberPreview && !roomNumberError" style="font-size: 0.75rem; margin:0.3rem 0 0; color:var(--green-700, #15803d); font-weight:600;">
                         Will be saved as {{ roomNumberPreview }}
@@ -172,7 +189,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                         No number / no signage (e.g. stairwell)
                       </label>
                     </div>
-                    <div>
+                    <div v-if="!isOpen">
                       <label>Floor</label>
                       <select v-model="form.floor" required :disabled="!form.building_id">
                         <option value="" disabled>{{ form.building_id ? 'Select a floor…' : 'Select a building first' }}</option>
@@ -182,7 +199,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                     </div>
                   </div>
 
-                  <div class="field" v-if="form.floor">
+                  <div class="field" v-if="form.floor && !isOpen">
                     <label>Location on floor plan (optional)</label>
                     <p class="u-fc2c90" v-if="loadingPlan">Loading plan…</p>
                     <p class="u-fc2c90" v-else-if="!currentFloorPlan">
@@ -349,7 +366,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                         <span class="pp-chip">{{ categoryLabel }}</span>
                         <div class="pp-num">{{ previewNumber || 'No room number' }}</div>
                         <div class="pp-name">{{ form.room_name || 'Room name' }}</div>
-                        <div class="pp-meta">{{ selectedBuilding ? selectedBuilding.name : 'Building' }} &middot; {{ form.floor || 'Floor' }}</div>
+                        <div class="pp-meta">{{ selectedBuilding ? selectedBuilding.name : 'Building' }}<template v-if="!isOpen"> &middot; {{ form.floor || 'Floor' }}</template></div>
                         <div v-if="categoryHasHours" class="pp-line"><b>Hours</b> {{ composedHours || 'Not set yet' }}</div>
                         <div v-if="form.notes" class="pp-line">{{ form.notes }}</div>
                         <div class="pp-line pp-marker" :class="{ on: form.map_x !== null }">{{ form.map_x !== null ? 'Shown on the floor plan' : 'No marker: text directions only' }}</div>

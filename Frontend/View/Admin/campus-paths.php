@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'campus-paths';
@@ -31,8 +32,8 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
+<script src="../../assets/vendor/qrcodejs/qrcode.min.js"></script>
 <style>
   .qr-print-canvas { display: inline-block; padding: 1rem; background: #fff; border-radius: 0.75rem; }
   .qr-print-canvas img, .qr-print-canvas canvas { display: block; }
@@ -74,11 +75,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 
       <div class="paths-layout">
         <div class="card map-card">
-          <p class="hint">
-            Tap the map to drop a point along a walkway. Tap a point, then another, to connect them
-            (the second stays selected so you can keep chaining along the path). Drag a point to move it.
-            Tap a line to remove it.
-          </p>
+          <p class="hint"><b>Tap the map</b> to add a point &middot; <b>tap two points</b> to join them &middot; <b>drag</b> to move &middot; <b>tap a line</b> to remove it.</p>
           <div class="lock-bar" :class="{ 'is-locked': locked }" :title="locked ? 'Points cannot be added, moved, connected or deleted. You can still pan, zoom and select points.' : 'Lock the map to protect it from accidental taps.'">
             <span class="lock-icon" aria-hidden="true" v-html="locked ? lockIcon.closed : lockIcon.open"></span>
 <div class="lock-text"><strong>{{ locked ? 'Editing is locked' : 'Editing is on' }}</strong>
@@ -107,7 +104,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <optgroup label="Buildings"><option v-for="o in viewBuildings" :key="o.value" :value="o.value">{{ o.label }}</option></optgroup>
                 <optgroup label="Points"><option v-for="o in viewPoints" :key="o.value" :value="o.value">{{ o.label }}</option></optgroup>
               </select>
-              <button type="button" class="btn btn-secondary" :disabled="!viewFrom && !viewTo" @click="swapView" title="Swap start and end">&#8646;</button>
+              <button type="button" class="btn btn-secondary" :disabled="!viewFrom && !viewTo" @click="swapView" title="Swap start and end" aria-label="Swap start and end">&#8646; Swap</button>
               <button type="button" class="btn btn-secondary" :disabled="!viewFrom && !viewTo" @click="clearView">Show all</button>
             </div>
             <p v-if="routeView && routeView.ok" class="view-note">Showing only the path from <strong>{{ routeView.from }}</strong> to <strong>{{ routeView.to }}</strong>: {{ routeView.nodeIds.size }} point(s), {{ Math.round(routeView.length) }} m. <span v-if="routeView.via"> It goes {{ routeView.phase === 'exit' ? 'out through' : 'in through' }} <strong>{{ routeView.via }}</strong>, the same rule the AR guide uses.</span> Everything else is hidden, not deleted.</p>

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'dashboard';
@@ -25,7 +26,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <link rel="stylesheet" href="../../Css/Admin/design-pass.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/design-pass.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/dashboard.css">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 </head>
 <body class="admin-body">
 <script>LamparaSkeleton.show('admin')</script>
@@ -42,8 +43,8 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
           <p>The campus directory you maintain, and what needs you next.</p>
         </div>
         <div class="page-actions">
-          <a href="building-edit.php" class="btn btn-secondary">+ Building</a>
-          <a href="room-edit.php" class="btn btn-primary">+ Room</a>
+          <a href="buildings.php?new=1" class="btn btn-secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New building</a>
+          <a href="buildings.php?tab=rooms" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New room</a>
         </div>
       </div>
 
@@ -85,14 +86,14 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
           <div class="stat-value"><span v-if="loading" class="sk sk-title u-b6ebbc"></span><template v-else>{{ buildings.length }}</template></div>
           <div class="stat-label">Buildings</div>
         </a>
-        <a href="room-edit.php" class="stat-card" aria-label="Rooms: open the room editor">
+        <a href="buildings.php?tab=rooms" class="stat-card" aria-label="Rooms: open the room editor">
           <div class="stat-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16"/><path d="M4 21h16M9 12v.01"/></svg>
           </div>
           <div class="stat-value"><span v-if="loading" class="sk sk-title u-b6ebbc"></span><template v-else>{{ rooms.length }}</template></div>
           <div class="stat-label">Rooms</div>
         </a>
-        <a href="room-edit.php" class="stat-card" aria-label="Offices: open the room editor">
+        <a href="buildings.php?tab=rooms" class="stat-card" aria-label="Offices: open the room editor">
           <div class="stat-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
           </div>
@@ -206,7 +207,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
         <div v-if="doneList.length && todoList.length" class="done-toggle">
           <button type="button" class="link-sm" :aria-expanded="showDone" @click="showDone = !showDone">{{ showDone ? 'Hide' : 'Show' }} {{ doneList.length }} finished building{{ doneList.length === 1 ? '' : 's' }}</button>
           <ul v-show="showDone" class="done-list">
-            <li v-for="b in doneList" :key="b.id"><span class="bs-dot ok" aria-hidden="true">✓</span><strong>{{ b.name }}</strong><span class="muted-sm">All {{ b.total }} steps done</span><a :href="'building-edit.php?edit=' + b.id" class="link-sm">Open</a></li>
+            <li v-for="b in doneList" :key="b.id"><span class="bs-dot ok" aria-hidden="true">✓</span><strong>{{ b.name }}</strong><span class="muted-sm">All {{ b.total }} steps done</span><a :href="'buildings.php?b=' + b.id + '&tab=details'" class="link-sm">Open</a></li>
           </ul>
         </div>
       
@@ -244,7 +245,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
         <div v-show="!collapsed.recent" id="card-recent" class="card-body">
           <div v-if="loading" aria-hidden="true"><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-60"></span><span class="sk sk-line w-40"></span></div></div></div>
           <template v-else>
-            <div v-if="recentBuildings.length === 0" class="empty-state">No buildings registered yet. <a href="building-edit.php" class="link-sm">Add the first one</a></div>
+            <div v-if="recentBuildings.length === 0" class="empty-state">No buildings registered yet. <a href="buildings.php?new=1" class="link-sm">Add the first one</a></div>
             <div v-for="b in recentBuildings" :key="b.id" class="list-row">
               <div class="avatar" :style="{ background: colorFor(b.id) }" aria-hidden="true">{{ b.name.charAt(0) }}</div>
               <div class="row-main">
@@ -252,7 +253,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
                 <div class="row-sub">{{ b.room_count }} room(s) &middot; {{ b.updated_at ? 'updated ' + timeAgo(b.updated_at) : 'not synced yet' }}</div>
               </div>
               <span v-if="b.open_flags > 0" class="badge badge-amber">{{ b.open_flags }} flag(s)</span>
-              <a :href="'building-edit.php?edit=' + b.id" class="link-sm is-muted" :aria-label="'Edit ' + b.name">Edit</a>
+              <a :href="'buildings.php?b=' + b.id + '&tab=details'" class="link-sm is-muted" :aria-label="'Edit ' + b.name">Edit</a>
             </div>
           </template>
         

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'doors';
@@ -11,7 +12,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/doors.js');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lampara — Admin · Doors</title>
+<title>Lampara — Admin · Entrance and exit</title>
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
@@ -38,37 +39,52 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/doors.js');
 
       <header class="page-head">
         <div>
-          <h1>Doors</h1>
-          <p>Tell the app where each building's door is on its floor plan. Visitors are guided to the exit when they leave a building, and from the entrance when they arrive. Pick a path point you already drew.</p>
+          <h1>Entrance and exit</h1>
+          <p>Mark where people walk in and out of each building, right on its floor plan. Visitors are guided from the entrance when they arrive and to the exit when they leave.</p>
         </div>
       </header>
 
-      <section class="card dr-card">
-        <label class="dr-label" for="drBuilding">Building</label>
-        <select id="drBuilding" class="dr-select"><option value="">Choose a building&hellip;</option></select>
-        <p class="dr-note" id="drNote" hidden></p>
+      <div class="dr-layout">
+        <aside class="dr-list" aria-label="Buildings">
+          <div class="dr-progress">
+            <div class="dr-progress-text"><strong id="drDone">&ndash;</strong><span>buildings have both doors set</span></div>
+            <div class="dr-meter" aria-hidden="true"><span id="drMeter"></span></div>
+          </div>
+          <ul id="drBuildings" class="dr-buildings"></ul>
+        </aside>
 
-        <div class="dr-grid" id="drForm" hidden>
-          <div>
-            <label class="dr-label" for="drEntry">Entrance: where people come in</label>
-            <select id="drEntry" class="dr-select"></select>
+        <section class="dr-work" id="drWork" aria-live="polite">
+          <div class="dr-empty" id="drEmpty">Loading buildings&hellip;</div>
+          <div id="drPanel" hidden>
+            <div class="dr-head">
+              <h2 id="drName"></h2>
+              <div class="dr-slots">
+                <div class="dr-slot is-entry" id="drSlotEntry"></div>
+                <div class="dr-slot is-exit" id="drSlotExit"></div>
+              </div>
+            </div>
+            <div class="dr-bar">
+              <div class="dr-floors" id="drFloors" role="tablist" aria-label="Floors"></div>
+              <button type="button" class="btn btn-secondary" id="drSuggest">Suggest the door</button>
+            </div>
+            <p class="dr-note" id="drNote" hidden></p>
+            <div class="dr-stage" id="drStage">
+              <div class="dr-plan" id="drPlan"></div>
+              <div class="dr-pop" id="drPop" role="dialog" aria-label="Set this point as a door" hidden></div>
+            </div>
+            <ul class="dr-legend" aria-label="Key">
+              <li><span class="dr-key is-entry"></span>Entrance</li>
+              <li><span class="dr-key is-exit"></span>Exit</li>
+              <li><span class="dr-key"></span>Path point (tap one to choose)</li>
+            </ul>
           </div>
-          <div>
-            <label class="dr-label" for="drExit">Exit: where people leave</label>
-            <select id="drExit" class="dr-select"></select>
-          </div>
-        </div>
-        <div class="dr-actions" id="drActions" hidden>
-          <button type="button" class="btn btn-primary" id="drSave">Save doors</button>
-          <button type="button" class="btn btn-secondary" id="drSame">Use the entrance as the exit too</button>
-        </div>
-        <p class="dr-hint">Not set yet? The app falls back to a point named like an entrance or exit, and then to a guess at the outermost point of the entrance floor. Setting it here removes the guess.</p>
-      </section>
+        </section>
+      </div>
     </div>
   </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 <script src="../../Js/Admin/doors.js?v=<?= $pageJsVer ?>"></script>
 </body>
 </html>

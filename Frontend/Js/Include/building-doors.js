@@ -6,10 +6,12 @@
 //   2. the points built in below for the buildings that were set up before the admin page existed
 //   3. a path point on the entrance floor named like an entrance or exit
 //   4. the path point furthest from the middle of the entrance floor (a guess, flagged `how: 'guess'`)
+// People leave a building by the same door they come in by: the main (human) entrance. So an `exit` that nobody chose in the
+// admin is the building's `entry` door, never a side, back or fire exit.
 const BuildingDoors = (() => {
   const KEY = 'lampara_doors_cache';
   const KNOWN = {
-    1: { floor: '1st Floor', entry: 'Point AG', exit: 'Point B' },    // Amafel (Main): AG = main entrance, B = exit
+    1: { floor: '1st Floor', entry: 'Point AG', exit: 'Point AG' },   // Amafel (Main): AG = the main entrance (B is a side exit, not used to leave)
     3: { floor: '2nd Floor', entry: 'Point T', exit: 'Point T' }      // Felix Amada (Annex): T = entrance stair and exit stair
   };
   let saved = {};      // { "<building id>": { entry: {floor, x, y, name}, exit: {...} } }
@@ -41,6 +43,7 @@ const BuildingDoors = (() => {
   function find(building, graph, plans, kind) {
     const mine = saved[String(building.id)] && saved[String(building.id)][kind];
     if (mine && plans.find((p) => p.floor === mine.floor)) return { floor: mine.floor, x: Number(mine.x), y: Number(mine.y), how: 'set', name: mine.name };
+    if (kind === 'exit') return find(building, graph, plans, 'entry');     // leave by the main entrance unless an exit was chosen on purpose
 
     const cfg = KNOWN[building.id];
     if (cfg && cfg[kind]) {

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'building-outlines';
@@ -26,7 +27,7 @@ $v = fn($f) => filemtime(__DIR__ . '/../../' . $f);
 <link rel="stylesheet" href="../../assets/vendor/leaflet/leaflet.css">
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= $v('Js/Include/campus-bounds.js') ?>"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 </head>
 <body class="admin-body">
 <script>LamparaSkeleton.show('admin')</script>

@@ -1,8 +1,15 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 require_once __DIR__ . '/../../../Backend/_auth.php';
+// This page now runs inside the Buildings workspace; opened on its own it forwards there.
+if (!isset($_GET['embed'])) {
+    $edit = (int) ($_GET['edit'] ?? 0);
+    header('Location: buildings.php?' . ($edit ? 'b=' . $edit . '&tab=details' : 'new=1'));
+    exit;
+}
 $activeNav = 'building-edit';
 $workspace = 'building';
-$pageTitle = 'Add / Edit Building';
+$pageTitle = 'Building editor';
 $needsMap = true;
 
 include __DIR__ . '/../Include/buildings-head.php';
@@ -18,7 +25,7 @@ include __DIR__ . '/../Include/buildings-head.php';
       <a class="back-link" href="buildings.php">&larr; All buildings</a>
       <div class="page-head">
         <div>
-          <h1>Add / Edit Building</h1>
+          <h1>Building editor</h1>
           <p>Register a building, its floors and floor plans, walkable paths, and QR anchors.</p>
         </div>
         <a class="btn btn-secondary" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a>
@@ -71,17 +78,23 @@ include __DIR__ . '/../Include/buildings-head.php';
                     </div>
                   </div>
                 <div class="field-divider"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/></svg>Capacity &amp; Numbering</div>
+                <label class="open-toggle" :class="{ on: form.is_open }">
+                  <input type="checkbox" v-model="form.is_open">
+                  <span class="open-switch" aria-hidden="true"></span>
+                  <span class="open-text"><strong>Open-type building</strong><small>One standalone building with no hallways, entry point or floor plan. It still has a building number and its rooms.</small></span>
+                </label>
+                <div class="field open-note" v-if="form.is_open"><p class="hint">No floors, entrance or floor plan to set up. You can still give it a building number and add its rooms with room numbers.</p></div>
                 <div class="field field-row">
-                  <div>
+                  <div v-show="!form.is_open">
                     <label>Number of floors</label>
                     <input class="u-84b2dc" v-model.number="form.floor_count" type="number" min="1" step="1" required>
                   </div>
                   <div>
                     <label>Building number (optional)</label>
-                    <input class="u-84b2dc" v-model.number="form.building_number" type="number" min="1" step="1" placeholder="e.g. 1">
+                    <input class="u-84b2dc" v-model.trim="form.building_number" type="text" maxlength="6" placeholder="e.g. 1, or 2-A and 2-B for two buildings that share a first digit">
                   </div>
                 </div>
-                <div class="field">
+                <div class="field" v-show="!form.is_open">
                   <label for="entranceFloor">Entrance floor <small>(optional)</small></label>
                   <select id="entranceFloor" v-model="form.entrance_floor">
                     <option value="">Lowest floor (default)</option>
@@ -147,7 +160,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                   <p class="u-2565fb">
                     The AI chat only answers from facts registered here and per-room — it will refuse
                     ("I don't have that information") rather than guess. After registering the building,
-                    add its rooms individually on the <a href="room-edit.php">Add / Edit Room page</a>.
+                    add its rooms individually on the <a href="room-edit.php">Rooms page</a>.
                   </p>
                 </div>
 
@@ -186,7 +199,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                   </div>
                 </div>
 
-                <div v-if="editingId && !editingIsLocalOnly">
+                <div v-if="editingId && !editingIsLocalOnly && !form.is_open">
                   <h3 class="section-title">Floor Plans</h3>
                   <div class="card modal-trigger-card" data-modal-open="floorPlansModal" tabindex="0" role="button">
                     <div class="modal-trigger-row">
@@ -207,7 +220,6 @@ include __DIR__ . '/../Include/buildings-head.php';
                             <span class="ft-name">{{ floor }}</span>
                             <span class="ft-chips">
                               <span class="ft-chip" :class="floorStatus(floor).path ? 'ok' : 'bad'">{{ floorStatus(floor).path ? 'Path' : 'No path' }}</span>
-                              <span class="ft-chip" :class="floorStatus(floor).cal ? 'ok' : 'bad'">{{ floorStatus(floor).cal ? 'Calibrated' : 'Not calibrated' }}</span>
                             </span>
                           </div>
                         </div>

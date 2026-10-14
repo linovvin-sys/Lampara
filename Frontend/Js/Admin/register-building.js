@@ -26,7 +26,7 @@ window.LamparaBuildingApp = createApp({
     return {
       snap: '',            // the form as last saved / loaded: anything different counts as an unsaved change
       loaded: false,       // first list of buildings has arrived (until then the side list shows a skeleton)
-      form: { name: '', lat: '', lng: '', floor_count: 1, entrance_floor: '', building_number: null, directory: '' },
+      form: { name: '', lat: '', lng: '', floor_count: 1, entrance_floor: '', is_open: false, building_number: null, directory: '' },
       baseBuildings: [],   // last data from the server
       buildings: [],       // server data + changes made offline (shown on the page)
       submitting: false,
@@ -349,7 +349,7 @@ window.LamparaBuildingApp = createApp({
     },
     startEdit(b) {
       this.editingId = b.id;
-      this.form = { name: b.name, lat: String(b.lat), lng: String(b.lng), floor_count: b.floor_count || 1, entrance_floor: b.entrance_floor || '', building_number: b.building_number, directory: b.directory || '' };
+      this.form = { name: b.name, lat: String(b.lat), lng: String(b.lng), floor_count: b.floor_count || 1, entrance_floor: b.entrance_floor || '', is_open: !!b.is_open, building_number: b.building_number, directory: b.directory || '' };
       this.geoStatus = '';
       this.drawOtherBuildings();
       this.$nextTick(() => { this.syncPin(); this.centrePick(); });
@@ -363,7 +363,7 @@ window.LamparaBuildingApp = createApp({
     },
     cancelEdit() {
       this.editingId = null;
-      this.form = { name: '', lat: '', lng: '', floor_count: 1, entrance_floor: '', building_number: null, directory: '' };
+      this.form = { name: '', lat: '', lng: '', floor_count: 1, entrance_floor: '', is_open: false, building_number: null, directory: '' };
       this.geoStatus = '';
       this.floorPlans = {};
       this.closePathEditor();
@@ -851,7 +851,7 @@ window.LamparaBuildingApp = createApp({
       this.submitting = true;
       const fields = {
         name: this.form.name, lat: parseFloat(this.form.lat), lng: parseFloat(this.form.lng),
-        floor_count: this.form.floor_count, entrance_floor: this.form.entrance_floor || '', building_number: this.form.building_number, directory: this.form.directory
+        floor_count: this.form.is_open ? 1 : this.form.floor_count, entrance_floor: this.form.is_open ? '' : (this.form.entrance_floor || ''), is_open: !!this.form.is_open, building_number: this.form.building_number, directory: this.form.directory
       };
       const editing = this.editingId;
       const seen = editing ? this.baseBuildings.find((x) => String(x.id) === String(editing)) : null;
@@ -865,6 +865,12 @@ window.LamparaBuildingApp = createApp({
           if (!data.success) throw new Error(data.error || 'unknown');
           return data;
         });
+        // Inside the Buildings workspace the parent page reloads this editor on the saved building.
+        if (window.parent !== window && !out.queued) {
+          const id = editing || (out && (out.id || (out.data && out.data.id))) || null;
+          window.parent.postMessage({ type: 'lampara-building-saved', id, name: fields.name, created: !editing }, location.origin);
+          return;
+        }
         this.cancelEdit();
         await this.loadBuildings();
         if (out.queued) AdminOffline.toast("Saved on this device. You'll be asked to sync when you're back online.", 'info');

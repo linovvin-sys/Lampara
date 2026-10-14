@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'test-chat';
@@ -9,7 +10,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lampara — Admin · Test Chat</title>
+<title>Lampara — Admin · Try the chat</title>
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
@@ -25,7 +26,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 <link rel="stylesheet" href="../../Css/Admin/design-pass.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/design-pass.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/test-chat.css">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 </head>
 <body class="admin-body">
 <script>LamparaSkeleton.show('admin')</script>
@@ -38,7 +39,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 
       <div class="page-head">
         <div>
-          <h1>Test Chat</h1>
+          <h1>Try the chat</h1>
           <p>Ask a registered building exactly what a student would — before they do.</p>
         </div>
       </div>

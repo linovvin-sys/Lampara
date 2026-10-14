@@ -40,8 +40,8 @@ $needsMap = $needsMap ?? false;
 <script src="../../assets/vendor/leaflet/leaflet.js"></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <?php endif; ?>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 <?php if ($needsMap): ?>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="../../assets/vendor/qrcodejs/qrcode.min.js"></script>
 <?php endif; ?>
 </head>

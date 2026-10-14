@@ -1,0 +1,75 @@
+/* Admin UX layer: animated dropdowns, hover tips for every button, and the "How this page works" guide.
+   Behaviour lives in Js/Include/admin-ux.js. Everything here is progressive: without the script the native controls still work. */
+
+/* ---------- Dropdown (replaces the native <select>, which stays in the page for Vue and forms) ---------- */
+.ux-select { position: relative; display: block; width: 100%; }
+select.ux-native { position: absolute !important; width: 1px !important; height: 1px !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; opacity: 0; pointer-events: none; }
+.ux-trigger {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%; min-height: 2.6rem; padding: 0.6rem 0.85rem;
+  font: inherit; font-size: 0.875rem; text-align: left; color: var(--ink, #15173f); background: #fff;
+  border: 1px solid var(--line, #dfe3ea); border-radius: 0.65rem; cursor: pointer;
+  transition: border-color 140ms ease-out, box-shadow 140ms ease-out, background-color 140ms ease-out;
+}
+.ux-trigger:hover { border-color: var(--green-500, #5b6bd6); }
+.ux-select.is-open .ux-trigger, .ux-trigger:focus-visible { outline: none; border-color: var(--green-500, #5b6bd6); box-shadow: 0 0 0 3px var(--green-100, #e3e6fb); }
+.ux-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ux-select.is-placeholder .ux-value { color: var(--muted, #6b7280); }
+.ux-chev { flex: none; opacity: 0.6; transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.ux-select.is-open .ux-chev { transform: rotate(180deg); opacity: 1; }
+.ux-select.is-disabled .ux-trigger { background: var(--green-50, #f3f4fb); color: var(--muted, #6b7280); cursor: not-allowed; border-color: var(--line, #dfe3ea); }
+.ux-select.is-disabled .ux-chev { opacity: 0.3; }
+/* inside a row of compact controls the field keeps its natural width */
+.bulk-hours .ux-select, label > .ux-select { display: inline-block; width: auto; min-width: 7rem; }
+
+.ux-menu {
+  position: fixed; z-index: 10050; margin: 0; padding: 0.3rem; list-style: none; overflow-y: auto; overscroll-behavior: contain;
+  background: #fff; border: 1px solid var(--line, #dfe3ea); border-radius: 0.8rem; box-shadow: 0 14px 34px rgba(15, 17, 56, 0.18), 0 2px 6px rgba(15, 17, 56, 0.08);
+  opacity: 0; transform: translateY(-6px) scale(0.98); transform-origin: top center; visibility: hidden; pointer-events: none;
+  transition: opacity 150ms ease-out, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 180ms;
+}
+.ux-menu.is-up { transform-origin: bottom center; transform: translateY(6px) scale(0.98); }
+.ux-menu.is-open { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.ux-opt {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 0.875rem; color: var(--ink, #15173f); cursor: pointer;
+  opacity: 0; transform: translateY(-3px); transition: background-color 100ms ease-out, opacity 160ms ease-out, transform 160ms ease-out;
+}
+.ux-menu.is-open .ux-opt { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 12ms), calc(var(--i, 0) * 12ms), calc(var(--i, 0) * 12ms); }
+.ux-opt.is-active { background: var(--green-50, #f3f4fb); }
+.ux-opt[aria-selected="true"] { font-weight: 700; color: var(--green-700, #2e3192); }
+.ux-opt[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+.ux-opt-text { flex: 1; min-width: 0; }
+.ux-tick { flex: none; width: 1rem; height: 1rem; color: var(--green-600, #2e3192); opacity: 0; transform: scale(0.5); transition: opacity 140ms, transform 180ms cubic-bezier(0.3, 1.5, 0.5, 1); }
+.ux-opt[aria-selected="true"] .ux-tick { opacity: 1; transform: none; }
+.ux-opt-empty { padding: 0.6rem 0.7rem; font-size: 0.8125rem; color: var(--muted, #6b7280); }
+
+/* ---------- Tooltip (one shared bubble; every button explains itself) ---------- */
+.ux-tip {
+  position: fixed; z-index: 10060; max-width: 17rem; padding: 0.45rem 0.65rem; border-radius: 0.5rem; pointer-events: none;
+  font-size: 0.78rem; line-height: 1.35; font-weight: 500; color: #fff; background: var(--navy-deep, #0f1138);
+  box-shadow: 0 8px 20px rgba(15, 17, 56, 0.25); opacity: 0; transform: translateY(4px); transition: opacity 120ms ease-out, transform 140ms ease-out;
+}
+.ux-tip.is-on { opacity: 1; transform: none; }
+.ux-tip.is-below { transform: translateY(-4px); }
+.ux-tip.is-below.is-on { transform: none; }
+
+/* Buttons that look the same but do different things get a hint of motion on press */
+.admin-main .btn:active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ux-menu, .ux-opt, .ux-tip, .ux-chev, .ux-tick, .ux-guide-body, .ux-guide-pad { transition: none !important; }
+}
+
+/* Dropdowns that sit in a row of controls keep their compact width */
+.view-route .ux-select { width: 11rem; flex: none; }
+.view-route .ux-trigger { min-height: 2.25rem; padding-block: 0.35rem; }
+.view-gap .ux-select { display: inline-block; width: 14rem; }
+
+/* Sidebar: every page is listed now, so keep it compact and let it scroll on short screens */
+.admin-sidebar nav.nav-sections { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; }
+.admin-sidebar nav a { min-height: 2.45rem; }
+.admin-sidebar .nav-sections { gap: 0.7rem; }
+.nav-section-label { font-size: 0.7rem; margin-bottom: 0.15rem; }
+@media (max-height: 900px) { .admin-sidebar nav a { min-height: 2.2rem; } .admin-sidebar .nav-sections { gap: 0.45rem; } }
+.admin-sidebar nav a { padding-block: 0.25rem; }
+.nav-section + .nav-section { margin-top: 0.55rem; }
+.nav-section-label { margin-top: 0.2rem; }

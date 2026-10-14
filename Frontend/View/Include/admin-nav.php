@@ -7,6 +7,18 @@
 
 require_once __DIR__ . '/../../../Backend/session_boot.php';
 lampara_session_start();
+
+// Embedded inside the Buildings workspace (?embed=1): no sidebar or header, just the page's own content.
+if (isset($_GET['embed'])) { ?>
+<script>document.documentElement.classList.add('is-embed')</script>
+<link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
+<script defer src="../../Js/Include/admin-ux.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-ux.js') ?>"></script>
+<script src="../../Js/Include/admin-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-offline.js') ?>"></script>
+<script src="../../Js/Include/admin-savestate.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-savestate.js') ?>"></script>
+<script src="../../Js/Include/admin-toast.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-toast.js') ?>"></script>
+<script src="../../Js/Include/dropzone.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/dropzone.js') ?>"></script>
+<?php return; }
 $adminUsername = $_SESSION['admin_username'] ?? 'Admin';
 
 $navItems = [
@@ -19,6 +31,11 @@ $navItems = [
         'label' => 'Reports',
         'href'  => 'hazards.php',
         'icon'  => '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4M12 17v.01"/>',
+    ],
+    'enrollment-steps' => [
+        'label' => 'Enrollment steps',
+        'href'  => 'enrollment-steps.php',
+        'icon'  => '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
     ],
     // Dropdown: the campus-wide map content (walkways and the static campus map).
     'campus-editor' => [
@@ -53,29 +70,29 @@ $navItems = [
                 'icon'  => '<rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/>',
             ],
             'building-edit' => [
-                'label' => 'Add / Edit Building',
+                'label' => 'Building editor',
                 'href'  => 'building-edit.php',
                 'icon'  => '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/>',
             ],
             'room-edit' => [
-                'label' => 'Add / Edit Room',
+                'label' => 'Rooms',
                 'href'  => 'room-edit.php',
                 'icon'  => '<path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16"/><path d="M4 21h16M9 12v.01"/>',
             ],
-            'floor-calibration' => [
-                'label' => 'Floor Calibration',
-                'href'  => 'floor-calibration.php',
-                'icon'  => '<path d="M4 20 20 4M4 20h6M4 20v-6M9 9l2 2M13 5l2 2M5 13l2 2"/>',
-            ],
         ],
     ],
+    'account' => [
+        'label' => 'Account',
+        'href'  => 'account.php',
+        'icon'  => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',
+    ],
     'doors' => [
-        'label' => 'Doors',
+        'label' => 'Entrances and exits',
         'href'  => 'doors.php',
         'icon'  => '<path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M4 21h16M14 12v.01"/>',
     ],
     'test-chat' => [
-        'label' => 'Test Chat',
+        'label' => 'Try the chat',
         'href'  => 'test-chat.php',
         'icon'  => '<path d="M21 12c0 4.418-4.03 8-9 8-1.06 0-2.078-.163-3.024-.463L3 21l1.5-4.5C3.55 15.06 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z"/>',
     ],
@@ -90,16 +107,22 @@ foreach ($navItems as $k => $it) {
     else $leaf[$k] = $it;
 }
 $navSections = [
-    'Overview'            => ['dashboard', 'hazards'],
-    'Buildings and rooms' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'doors'],
-    'Campus outdoors'     => ['campus-paths', 'building-outlines', 'campus-map'],
+    'Overview'         => ['dashboard', 'hazards', 'enrollment-steps'],
+    'Buildings'        => ['manage-buildings', 'doors'],
+    'Campus outdoors'  => ['campus-paths', 'building-outlines', 'campus-map'],
+    'Tools'            => ['test-chat'],
+    'Your account'     => ['account'],
 ];
+// A PSMO account sees only the building and room pages.
+$isPsmo = lampara_admin_role() === 'psmo';
+if ($isPsmo) $navSections = ['Buildings' => ['manage-buildings'], 'Your account' => ['account']]; // buildings and their rooms; doors are a tab inside a building
 // The three tabs along the bottom of a phone, and which pages count as "inside" each one.
 $tabs = [
     ['label' => 'Home',      'href' => 'dashboard.php',      'icon' => $leaf['dashboard']['icon'],        'match' => ['dashboard']],
-    ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'building-edit', 'room-edit', 'floor-calibration', 'doors', 'test-chat']],
+    ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'doors', 'test-chat']],
     ['label' => 'Campus',    'href' => 'campus-paths.php',   'icon' => $leaf['campus-paths']['icon'],     'match' => ['campus-paths', 'building-outlines', 'campus-map']],
 ];
+if ($isPsmo) $tabs = [$tabs[1]];
 
 // Pages reached from another page (the chat preview opens from the Buildings list menu) light that page's entry.
 $parentOf = ['test-chat' => 'manage-buildings'];
@@ -115,6 +138,9 @@ foreach ($navSections as $sectionName => $keys) {
     }
 }
 ?>
+<link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
+<script defer src="../../Js/Include/admin-ux.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-ux.js') ?>"></script>
 <script>try { if (localStorage.getItem('lampara_admin_sidebar') === '1') document.documentElement.classList.add('sb-collapsed'); } catch (e) { /* storage blocked: stays open */ }</script>
 <a href="#adminMain" class="skip-link">Skip to main content</a>
 <div class="admin-topbar">
@@ -193,7 +219,7 @@ foreach ($navSections as $sectionName => $keys) {
       <div class="profile-avatar"><?= htmlspecialchars($initial) ?></div>
       <div class="profile-text" style="min-width:0;">
         <div class="profile-name"><?= htmlspecialchars($adminUsername) ?></div>
-        <div class="profile-role">Administrator</div>
+        <div class="profile-role"><?= $isPsmo ? 'PSMO' : 'Administrator' ?></div>
       </div>
     </div>
     <a href="logout.php" class="admin-logout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="logout-label">Logout</span></a>

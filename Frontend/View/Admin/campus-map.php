@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'campus-map';
@@ -27,7 +28,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
 <link rel="stylesheet" href="../../Css/Admin/design-pass.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/design-pass.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/campus-map.css?v=<?= $pageCssVer ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 </head>
 <body class="admin-body">
 <script>LamparaSkeleton.show('admin')</script>

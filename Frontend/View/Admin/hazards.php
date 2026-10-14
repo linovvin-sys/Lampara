@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/_auth.php';
 $activeNav = 'hazards';
@@ -55,7 +56,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/hazards.js');
   </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
 <script src="../../Js/Admin/hazards.js?v=<?= $pageJsVer ?>"></script>
 </body>
 </html>

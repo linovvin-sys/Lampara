@@ -200,6 +200,8 @@ window.LamparaRoomApp = createApp({
       }
       return timePart + (days ? `, ${days}` : '');
     },
+    // An open-type building has no floors or plan: its rooms are on one "Ground" level and numbered from the building number.
+    isOpen() { const b = this.buildings.find((x) => x.id == this.form.building_id); return !!(b && b.is_open); },
     floorDigit() {
       const n = parseInt(this.form.floor, 10);
       return isFinite(n) ? n : null;
@@ -210,9 +212,11 @@ window.LamparaRoomApp = createApp({
     expectedPrefix() {
       const b = this.selectedBuilding;
       if (!b || b.building_number === null || b.building_number === undefined) return null;
+      if (this.isOpen) return String(b.building_number).replace(/\D/g, '');
       if (this.floorDigit === null) return null;
-      return String(b.building_number) + String(this.floorDigit);
+      return String(b.building_number).replace(/\D/g, '') + String(this.floorDigit);   // "2-A" and "2-B" both start their rooms with 2
     },
+    // Buildings that share a first digit (2-A and 2-B) also share their room numbers, so a number cannot repeat across them.
     roomNumberError() {
       if (this.form.noSignage || this.forcesNoNumber) return ''; // nothing to validate — this room deliberately has no number
       // Duplicate check runs regardless of whether a numbering prefix is
@@ -228,8 +232,8 @@ window.LamparaRoomApp = createApp({
       const num = this.roomNumberNormalized;
       if (num) {
         const key = RoomNumber.compact(num);
-        const dupe = this.rooms.find((r) => r.room_number && RoomNumber.compact(r.room_number) === key && r.id !== this.editingId && String(r.building_id) === String(this.form.building_id));
-        if (dupe) return `Room ${num} is already registered in this building (${dupe.room_name}).`;
+        const dupe = this.rooms.find((r) => r.room_number && RoomNumber.compact(r.room_number) === key && r.id !== this.editingId && this.sameNumberGroup(r.building_id, this.form.building_id));
+        if (dupe) return `Room ${num} is already registered in ${String(dupe.building_id) === String(this.form.building_id) ? 'this building' : dupe.building_name} (${dupe.room_name}).`;
       }
       if (!this.expectedPrefix || !num) return '';
       if (!RoomNumber.isValidFormat(num)) return 'Room number should be digits, optionally followed by a section, like 1101 or 1101 - A.';
@@ -275,9 +279,16 @@ window.LamparaRoomApp = createApp({
     'form.building_id'(id) { try { if (id) localStorage.setItem('lampara_last_building', String(id)); } catch (e) { /* storage blocked */ }
        this.loadFloorPlanForCurrentSelection(); this.selected = []; this.placing = false; this.loadBuildingPlans(); },
     editingId() { if (this.editingRoom) this.planFloor = this.editingRoom.floor; this.placing = false; },
-    'form.floor'() { this.loadFloorPlanForCurrentSelection(); }
+    'form.floor'(f) { if (this.isOpen && !f) this.form.floor = 'Ground'; this.loadFloorPlanForCurrentSelection(); },
+    isOpen: { immediate: true, handler(open) { if (open && !this.form.floor) this.form.floor = 'Ground'; if (open && this.viewMode === 'plan') this.setView('list'); } }
   },
   methods: {
+    sameNumberGroup(a, b) {
+      if (String(a) === String(b)) return true;
+      const digits = (id) => { const x = this.buildings.find((y) => String(y.id) === String(id)); return x && x.building_number ? String(x.building_number).replace(/\D/g, '') : ''; };
+      const da = digits(a);
+      return da !== '' && da === digits(b);
+    },
     // True when it is OK to throw away what is on the form (nothing changed, or the admin agreed).
     async confirmDiscard() {
       if (!this.dirty) return true;

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 require_once __DIR__ . '/../../../Backend/session_boot.php';
 lampara_session_start();
@@ -44,7 +45,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Admin/login.css');
         <h2>Keep the campus directory right for every student.</h2>
         <ul>
           <li><span class="check" aria-hidden="true">&#10003;</span>Register and edit buildings and rooms</li>
-          <li><span class="check" aria-hidden="true">&#10003;</span>Draw walkways and calibrate floor plans</li>
+          <li><span class="check" aria-hidden="true">&#10003;</span>Draw walkways and set building doors</li>
           <li><span class="check" aria-hidden="true">&#10003;</span>Review outdated-info reports from students</li>
         </ul>
       </div>
@@ -72,6 +73,11 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Admin/login.css');
               </button>
             </div>
             <p id="capsNote" class="caps" v-if="capsOn" role="status">Caps Lock is on.</p>
+          </div>
+
+          <div class="field" v-if="needCode">
+            <label for="loginCode">6-digit code from your authenticator app</label>
+            <input id="loginCode" name="code" v-model="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" ref="codeBox">
           </div>
 
           <div id="loginError" role="alert" aria-live="assertive"><p v-if="error" class="form-error">{{ error }}<template v-if="lockSeconds > 0"> Try again in <strong>{{ lockLabel }}</strong>.</template></p></div>

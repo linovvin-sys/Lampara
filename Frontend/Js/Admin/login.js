@@ -9,7 +9,7 @@ if ('serviceWorker' in navigator) {
 }
 createApp({
   data() {
-    return { username: '', password: '', showPassword: false, capsOn: false, error: '', loading: false, lockSeconds: 0, lockTimer: null };
+    return { username: '', password: '', code: '', needCode: false, showPassword: false, capsOn: false, error: '', loading: false, lockSeconds: 0, lockTimer: null };
   },
   computed: {
     lockLabel() {
@@ -37,12 +37,15 @@ createApp({
         const res = await fetch('../../../Backend/api/admin_login.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: this.username, password: this.password })
+          body: JSON.stringify({ username: this.username, password: this.password, code: this.code })
         });
         const data = await res.json();
         if (data.success) {
           const params = new URLSearchParams(window.location.search);
           window.location.href = params.get('next') || 'dashboard.php';
+        } else if (data.need_code) {
+          this.needCode = true;
+          this.$nextTick(() => { const b = document.getElementById('loginCode'); if (b) b.focus(); });
         } else {
           if (data.retry_after) {
             this.startLock(data.retry_after);

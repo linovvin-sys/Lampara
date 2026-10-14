@@ -1,14 +1,6 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 require_once __DIR__ . '/../../../Backend/_auth.php';
-// Old links used buildings.php?tab=add-building|add-room and ?edit=<id>; forward them.
-$legacyTab = $_GET['tab'] ?? '';
-if ($legacyTab === 'add-room' || $legacyTab === 'add-building' || isset($_GET['edit'])) {
-    $qs = $_GET;
-    unset($qs['tab']);
-    $target = $legacyTab === 'add-room' ? 'room-edit.php' : 'building-edit.php';
-    header('Location: ' . $target . ($qs ? '?' . http_build_query($qs) : ''));
-    exit;
-}
 $activeNav = 'manage-buildings';
 $workspace = 'list';
 $pageTitle = 'Buildings';
@@ -24,17 +16,18 @@ include __DIR__ . '/../Include/buildings-head.php';
 
   <main class="admin-main">
     <div class="admin-container">
+     <div id="listView">
       <div class="page-head">
         <div>
           <h1>Buildings</h1>
           <p>Every registered building, with its location on the campus map.</p>
         </div>
         <div class="page-actions">
-          <a href="building-edit.php" class="btn btn-secondary">+ Building</a>
-          <a href="room-edit.php" class="btn btn-primary">+ Room</a>
+          <a href="buildings.php?new=1" class="btn btn-primary" data-ws><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New building</a>
         </div>
       </div>
 
+        <div class="bw-callout" id="bwCallout" hidden>Choose a building below, then open its <b>Rooms</b> tab to add or edit rooms.</div>
         <div id="list-app" v-cloak>
           <div class="list-toolbar">
             <p class="list-count"><strong>{{ buildings.length }}</strong> buildings &middot; <strong>{{ buildings.reduce((s, b) => s + (b.room_count || 0), 0) }}</strong> rooms &middot; <strong>{{ buildings.filter(b => b.open_flags > 0).length }}</strong> flagged</p>
@@ -60,7 +53,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                         <span v-else class="avatar" :style="{ background: colorFor(b.id) }" aria-hidden="true">{{ b.name.charAt(0) }}</span>
                         <span class="bt-text"><strong>{{ b.name }}</strong><small>{{ b.lat }}, {{ b.lng }}</small></span></div>
                       </td>
-                      <td data-label="Floors">{{ b.floor_count }}</td>
+                      <td data-label="Floors">{{ b.is_open ? 'Open' : b.floor_count }}</td>
                       <td data-label="Rooms">{{ b.room_count }}<span v-if="b.open_flags > 0" class="badge badge-amber" :title="b.open_flags + ' open report(s)'">{{ b.open_flags }} flagged</span></td>
                       <td data-label="Updated"><span class="dot" :class="isStale(b.updated_at) ? 'dot-amber' : 'dot-green'"></span><span :class="isStale(b.updated_at) ? 'stale-text' : 'meta-text'">{{ timeAgo(b.updated_at) }}</span></td>
                       <td data-label="Setup">
@@ -72,16 +65,14 @@ include __DIR__ . '/../Include/buildings-head.php';
                         <span v-else-if="healthLoaded" class="badge badge-green">All set</span>
                       </td>
                       <td class="bt-actions">
-                        <a :href="'room-edit.php?building=' + b.id" class="row-btn" :aria-label="'Rooms in ' + b.name">Rooms</a>
-                        <a v-if="b._pending" :href="'building-edit.php?edit=' + b.id" class="row-btn" :aria-label="'Edit ' + b.name">Edit</a>
-                        <button v-else type="button" class="row-btn" @click="openDrawer(b)" :aria-label="'Quick edit ' + b.name">Edit</button>
+                        <a :href="'buildings.php?b=' + b.id + '&tab=rooms'" class="row-btn" data-ws :aria-label="'Rooms in ' + b.name">Rooms</a>
+                        <a :href="'buildings.php?b=' + b.id + '&tab=details'" class="row-btn row-open" data-ws :aria-label="'Open ' + b.name">Open</a>
                         <span v-if="!b._pending" class="row-menu">
                           <button type="button" class="row-more" :class="{ on: menuFor === b.id }" aria-haspopup="menu" :aria-expanded="menuFor === b.id ? 'true' : 'false'" :aria-label="'More actions for ' + b.name" @click.stop="menuFor = menuFor === b.id ? null : b.id">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
                           </button>
                           <div v-if="menuFor === b.id" class="row-pop" role="menu" @click.stop>
-                            <a role="menuitem" :href="'building-edit.php?edit=' + b.id">Open full editor (map pin, floor plans, paths)</a>
-                            <a role="menuitem" href="floor-calibration.php">Calibrate floors</a>
+                            <a role="menuitem" :href="'buildings.php?b=' + b.id + '&tab=doors'" data-ws>Set entrance and exit</a>
                             <a role="menuitem" :href="'test-chat.php?building=' + b.id">Preview the chat as a student</a>
                             <button type="button" role="menuitem" class="danger" @click="menuFor = null; deleteBuilding(b)">Delete {{ b.name }}&hellip;</button>
                           </div>
@@ -128,7 +119,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                 <div class="field"><label for="dName">Building name</label><input id="dName" ref="dName" v-model="drawer.form.name" type="text" required></div>
                 <div class="drawer-two">
                   <div class="field"><label for="dFloors">Number of floors</label><input id="dFloors" v-model.number="drawer.form.floor_count" type="number" min="1" step="1"></div>
-                  <div class="field"><label for="dNum">Building number</label><input id="dNum" v-model.number="drawer.form.building_number" type="number" min="1" step="1" placeholder="optional"></div>
+                  <div class="field"><label for="dNum">Building number</label><input id="dNum" v-model.trim="drawer.form.building_number" type="text" maxlength="6" placeholder="e.g. 2 or 2-A"></div>
                 </div>
                 <div class="field"><label for="dDesc">Description</label><textarea id="dDesc" v-model="drawer.form.directory" rows="4" placeholder="General facts about the building, not tied to one room"></textarea></div>
                 <p class="hint">The map pin, floor plans and walkable paths are edited in the full editor.</p>
@@ -141,11 +132,29 @@ include __DIR__ . '/../Include/buildings-head.php';
             </aside>
           </div>
         </div>
+     </div>
+
+     <section id="bw" class="bw" hidden aria-label="Building workspace">
+       <div class="bw-top">
+         <a href="buildings.php" class="bw-back" id="bwBack">&larr; All buildings</a>
+         <div class="bw-title">
+           <h1 id="bwName">Building</h1>
+           <div class="bw-chips" id="bwChips"></div>
+         </div>
+         <a class="btn btn-secondary" id="bwPreview" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a>
+       </div>
+       <div class="bw-tabs" role="tablist" aria-label="Building sections" id="bwTabs"></div>
+       <div class="bw-body">
+         <div class="bw-loading" id="bwLoading">Loading&hellip;</div>
+         <iframe id="bwFrame" class="bw-frame" title="Building editor"></iframe>
+       </div>
+     </section>
     </div>
   </main>
 </div>
 
 <script src="../../Js/Include/photo-upload.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/photo-upload.js') ?>"></script>
+<script src="../../Js/Admin/building-workspace.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/building-workspace.js') ?>"></script>
 <script src="../../Js/Admin/manage-buildings.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/manage-buildings.js') ?>"></script>
 </body>
 </html>
