@@ -51,7 +51,7 @@
     browse:    { targets: ['[data-tut=browse]'], tap: true, afterTargets: ['.search-pill', '.dd-panel'] },
     hide:      { targets: ['.sp-btn[aria-pressed]'], needsTarget: true, shield: 'Hide the controls' },
     clear:     { targets: ['.nav-clear'], needsTarget: true, shield: 'Clear' },
-    refresh:   { targets: ['[data-tut=refresh]'], shield: 'Refresh path' },
+    refresh:   { targets: ['[data-tut=refresh]'], needsTarget: true, shield: 'Refresh path' },
     turn:      { targets: ['.nav-card'], needsTarget: true, shield: 'Directions card' },
     voice:     { targets: ['[data-tut=voice]'], needsTarget: true, tap: true },
     dirs:      { targets: ['[data-tut=dirs]'], needsTarget: true, tap: true, afterTargets: ['.dir-sheet'] },
