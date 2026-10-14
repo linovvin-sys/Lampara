@@ -37,7 +37,7 @@ window.LamparaRoomApp = createApp({
       baseRooms: [],
       buildings: [],      // server data + changes made offline (shown on the page)
       rooms: [],
-      submitting: false,
+      submitting: false, formOpen: false,   // on a phone the form is a sheet that opens over the list
       editingId: null,
       // The uploaded plan image for whichever building+floor is currently
       // selected — null whenever that floor has none, which just hides the
@@ -390,7 +390,7 @@ window.LamparaRoomApp = createApp({
       this.applyPending();
     },
     startEdit(r) {
-      this.editingId = r.id;
+      this.editingId = r.id; this.formOpen = true;
       // Best-effort split of "8:00 AM – 5:00 PM, Mon–Fri" (or, with a lunch
       // break, "8:00 AM – 12:00 PM, 1:00 PM – 5:00 PM, Mon–Fri") back into
       // the pickers. Comma-separated parts containing an AM/PM time are
@@ -446,7 +446,7 @@ window.LamparaRoomApp = createApp({
       };
     },
     cancelEdit() {
-      this.editingId = null;
+      this.editingId = null; this.formOpen = false;
       this.form = this.blankForm({ building_id: this.form.building_id });
       this.prevBuilding = this.form.building_id;
       this.markClean();
@@ -586,6 +586,7 @@ window.LamparaRoomApp = createApp({
     async newRoom() {
       if (!(await this.confirmDiscard())) return;
       this.cancelEdit();
+      this.formOpen = true;
     },
     async pickRoom(value, el) {
       if (!(await this.confirmDiscard())) { if (el) el.value = this.editingId === null ? '' : this.editingId; return; }
@@ -645,7 +646,7 @@ window.LamparaRoomApp = createApp({
             cancelButtonText: 'Done',
             confirmButtonColor: '#2e3192'
           });
-          if (result.isConfirmed) { this.form = this.blankForm(justAdded); this.markClean(); }
+          if (result.isConfirmed) { this.form = this.blankForm(justAdded); this.markClean(); this.formOpen = true; }
         } else if (out.queued) {
           AdminOffline.toast("Saved on this device. You'll be asked to sync when you're back online.", 'info');
         }

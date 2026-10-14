@@ -174,3 +174,22 @@ html.is-embed .hide-embed { display: none !important; }
 @media (min-width: 640px) { .bw-next { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } .bw-next .btn { width: auto; } }
 .bw-mark { display: inline-grid; place-items: center; width: 1.1rem; height: 1.1rem; margin-left: 0.3rem; border-radius: 50%; font-size: 0.7rem; font-weight: 800; line-height: 1; }
 .bw-mark.ok { background: #1f9d55; color: #fff; } .bw-mark.todo { background: #e8a30c; color: #fff; }
+
+/* Rooms on a phone: the list comes first; the form opens as a sheet when you add or pick a room, and closes when you are done. */
+.rf-bar { display: none; }
+@media (max-width: 899px) {
+  .room-form-col { display: none; }
+  .room-form-col.is-open { display: flex; position: fixed; inset: 0.75rem 0 0 0; z-index: 60; padding: 0 0.9rem calc(1rem + env(safe-area-inset-bottom, 0px)); overflow-y: auto; background: #fff; border-radius: 1.25rem 1.25rem 0 0; box-shadow: 0 -20px 50px -18px rgba(21, 23, 63, 0.5); animation: popUp 260ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .rf-bar { display: flex; position: sticky; top: 0; z-index: 2; align-items: center; justify-content: space-between; padding: 0.7rem 0 0.5rem; background: #fff; font-size: 1.1rem; }
+  .rf-close { width: 2.75rem; height: 2.75rem; border: 0; border-radius: 50%; background: var(--v2-wash, #f4f5fb); font-size: 1.6rem; line-height: 1; cursor: pointer; color: inherit; }
+}
+
+/* Floor plans: big enough to see what was uploaded, and never cropped. */
+.floor-thumb { width: min(16rem, 80%); }
+.ft-img { aspect-ratio: 3 / 2; background: #fff; }
+.ft-img img { object-fit: contain; }
+.floor-thumb > span, .floor-thumb > div:not(.ft-img) { font-size: 0.85rem; font-weight: 700; }
+/* Category buttons keep their words whole: they wrap onto a second row instead of breaking letters. */
+.toggle-group { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.toggle-group > button { flex: 1 1 auto; white-space: nowrap; min-height: 2.6rem; }
+@media (max-width: 899px) { .room-form-col .edit-banner:not(.is-editing) { display: none; } }

@@ -137,7 +137,8 @@ include __DIR__ . '/../Include/buildings-head.php';
                 <p v-else class="hint">Choose a building to see its rooms and add or edit one.</p>
               </aside>
 
-              <section class="room-form-col" aria-label="Room details">
+              <section class="room-form-col" :class="{ 'is-open': formOpen }" aria-label="Room details">
+                <div class="rf-bar"><strong>{{ editingId !== null ? 'Edit room' : 'Add a room' }}</strong><button type="button" class="rf-close" @click="tryCancel" aria-label="Close the form">&times;</button></div>
                 <div v-if="form.building_id" class="edit-banner" :class="{ 'is-editing': editingId !== null }" role="status">
                   <div class="edit-banner-text">
                     <strong>{{ editingId !== null ? 'Editing ' + (editingRoom && editingRoom.room_number ? 'Room ' + editingRoom.room_number : (editingRoom ? editingRoom.room_name : 'room')) : 'Adding a new room' }}</strong>
