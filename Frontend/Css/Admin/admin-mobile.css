@@ -139,3 +139,10 @@
 .cov-bar span.ok { background: #1f9d55; }
 .cov-tip { margin: 1rem 0 0; padding: 0.7rem 0.9rem; border-radius: 0.8rem; background: var(--yellow-50, #fffbe3); font-size: 0.9rem; }
 @media (prefers-reduced-motion: reduce) { .cov-bar span { transition: none; } }
+
+/* Maps stay under the floating bars. Leaflet gives its panes and buttons z-index values up to 1000, which used to let a map draw over
+   the top bar and the bottom tabs; isolating the map keeps all of that inside the map itself. */
+.leaflet-container { isolation: isolate; z-index: 0; position: relative; }
+.map-card, .map-area, .paths-map, .pick-map, .st-map { position: relative; z-index: 0; isolation: isolate; }
+.admin-topbar { z-index: 35; }
+.admin-header, .admin-tabs { z-index: 45; }

@@ -1,6 +1,6 @@
 # Draft descriptions for Lampara
 
-Written only from what Lampara already knows (room name, floor, hours). Check each line on campus before you paste it into Admin, and fix anything that is not true for your school.
+Written only from what Lampara already knows (room name, floor, hours). Offices are marked closed for lunch from 12:00 PM to 1:00 PM. Check each line on campus before you paste it into Admin.
 
 ## Buildings
 
@@ -9,11 +9,10 @@ Written only from what Lampara already knows (room name, floor, hours). Check ea
 
 ## Rooms, offices and utilities
 
-
 ### Amafel Building (Main) / 1st Floor
 
-- **1101 Admission** (office): Admissions office. Go here for new student applications and enrollment questions. Open 8:00 AM – 5:00 PM, Mon–Fri. Room 1101 on the 1st floor of Amafel Building (Main).
-- **1103 Human Resources** (office): Human Resources office for staff records and employment matters. Open 8:00 AM – 5:00 PM, Mon–Fri. Room 1103 on the 1st floor of Amafel Building (Main).
+- **1101 Admission** (office): Admissions office. Go here for new student applications and enrollment questions. Open 8:00 AM – 5:00 PM, Mon–Fri. Closed for lunch from 12:00 PM to 1:00 PM. Room 1101 on the 1st floor of Amafel Building (Main).
+- **1103 Human Resources** (office): Human Resources office for staff records and employment matters. Open 8:00 AM – 5:00 PM, Mon–Fri. Closed for lunch from 12:00 PM to 1:00 PM. Room 1103 on the 1st floor of Amafel Building (Main).
 - **1112 Laboratory Room** (classroom): Laboratory room for lab classes. Ask your instructor which subjects meet here. Room 1112 on the 1st floor of Amafel Building (Main).
 
 ### Amafel Building (Main) / 2nd Floor
@@ -49,8 +48,8 @@ Written only from what Lampara already knows (room name, floor, hours). Check ea
 
 ### Felix Amada building(Annex) / 2nd Floor
 
-- **2212 Facilities Management Office** (office): Handles building maintenance, repairs and facility requests. Open 7:00 AM – 7:00 PM, Mon–Sat. Room 2212 on the 2nd floor of Felix Amada building(Annex).
-- **2213 IIRT Archive** (office): Archive room for IIRT records and documents. Open 7:00 AM – 7:00 PM, Mon–Sat. Room 2213 on the 2nd floor of Felix Amada building(Annex).
+- **2212 Facilities Management Office** (office): Handles building maintenance, repairs and facility requests. Open 7:00 AM – 7:00 PM, Mon–Sat. Closed for lunch from 12:00 PM to 1:00 PM. Room 2212 on the 2nd floor of Felix Amada building(Annex).
+- **2213 IIRT Archive** (office): Archive room for IIRT records and documents. Open 7:00 AM – 7:00 PM, Mon–Sat. Closed for lunch from 12:00 PM to 1:00 PM. Room 2213 on the 2nd floor of Felix Amada building(Annex).
 
 ### Felix Amada building(Annex) / 4th Floor
 
@@ -89,7 +88,7 @@ Written only from what Lampara already knows (room name, floor, hours). Check ea
 ### Felix Amada(Annex Extension) / 1st Floor
 
 - **2101 HRM Bar** (classroom): Practice bar used for HRM (hospitality) classes. Room 2101 on the 1st floor of Felix Amada(Annex Extension).
-- **2102 College Dean** (office): Office of the College Dean. Go here for college and academic concerns. Open 8:00 AM – 12:00 PM, 1:00 PM – 5:00 PM, Mon–Fri. Room 2102 on the 1st floor of Felix Amada(Annex Extension).
+- **2102 College Dean** (office): Office of the College Dean. Go here for college and academic concerns. Open 8:00 AM – 12:00 PM, 1:00 PM – 5:00 PM, Mon–Fri. Closed for lunch from 12:00 PM to 1:00 PM. Room 2102 on the 1st floor of Felix Amada(Annex Extension).
 - **2103 Stock Room** (office): Storage room for supplies. Normally a staff area. Open 8:00 AM – 12:00 PM, 1:00 PM – 5:00 PM, Mon–Fri. Room 2103 on the 1st floor of Felix Amada(Annex Extension).
 - **2104 Kitchen Room** (classroom): Kitchen used for food preparation classes. Room 2104 on the 1st floor of Felix Amada(Annex Extension).
-- **2105 Office of the Safety and Security** (office): Campus safety and security office. Go here to report an incident or ask for help. Room 2105 on the 1st floor of Felix Amada(Annex Extension).
+- **2105 Office of the Safety and Security** (office): Campus safety and security office. Go here to report an incident or ask for help. Closed for lunch from 12:00 PM to 1:00 PM. Room 2105 on the 1st floor of Felix Amada(Annex Extension).
