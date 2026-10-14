@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/report.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
@@ -74,7 +75,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
     <h1>Thank you</h1>
     <p class="rp-sub">Your report was sent to the school staff. As soon as they confirm it, everyone using Lampara will see the warning.</p>
     <a class="rp-btn" href="where.php">Back to the start</a>
-    <p class="rp-small"><a href="privacy.php">How reports and photos are handled</a></p>
+    <p class="rp-small"><a href="privacy.php">How reports and photos are handled</a> &middot; <a href="terms.php">Rules for reports</a></p>
   </section>
 </main>
 

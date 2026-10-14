@@ -48,3 +48,9 @@ html, body { background: linear-gradient(180deg, var(--t-night, #0f1138) 0%, var
 .wh-help, .wh-report { position: relative; background: rgba(15, 17, 56, 0.92); padding: 0.85rem 1rem; clip-path: polygon(0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px)); }
 .wh-help { margin-top: 1.2rem; }
 .wh-report { margin-top: 0.7rem; text-align: center; }
+
+/* the enrollment choice is set apart: a gold card under the two "where am I" choices */
+.wh-opt-enroll { background: var(--t-accent, #ffd100); }
+.wh-opt-enroll .wh-ico { background: var(--t-ink2, #161850); color: var(--t-accent, #ffd100); }
+.wh-opt-enroll .wh-txt small { color: var(--t-ink2, #161850); }
+.wh-opt-enroll .wh-go { color: var(--t-ink2, #161850); }

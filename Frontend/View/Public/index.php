@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../Css/Public/index.css');
 $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
@@ -66,6 +67,13 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
         <h1 id="hero-h">Find your way around campus.</h1>
         <p class="lede">Pick a building, follow the path laid on your phone&rsquo;s camera, and read each turn in plain words. No map reading, no wrong turns.</p>
 
+        <!-- Enrolling is a different journey from "find a building": it gets its own clear way in, right under the first sentence -->
+        <a class="enroll-cta" href="../Student/enrollment.php">
+          <span class="enroll-cta-ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg></span>
+          <span class="enroll-cta-txt"><b>Enrolling at NCST?</b><small>Follow the enrollment steps, office by office</small></span>
+          <span class="enroll-cta-go" aria-hidden="true">&rsaquo;</span>
+        </a>
+
         <div class="hero-hud" data-game-hud data-href="guide-ar.php?shop=1"></div>
 
         <form class="quick" id="quick" autocomplete="off" aria-label="Choose a destination">
@@ -79,6 +87,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
           <div class="hero-actions">
             <a href="../Student/where.php" class="btn btn-primary btn-lg" id="go">Start navigating</a>
             <a href="map.php" class="btn btn-ghost btn-lg">Open the campus map</a>
+            <a href="../Student/enrollment.php" class="btn btn-ghost btn-lg">Enrollment guide</a>
           </div>
         </form>
 
@@ -139,6 +148,9 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
       <li><a href="../Student/manual-search.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         <span><b>Find a room (inside)</b><small>Scan a sign or search any office or classroom</small></span></a></li>
+      <li><a href="../Student/enrollment.php">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg>
+        <span><b>Enrollment guide</b><small>Seven steps, office by office</small></span></a></li>
       <li><a href="ask.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.8a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5Z"/></svg>
         <span><b>Ask Lampara AI</b><small>Answers from campus records</small></span></a></li>
@@ -255,11 +267,13 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <p>Find your way around the NCST campus. Directions come from the walkways and rooms the school has registered, kept up to date by its administrators.</p>
     <nav class="foot-links" aria-label="Links">
       <a href="guide-ar.php">Walking guide</a>
+      <a href="../Student/enrollment.php">Enrollment guide</a>
       <a href="ask.php">Ask Lampara</a>
       <a href="map.php">Campus map</a>
       <a href="../Student/manual-search.php">Search rooms</a>
       <a href="guide-ar.php?tutorial=1">Replay tutorial</a>
       <a href="../Student/privacy.php">Privacy</a>
+      <a href="../Student/terms.php">Terms</a>
     </nav>
   </div>
 </footer>
@@ -276,5 +290,6 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <script src="../../Js/Include/privacy-notice.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/privacy-notice.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
+<script src="../../Js/Include/enroll-fab.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/enroll-fab.js') ?>"></script>
 </body>
 </html>

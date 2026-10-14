@@ -1,10 +1,10 @@
-<!doctype html>
+<?php require_once __DIR__ . '/../../../Backend/security_headers.php'; ?><!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>AR.js Camera Test</title>
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<script src="../../assets/vendor/aframe/aframe-1.4.0.min.js"></script>
 <script src="../../assets/vendor/threex-device-orientation-controls.js"></script>
 <script src="../../assets/vendor/aframe-ar.js"></script>
 <link rel="stylesheet" href="../../Css/theme.css">

@@ -9,7 +9,7 @@
 // where "longitude" is metres east and "latitude" is metres north, so its world frame is exactly this one:
 // world x = x, world z = y. Nothing here ever touches GPS.
 import * as THREE from 'three';
-import * as LocAR from 'https://cdn.jsdelivr.net/npm/locar@0.2.12/dist/locar.es.js';
+import * as LocAR from '../../assets/vendor/locar-0.2.12/locar.es.js';
 
 const OFF = 1000;           // LocAR's first fix fixes its world origin; keep it away from 0,0 so it is never mistaken for "no fix"
 const SPACING = 1.4;        // metres between ribbon chevrons

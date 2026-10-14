@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/privacy.css');
 ?>
@@ -40,13 +41,15 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/privacy.css');
     <h2>What is sent to the school's server</h2>
     <ul>
       <li><b>A report you send.</b> The photo, the place (the building you chose and your position when you sent it), your note, and the time. After the staff confirm it, everyone using Lampara can see it, including the photo. A report is removed from view after 12 hours, and cleared reports are deleted after 30 days.</li>
+      <li><b>A small anonymous code on your phone.</b> When you send a report, the app gives your browser a random code (a cookie). It is not your name and is not linked to you. It is only used to limit how many reports one phone can send and to stop repeated misuse.</li>
       <li><b>Questions to Ask Lampara and room-sign photos.</b> The text of your question, or the photo of the sign, is sent to Google's Gemini service to read the sign or write an answer. Do not type personal details into the chat.</li>
+      <li><b>Photos in reports are checked by AI first.</b> Before a report photo is kept, it is sent to Google's Gemini service to check that it shows a place and nothing inappropriate. A photo that fails is refused and not saved.</li>
     </ul>
   </section>
 
   <section>
     <h2>What stays only on your phone</h2>
-    <p>Your recent searches, your trip in progress, the building list for offline use, and your settings (voice, mini-map). You can clear them by clearing this site's data in your browser.</p>
+    <p>Your recent searches, your trip in progress, the building list for offline use, your settings (voice, mini-map), and your game progress (points, mascots, themes, awards). None of this is sent to us. You can clear them by clearing this site's data in your browser.</p>
   </section>
 
   <section>
@@ -54,7 +57,16 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/privacy.css');
     <ul>
       <li>Take a photo of the building or the path only. Please do not include people's faces, and do not photograph anyone without their permission.</li>
       <li>Photos are cleaned of the location and camera details your phone adds to them before they are saved.</li>
-      <li>If a photo should not be on the screen, tap <b>Report this photo</b> under it. Three notices take it off everyone's screen until staff look at it.</li>
+      <li>If a photo should not be on the screen, tap <b>Report this photo</b> under it. Three notices from different phones put a report back in the staff's queue and take it off everyone's screen until they look at it. A report the staff have already confirmed is not removed this way.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>How long things are kept</h2>
+    <ul>
+      <li>A report that the staff cleared, or one nobody confirmed, is deleted with its photo after 30 days.</li>
+      <li>A refused photo is never saved.</li>
+      <li>Staff accounts keep a security log (sign-ins, and what staff did with reports) for 180 days.</li>
     </ul>
   </section>
 
@@ -63,7 +75,12 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/privacy.css');
     <p>Ask the Office of Student Affairs, Main Building, Room 1101, and say what the photo shows and roughly when it was sent. The staff can delete a report and its photo.</p>
   </section>
 
-  <p class="pv-small">This page explains how the app works. The school may add its own privacy policy, and parents or guardians of students under 18 should read it with them.</p>
+  <section>
+    <h2>Other services the app loads</h2>
+    <p>To work, the pages load fonts from Google Fonts, some code libraries from public content networks, and map pictures from OpenStreetMap and Esri. Those services can see that your phone asked for them (for example your network address), as with any website. Lampara does not send them anything about you.</p>
+  </section>
+
+  <p class="pv-small">The rules for using the app are in the <a href="terms.php">terms of use</a>. This page explains how the app works. The school may add its own privacy policy, and parents or guardians of students under 18 should read it with them.</p>
 </main>
 <script>
 document.getElementById('back').onclick = function () { if (history.length > 1) history.back(); else location.href = 'where.php'; };

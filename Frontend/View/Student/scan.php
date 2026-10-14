@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/scan.css');
@@ -31,7 +32,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
 <link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
 <link rel="stylesheet" href="../../Css/Student/scan-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/Student/scan-pixel.css') ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
-<script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="../../assets/vendor/tesseract/tesseract-5.1.1.min.js" defer></script>
 <script src="../../Js/Include/campus-bounds.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/campus-bounds.js') ?>"></script>
 <script src="../../Js/Include/geofence.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/geofence.js') ?>"></script>
 </head>
@@ -85,7 +86,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
         <span class="sc-type-label">Or type the number on the sign</span>
         <span class="sc-type-box">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/></svg>
-          <input v-model="manualNumber" @keyup.enter="performScan" type="text" inputmode="text" maxlength="16" autocomplete="off" autocapitalize="characters" placeholder="e.g. 204 or 204 - A" aria-label="Room number">
+          <input v-model="manualNumber" @keyup.enter="performScan" type="text" inputmode="text" maxlength="16" autocomplete="off" autocapitalize="characters" placeholder="e.g. 1101 or 1001" aria-label="Room number">
         </span>
       </label>
       <button type="button" class="sc-go" @click="performScan" :disabled="scanning">
@@ -153,10 +154,11 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
               <span class="wy-opt-main">I am outside</span>
               <span class="wy-opt-sub">Follow the path on your camera to {{ destination.building_name }}, then straight into the floor plan to the room</span>
             </a>
-            <a class="wy-opt wy-opt-card" :href="'journey.php?arrived=1&to=' + destination.id">
+            <a v-if="canRoute(destination)" class="wy-opt wy-opt-card" :href="'journey.php?arrived=1&to=' + destination.id">
               <span class="wy-opt-main">I am at the door of {{ destination.building_name }}</span>
               <span class="wy-opt-sub">Show me the way to the room on the floor plan</span>
             </a>
+            <p v-else class="wy-note" role="status">There is no floor plan for {{ destination.building_name }} yet, so the way inside can't be drawn. {{ destination.room_name }} is on the {{ destination.floor }}.<template v-if="destination.notes"> {{ destination.notes }}.</template></p>
           </div>
           <label class="wy-search">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
@@ -265,6 +267,7 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           </ol>
         </section>
 
+        <a v-if="!planningMode" class="enroll-banner" href="enrollment.php"><b>Enrolling?</b> <span>Follow the enrollment steps, office by office</span> <i aria-hidden="true">&rsaquo;</i></a>
         <section v-if="!planningMode" class="wy-ask hr-find" aria-label="Choose a destination">
           <label class="wy-search">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>

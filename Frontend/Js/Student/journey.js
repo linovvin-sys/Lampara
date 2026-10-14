@@ -100,7 +100,11 @@
     const from = rooms.find((r) => String(r.id) === q.get('from'));
     tripTo = to;
     if (!to) return fail("We couldn't find that room.");
-    if (to.map_x === null || to.map_y === null) return fail("This room isn't marked on its floor plan yet.");
+    if (to.map_x === null || to.map_y === null) {
+      // no plan or no marker for this room: say where it is in words instead of leaving a dead end
+      const where = [roomName(to), to.floor, to.building_name].filter(Boolean).join(', ');
+      return fail("We can't draw the way inside yet because this room isn't on a floor plan. " + where + '.' + (to.notes ? ' ' + to.notes + '.' : '') + ' Ask at the front desk or a guard if you need help.');
+    }
     const toB = bOf(to.building_id);
     try {
       if (from && String(from.building_id) === String(to.building_id)) {
@@ -135,7 +139,10 @@
     const go = () => runLeg(Math.max(0, Math.min(legs.length - 1, startStep)));
     $('infoBtn').hidden = false;
     // a new trip opens with the room's details; a reload part-way along goes straight back to the route
-    if (startStep === 0 && !q.get('arrived')) openInfo(go); else go();
+    // once per trip and visit: a reload part-way along, or coming back to the same page, goes straight to the route
+    let seen = false; const seenKey = 'lampara_info:' + q.get('to') + ':' + (q.get('from') || '') + ':' + (q.get('enroll') || '');
+    try { seen = sessionStorage.getItem(seenKey) === '1'; if (!seen) sessionStorage.setItem(seenKey, '1'); } catch (e) { /* shown every time */ }
+    if (startStep === 0 && !seen) openInfo(go); else go();
   }
 
   // ---------------- details of the destination room
@@ -159,6 +166,8 @@
     if (r.photo_path) { ph.src = IMG + r.photo_path; ph.alt = 'Photo of ' + roomName(r); ph.hidden = false; ph.onerror = () => { ph.hidden = true; }; } else ph.hidden = true;
     const facts = [];
     if (r.hours) facts.push(['Hours', r.hours]);
+    const stop = typeof LamparaEnroll !== 'undefined' && q.get('enroll') ? LamparaEnroll.get(q.get('enroll')) : null;     // coming from the Enrollment guide
+    if (stop) { facts.push(['Step ' + stop.step + ' of enrollment', stop.what]); if (stop.houses) facts.push(['Houses of Hero', stop.houses.join(', ')]); }
     if (r.notes) facts.push(['How to spot it', r.notes]);
     $('infoFacts').innerHTML = facts.map((f) => '<li><b></b><span></span></li>').join('');
     $('infoFacts').querySelectorAll('li').forEach((li, k) => { li.firstChild.textContent = facts[k][0]; li.lastChild.textContent = facts[k][1]; });
@@ -431,7 +440,7 @@
         showCard('You are at the exit', 'Next stop: ' + nxt.buildingName + '. We will set it as your destination.', 'Go to ' + nxt.buildingName, () => { location.href = '../Public/guide-ar.php?exit=1&to=' + nxt.to.id + '&room=' + nxt.room.id; });
       } else {
         rewardRoute();
-        showCard('You have arrived', route.endLabel, 'Done', () => { LamparaTrip.clear(); });   // stays here: the plan, Show again, Share and Start over are still below
+        showCard('You have arrived', route.endLabel, q.get('enroll') ? 'Done, back to the steps' : 'Done', () => { LamparaTrip.clear(); if (q.get('enroll')) location.href = 'enrollment.php?done=' + encodeURIComponent(q.get('enroll')); });   // stays here: the plan, Show again, Share and Start over are still below
       }
     }
   }

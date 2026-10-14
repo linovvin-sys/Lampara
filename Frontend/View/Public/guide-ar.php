@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../assets/css/tailwind.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Public/guide-ar.css');
@@ -27,8 +28,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/css/tailwind.css?v=<?= $cssVer ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
-<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js" } }</script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script type="importmap">{ "imports": { "three": "../../assets/vendor/three-0.181.0/three.module.js" } }</script>
+<script src="../../assets/vendor/jsqr/jsQR.js"></script>
 <link rel="stylesheet" href="../../Css/Public/guide-ar.css?v=<?= $pageCssVer ?>">
 <link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
 <link rel="stylesheet" href="../../Css/chat-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/chat-pixel.css') ?>">

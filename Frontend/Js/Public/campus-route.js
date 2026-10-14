@@ -165,10 +165,13 @@ const CampusRoute = (() => {
   // clearly saves VEHICLE_GATE_PENALTY_M over the other gate.
   const OUTSIDE_BUILDING_RE = /heritage|\bjeg\b/i;
   const MAIN_ENTRANCE_RE = /main\s*entrance/i;
+  const EXIT_RE = /exit|\bout\b/i;
   const VEHICLE_GATE_RE = /vehicle|car\b|truck|service|delivery/i;
   const VEHICLE_GATE_PENALTY_M = 40;
   const isOutsideBuilding = (b) => OUTSIDE_BUILDING_RE.test((b && b.name) || '');
   const gateKind = (name) => (VEHICLE_GATE_RE.test(name || '') ? 'vehicle' : 'main');
+  // A gate whose name says entrance (and not exit) is for coming in only: it is not offered as the way out.
+  const entranceOnly = (name) => /entr/i.test(name || '') && !EXIT_RE.test(name || '');
 
   // The two sides of the gates, worked out from the drawn walkways. The "portals" are the gate points and the main entrance.
   // The OUTSIDE walkways are the ones reachable from an outside building without going through a portal; everything else
@@ -177,7 +180,13 @@ const CampusRoute = (() => {
   function regions(graph, buildings) {
     const nodes = graph.nodes, edges = graph.edges;
     const portals = new Set(nodes.filter((n) => n.node_type === 'gate').map((n) => n.id));
-    const mainEntrance = nodes.find((n) => MAIN_ENTRANCE_RE.test(n.name || '')) || null;
+    // The way in for people on foot: the point named "Main Entrance"; failing that a human gate (never a vehicle gate), preferring
+    // one that says entrance or main and one that does not say exit. If the only human gate is called an exit, it is still the only
+    // way in (people use the same gate both ways), but it is flagged so the screen does not tell anyone to go "in through the exit".
+    const humanGates = nodes.filter((n) => n.node_type === 'gate' && !VEHICLE_GATE_RE.test(n.name || ''));
+    const notExit = humanGates.filter((n) => !EXIT_RE.test(n.name || ''));
+    const mainEntrance = nodes.find((n) => MAIN_ENTRANCE_RE.test(n.name || ''))
+      || notExit.find((n) => /entr|main/i.test(n.name || '')) || notExit[0] || humanGates[0] || null;
     if (mainEntrance) portals.add(mainEntrance.id);
     const adj = new Map(nodes.map((n) => [n.id, []]));
     edges.forEach((e) => { if (adj.has(e.node_a_id) && adj.has(e.node_b_id)) { adj.get(e.node_a_id).push(e.node_b_id); adj.get(e.node_b_id).push(e.node_a_id); } });
@@ -198,7 +207,7 @@ const CampusRoute = (() => {
     return { nodes: graph.nodes.filter((n) => ids.has(n.id)), edges: graph.edges.filter((e) => ids.has(e.node_a_id) && ids.has(e.node_b_id)) };
   }
 
-  return { toXY, meters, snapToGraph, findRoute, nextTurn, smooth, truncate, regions, subGraph, isOutsideBuilding, gateKind, VEHICLE_GATE_PENALTY_M, OUTSIDE_BUILDING_RE, MAIN_ENTRANCE_RE };
+  return { toXY, meters, snapToGraph, findRoute, nextTurn, smooth, truncate, regions, subGraph, isOutsideBuilding, gateKind, entranceOnly, EXIT_RE, VEHICLE_GATE_PENALTY_M, OUTSIDE_BUILDING_RE, MAIN_ENTRANCE_RE };
 })();
 
 if (typeof module !== 'undefined') module.exports = CampusRoute;

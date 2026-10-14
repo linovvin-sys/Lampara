@@ -10,7 +10,7 @@
 //
 // Needs the classic script CampusRoute (Js/Public/campus-route.js) for walkway snapping.
 import * as THREE from 'three';
-import * as LocAR from 'https://cdn.jsdelivr.net/npm/locar@0.2.12/dist/locar.es.js';
+import * as LocAR from '../../assets/vendor/locar-0.2.12/locar.es.js';
 
 const R = 6371008.8, M_PER_DEG = 111320;
 const STOP_REACH_M = 5;     // within this much of the next point (along the route) counts as having reached it

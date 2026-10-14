@@ -766,7 +766,8 @@ window.LamparaGuide = createApp({
       if (!outside && destOutside) {                               // INSIDE -> outside building: out through an exit gate
         const outer = this.subGraph(new Set([...R.outsideNodes]));
         const options = [];
-        this.gates().forEach((gt) => {
+        const usable = this.gates().filter((gt) => !CampusRoute.entranceOnly(gt.name));       // an entrance-only gate is not a way out
+        (usable.length ? usable : this.gates()).forEach((gt) => {
           const withGate = this.subGraph(new Set([...R.outsideNodes, gt.id]));
           const leg1 = CampusRoute.findRoute(g, me, gt.id);
           const leg2 = CampusRoute.findRoute(withGate, { lat: gt.lat, lng: gt.lng }, dest) || CampusRoute.findRoute(g, { lat: gt.lat, lng: gt.lng }, dest);
@@ -1088,7 +1089,7 @@ window.LamparaGuide = createApp({
         const rel = relativeAngle(this.compassHeading, bearingDeg(here, m.point));
         if (Math.abs(rel) > NAV_FACING_DEG) facing = Math.abs(rel) > 150 ? { side: 'around', text: 'Turn around: the path is behind you' } : { side: rel > 0 ? 'right' : 'left', text: 'Turn ' + (rel > 0 ? 'right' : 'left') + ' to face the path' };
       }
-      const badge = ri.status === 'via-gate' ? (ri.phase === 'exit' ? 'Out through ' : 'In through ') + ri.gateName : ri.status === 'off-path' ? 'Off the walkways' : ri.status === 'direct' ? 'No walkway here: straight line' : '';
+      const badge = ri.status === 'via-gate' ? (ri.phase === 'exit' ? 'Out through ' : 'In through ') + (ri.phase === 'enter' && (CampusRoute.EXIT_RE.test(ri.gateName || '') || /^point\s+[a-z]+$/i.test(ri.gateName || '')) ? 'the main entrance' : (/^point\s+[a-z]+$/i.test(ri.gateName || '') ? 'the gate' : ri.gateName)) : ri.status === 'off-path' ? 'Off the walkways' : ri.status === 'direct' ? 'No walkway here: straight line' : '';
       const totalM = ri.remaining || 0;
       this.guidance = { icon, title, dist, detail, badge, facing, totalM, etaMin: eta(totalM), step: idx };
       if (!this._tipShown && !this.headingLocked) {            // once: how the compass gets lined up

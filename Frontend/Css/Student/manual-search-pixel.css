@@ -89,3 +89,9 @@ html, body { background: linear-gradient(180deg, var(--t-night, #0f1138) 0%, var
 /* Men / Women choice that appears for restroom searches */
 .gender-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0; }
 .gender-label { font: 700 1rem/1 var(--ms-font, inherit); color: var(--t-cream, #fff8d6); margin-right: 0.2rem; }
+
+/* a way into the Enrollment guide from the room search */
+.enroll-banner { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0; padding: 0.7rem 0.9rem; background: var(--t-accent, #ffd100); color: var(--t-ink2, #161850); text-decoration: none; font-weight: 600; box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); }
+.enroll-banner span { flex: 1; }
+.enroll-banner i { font-style: normal; font-size: 1.6rem; line-height: 1; }
+.enroll-banner:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }

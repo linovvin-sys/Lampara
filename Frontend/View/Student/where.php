@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/where.css');
 // Keep whatever the visitor already picked (?to=building&room=id from a link) when sending them on.
@@ -64,10 +65,17 @@ $qs = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
       <span class="wh-txt"><b>I am inside a building</b><small>Find a room or an office. We will show you the way on the floor plan.</small></span>
       <span class="wh-go" aria-hidden="true">&rsaquo;</span>
     </a>
+    <a class="wh-opt wh-opt-enroll" data-where="enroll" href="enrollment.php">
+      <span class="wh-ico" aria-hidden="true" data-px-icon="flag" data-px-size="40">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9"/></svg>
+      </span>
+      <span class="wh-txt"><b>I am enrolling</b><small>Follow the seven enrollment steps, office by office, with the way to each one.</small></span>
+      <span class="wh-go" aria-hidden="true">&rsaquo;</span>
+    </a>
   </div>
 
   <p class="wh-help"><b>Not sure?</b> If you can see the sky and the walkways around you, choose <b>outside</b>. If you are under a roof, past the doors, choose <b>inside</b>.</p>
-  <p class="wh-report"><a href="report.php">Report a closed building or a blocked path</a> &middot; <a href="privacy.php">Privacy</a></p>
+  <p class="wh-report"><a href="report.php">Report a closed building or a blocked path</a> &middot; <a href="privacy.php">Privacy</a> &middot; <a href="terms.php">Terms</a></p>
 </main>
 <script>
 // Remember the answer for this visit (so later screens do not ask again) and offer to continue an open trip.

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/journey.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
@@ -105,6 +106,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
     <button type="button" class="jr-act share" id="share" aria-label="Share this route"><i data-px="share" aria-hidden="true"></i><span>Share</span></button>
     <a class="jr-act report" href="report.php" aria-label="Report a problem"><i data-px="flag" aria-hidden="true"></i><span>Report</span></a>
     <a class="jr-act restart" id="startOver" href="where.php"><i data-px="home" aria-hidden="true"></i><span>Start over</span></a>
+    <a class="jr-act enroll" id="enrollLink" href="enrollment.php" aria-label="Enrollment steps"><i data-px="flag" aria-hidden="true"></i><span>Enrollment steps</span></a>
   </footer>
 </div>
 
@@ -112,6 +114,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
 <script src="../../Js/Include/offline-cache.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/offline-cache.js') ?>"></script>
 <script src="../../Js/Include/floor-route.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/floor-route.js') ?>"></script>
 <script src="../../Js/Include/building-doors.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/building-doors.js') ?>"></script>
+<script src="../../Js/Include/enrollment-steps.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/enrollment-steps.js') ?>"></script>
 <script src="../../Js/Include/mascots.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/mascots.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Student/journey.js?v=<?= $pageJsVer ?>"></script>

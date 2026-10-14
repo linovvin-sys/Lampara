@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $cssVer = filemtime(__DIR__ . '/../../Css/Public/map.css');
 // one version for map.js and the 3D viewer it imports, so a change to either reaches phones together
@@ -26,8 +27,8 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <link rel="stylesheet" href="../../Css/Public/map.css?v=<?= $cssVer ?>">
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three": "../../assets/vendor/three-0.160.0/three.module.js",
+  "three/addons/": "../../assets/vendor/three-0.160.0/examples/jsm/"
 } }
 </script>
 </head>

@@ -555,6 +555,15 @@ createApp({
       LamparaAudio.mute(!this.musicOn);
       if (this.musicOn && this.stage === 'result') LamparaAudio.play('pick'); else LamparaAudio.stop();
     },
+    // Can an indoor route be drawn to this room? Only when its building has a floor plan for that floor and the room is marked on it.
+    // (Before the directory has been saved on this phone we cannot tell, so the option stays.)
+    canRoute(d) {
+      if (!d) return false;
+      if (d.map_x === null || d.map_x === undefined || d.map_y === null || d.map_y === undefined) return false;
+      let any = false;
+      try { any = Object.keys(JSON.parse(localStorage.getItem('lampara_floorplans_cache') || '{}')).length > 0; } catch (e) { any = false; }
+      return any ? !!LamparaCache.getFloorPlan(d.building_id, d.floor) : true;
+    },
     noteScan() { if (window.LamparaMascots) LamparaMascots.event('scan', String(this.room.id)); },
     // Once both ends are known, the animated floor-plan route (Student/journey.php) is the way to show it, same building or not.
     // The older plan viewer below stays as the fallback for rooms that have no spot on the plan yet.

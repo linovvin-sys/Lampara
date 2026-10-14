@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../../Backend/security_headers.php';
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/manual-search.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/manual-search.js');
@@ -60,6 +61,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
+
+    <a class="enroll-banner" href="enrollment.php"><b>Enrolling?</b> <span>Follow the enrollment steps, office by office</span> <i aria-hidden="true">&rsaquo;</i></a>
 
     <div class="filter-row" role="group" aria-label="Kind of room">
       <button v-for="k in kinds" :key="k[0]" type="button" @click="filterType = k[0]" class="filter-pill" :class="{ 'is-active': filterType === k[0] }" :aria-pressed="filterType === k[0] ? 'true' : 'false'">{{ k[1] }}</button>
@@ -182,5 +185,6 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
+<script src="../../Js/Include/enroll-fab.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/enroll-fab.js') ?>"></script>
 </body>
 </html>
