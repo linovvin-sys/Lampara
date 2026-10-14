@@ -3,6 +3,13 @@
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  # on a real server everything goes over HTTPS (a laptop, a local network address and a tunnel that already did HTTPS are left alone)
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+  # backups, tests and build tools are not for visitors
+  RewriteRule ^(backups|tests|tools|tailwindcss-cli)(/|$) - [R=404,L]
   # notes, setup scripts, the database layout and the repository itself are not for visitors
   RewriteRule ^docs(/|$) - [R=404,L]
   RewriteRule ^Backend/scripts(/|$) - [R=404,L]
@@ -18,4 +25,12 @@
   # the app needs the camera, location and motion sensors on its own pages, and nothing else (no microphone)
   Header always set Permissions-Policy "camera=(self), geolocation=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self), microphone=()"
   Header always set Strict-Transport-Security "max-age=15552000" env=HTTPS
+  # Only this site's own scripts run (every library is now served from assets/vendor), nothing can be framed by another site or
+  # plugged in as an object, and the page can only talk to itself and the two map tile servers. Inline scripts, styles and eval are still
+  # allowed because the pages use them (Vue compiles templates in the browser); those are the remaining gaps.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://server.arcgisonline.com; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://*.tile.openstreetmap.org https://server.arcgisonline.com; media-src 'self' blob: data:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+  # the sign scanner's live text box downloads its reader (a worker, a wasm file and the English words) from jsDelivr when it starts
+  <FilesMatch "^scan\.php$">
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://*.projectnaptha.com; media-src 'self' blob: data:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+  </FilesMatch>
 </IfModule>

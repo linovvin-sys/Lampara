@@ -7,9 +7,23 @@
 // An optional $who (for example a device cookie) separates visitors who share one IP address: the same bucket name with a
 // different $who is a different counter.
 
-function rate_limit_file(string $bucket, string $who = ''): string
+// The visitor's address. Behind a tunnel or reverse proxy on this machine or network (ngrok, a hosting proxy) REMOTE_ADDR is the proxy
+// itself, so every visitor would share one limit; then the first address in X-Forwarded-For is used. It is only believed when the
+// request really came from a private or loopback address, so a visitor cannot choose their own.
+function client_ip(): string
 {
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'cli';
+    $fwd = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+    if ($fwd !== '' && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        $first = trim(explode(',', $fwd)[0]);
+        if (filter_var($first, FILTER_VALIDATE_IP)) return $first;
+    }
+    return $ip;
+}
+
+function rate_limit_file(string $bucket, string $who = ''): string
+{
+    $ip = client_ip();
     return rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'lampara_rl_' . md5($bucket . '|' . $ip . ($who !== '' ? '|' . $who : '')) . '.json';
 }
 

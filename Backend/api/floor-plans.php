@@ -114,6 +114,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'error' => 'Could not decode image data']);
         exit;
     }
+    $info = @getimagesizefromstring($binaryData);
+    $want = ['jpeg' => IMAGETYPE_JPEG, 'png' => IMAGETYPE_PNG, 'webp' => IMAGETYPE_WEBP][$ext] ?? null;
+    if ($info === false || $info[2] !== $want) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'That file is not a readable ' . strtoupper($ext) . ' image']);
+        exit;
+    }
     // ~8MB cap — these are phone photos of a printed plan, not anything
     // that should ever legitimately need to be huge.
     if (strlen($binaryData) > 8 * 1024 * 1024) {

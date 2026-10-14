@@ -88,10 +88,10 @@ $base = [
 ];
 $response = null; $httpCode = 0; $curlError = '';
 foreach ($models as $i => $model) {
-    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent';
     $ch = curl_init($url);
     curl_setopt_array($ch, [
-        CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($base), CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($base), CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-goog-api-key: ' . GEMINI_API_KEY],
         CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 25,
     ]);
     $response = curl_exec($ch);

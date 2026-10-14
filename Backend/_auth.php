@@ -12,3 +12,9 @@ if (empty($_SESSION['admin_id'])) {
     header('Location: login.php?next=' . $next);
     exit;
 }
+
+// A PSMO account sees only the building and room pages.
+if (lampara_admin_role() === 'psmo' && !lampara_psmo_allows($_SERVER['SCRIPT_NAME'] ?? '')) {
+    header('Location: ' . lampara_psmo_home());
+    exit;
+}

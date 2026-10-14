@@ -14,3 +14,10 @@ if (empty($_SESSION['admin_id'])) {
     echo json_encode(['success' => false, 'error' => 'Admin login required']);
     exit;
 }
+
+// A PSMO account is limited to buildings, rooms, floor plans and what goes with them.
+if (lampara_admin_role() === 'psmo' && !lampara_psmo_allows($_SERVER['SCRIPT_NAME'] ?? '')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'This account can only manage buildings and rooms']);
+    exit;
+}

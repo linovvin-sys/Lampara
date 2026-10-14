@@ -55,9 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Anyone may report outdated info, so it is throttled and must come from this site.
+    require_once __DIR__ . '/../session_boot.php';
+    require_once __DIR__ . '/../rate_limit.php';
+    lampara_same_origin_or_die();
+    rate_limit_or_die('outdated_flag', 20, 600, 'You have sent several reports just now. Please wait a few minutes.');
     $input = json_decode(file_get_contents('php://input'), true);
-    $roomId = $input['room_id'] ?? null;
+    $roomId = isset($input['room_id']) ? (int) $input['room_id'] : null;
     $note = trim($input['note'] ?? '') ?: null;
+    if ($note !== null) $note = function_exists('mb_substr') ? mb_substr($note, 0, 255) : substr($note, 0, 255);
 
     if (!$roomId) {
         http_response_code(400);

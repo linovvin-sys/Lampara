@@ -24,7 +24,7 @@ if (!change_log_ready($conn)) {
 // Fields an undo may write back (never ids, photos or timestamps).
 const UNDO_FIELDS = [
     'room' => ['building_id' => 'i', 'room_number' => 's', 'room_name' => 's', 'subtitle' => 's', 'floor' => 's', 'room_type' => 's', 'category' => 's', 'hours' => 's', 'notes' => 's', 'map_x' => 'd', 'map_y' => 'd', 'path_node_id' => 'i'],
-    'building' => ['name' => 's', 'lat' => 'd', 'lng' => 'd', 'floor_count' => 'i', 'entrance_floor' => 's', 'building_number' => 'i', 'directory' => 's'],
+    'building' => ['name' => 's', 'lat' => 'd', 'lng' => 'd', 'floor_count' => 'i', 'entrance_floor' => 's', 'building_number' => 's', 'directory' => 's'],
 ];
 
 function table_for(string $entity): string { return $entity === 'room' ? 'rooms' : 'buildings'; }

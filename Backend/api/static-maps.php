@@ -66,7 +66,11 @@ function sanitizeSvg($xml) {
     $xpath = new DOMXPath($doc);
     foreach (iterator_to_array($xpath->query('//*')) as $el) {
         if (!$el->parentNode) continue;
-        if (in_array(strtolower($el->localName), $bad, true)) { $el->parentNode->removeChild($el); continue; }
+        $tag = strtolower($el->localName);
+        if (in_array($tag, $bad, true)) { $el->parentNode->removeChild($el); continue; }
+        if ($tag === 'style' && preg_match('/@import|url\s*\(\s*[\'"]?\s*(https?:|\/\/|javascript:|data:text)/i', $el->textContent)) { $el->parentNode->removeChild($el); continue; }
+        if ($tag === 'use') { $h = trim((string) ($el->getAttribute('href') ?: $el->getAttribute('xlink:href'))); if ($h !== '' && $h[0] !== '#') { $el->parentNode->removeChild($el); continue; } }
+        if (in_array($tag, ['animate', 'set', 'animatetransform', 'animatemotion'], true) && preg_match('/^(xlink:)?href$/i', (string) $el->getAttribute('attributeName'))) { $el->parentNode->removeChild($el); continue; }
         foreach (iterator_to_array($el->attributes) as $attr) {
             $name = strtolower($attr->nodeName);
             $value = strtolower(trim($attr->nodeValue));

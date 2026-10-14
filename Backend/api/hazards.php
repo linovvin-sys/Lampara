@@ -35,7 +35,7 @@ require_once __DIR__ . '/../rate_limit.php';
 require_once __DIR__ . '/../session_boot.php';
 
 lampara_session_start();
-$isAdmin = !empty($_SESSION['admin_id']);
+$isAdmin = !empty($_SESSION['admin_id']) && lampara_admin_role() === 'admin';   // a PSMO account sees reports as a visitor does
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
@@ -169,8 +169,8 @@ function hz_screen(string $jpegBinary): string
         ],
     ]);
     foreach (['gemini-3.1-flash-lite', 'gemini-3.5-flash'] as $model) {
-        $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY);
-        curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15]);
+        $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent');
+        curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-goog-api-key: ' . GEMINI_API_KEY], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15]);
         $res = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -279,6 +279,7 @@ if ($method === 'POST') {
     }
 
     rate_limit_or_die('hazard_report', 5, 600, 'You have sent several reports just now. Please wait a few minutes before sending another.', $dev);
+    rate_limit_or_die('hazard_report_ip_day', 150, 86400, 'Too many reports were sent from this network today. Please try again tomorrow, or tell the school office.');
     rate_limit_or_die('hazard_report_ip', 60, 600, 'Too many reports were sent from this network just now. Please try again in a few minutes.');
     $in = json_decode(file_get_contents('php://input'), true);
     if (!is_array($in)) photoFail(400, 'Invalid request');
@@ -390,6 +391,8 @@ if ($id <= 0) photoFail(400, 'id is required');
 if ($method === 'PUT') {
     $act = $action ?: 'resolve';
     $who = $_SESSION['admin_username'] ?? 'admin';
+    require_once __DIR__ . '/../audit_log.php';
+    audit_log($conn, 'report_' . preg_replace('/[^a-z]/', '', $act), 'report ' . $id);
     hz($conn, function () use ($conn, $act, $id, $who) {
         if ($act === 'approve') {
             $stmt = $conn->prepare("UPDATE hazard_reports SET status = 'active', verified = 1, flags = 0, created_at = NOW() WHERE id = ? AND status = 'pending'");
@@ -412,6 +415,8 @@ if ($method === 'PUT') {
 }
 
 if ($method === 'DELETE') {
+    require_once __DIR__ . '/../audit_log.php';
+    audit_log($conn, 'report_deleted', 'report ' . $id);
     $stmt = $conn->prepare('SELECT photo_path, verified, status, device FROM hazard_reports WHERE id = ?');
     $stmt->bind_param('i', $id);
     $stmt->execute();

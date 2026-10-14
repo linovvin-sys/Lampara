@@ -19,7 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../photo_upload.php';
+require_once __DIR__ . '/../room_number.php';
 require_once __DIR__ . '/../change_log.php';
+require_once __DIR__ . '/../building_open.php';
 
 // Reads stay public (students need the directory); writes require an admin session.
 if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'DELETE'])) {
@@ -43,8 +45,9 @@ function save_entrance_floor(mysqli $conn, int $id, $input): void
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $ef = column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor' : 'NULL AS entrance_floor';
+    $io = column_exists($conn, 'buildings', 'is_open') ? 'b.is_open' : '0 AS is_open';
     $result = $conn->query(
-        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, $ef, b.building_number, b.directory, b.photo_path, b.updated_at,
+        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, $ef, $io, b.building_number, b.directory, b.photo_path, b.updated_at,
                 (SELECT COUNT(*) FROM rooms r WHERE r.building_id = b.id) AS room_count,
                 (SELECT COUNT(*) FROM outdated_flags f
                     JOIN rooms r2 ON r2.id = f.room_id
@@ -54,11 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     );
     $buildings = [];
     while ($row = $result->fetch_assoc()) {
+        $row['is_open'] = (bool) $row['is_open'];
         $row['lat'] = (float) $row['lat'];
         $row['lng'] = (float) $row['lng'];
         $row['entrance_node_id'] = $row['entrance_node_id'] !== null ? (int) $row['entrance_node_id'] : null;
         $row['floor_count'] = (int) $row['floor_count'];
-        $row['building_number'] = $row['building_number'] !== null ? (int) $row['building_number'] : null;
+        $row['building_number'] = $row['building_number'] !== null && $row['building_number'] !== '' ? (string) $row['building_number'] : null;
         $row['room_count'] = (int) $row['room_count'];
         $row['open_flags'] = (int) $row['open_flags'];
         $buildings[] = $row;
@@ -74,7 +78,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $lat = $input['lat'] ?? null;
     $lng = $input['lng'] ?? null;
     $floorCount = max(1, (int) ($input['floor_count'] ?? 1));
-    $buildingNumber = ($input['building_number'] ?? '') !== '' ? (int) $input['building_number'] : null;
+    $buildingNumber = normalize_building_number($input['building_number'] ?? '');
+    if ($buildingNumber === false) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'The building number looks like 2, or 2-A, 2-B']); exit; }
+    ensure_building_number_text($conn);
     $directory = trim($input['directory'] ?? '');
 
     if ($name === '' || $lat === null || $lng === null) {
@@ -84,11 +90,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $stmt = $conn->prepare("INSERT INTO buildings (name, lat, lng, floor_count, building_number, directory) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param('sddiis', $name, $lat, $lng, $floorCount, $buildingNumber, $directory);
+    $stmt->bind_param('sddiss', $name, $lat, $lng, $floorCount, $buildingNumber, $directory);
 
     if ($stmt->execute()) {
         $newId = $stmt->insert_id;
         save_entrance_floor($conn, $newId, $input);
+        save_building_open($conn, $newId, $input);
         log_change($conn, 'building', $newId, 'create', null, change_row($conn, 'buildings', $newId));
         echo json_encode(['success' => true, 'id' => $newId]);
     } else {
@@ -108,7 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $lat = $input['lat'] ?? null;
     $lng = $input['lng'] ?? null;
     $floorCount = max(1, (int) ($input['floor_count'] ?? 1));
-    $buildingNumber = ($input['building_number'] ?? '') !== '' ? (int) $input['building_number'] : null;
+    $buildingNumber = normalize_building_number($input['building_number'] ?? '');
+    if ($buildingNumber === false) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'The building number looks like 2, or 2-A, 2-B']); exit; }
+    ensure_building_number_text($conn);
     $directory = trim($input['directory'] ?? '');
 
     if (!$id || $name === '' || $lat === null || $lng === null) {
@@ -119,10 +128,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 
     $before = change_row($conn, 'buildings', $id);
     $stmt = $conn->prepare("UPDATE buildings SET name = ?, lat = ?, lng = ?, floor_count = ?, building_number = ?, directory = ? WHERE id = ?");
-    $stmt->bind_param('sddiisi', $name, $lat, $lng, $floorCount, $buildingNumber, $directory, $id);
+    $stmt->bind_param('sddissi', $name, $lat, $lng, $floorCount, $buildingNumber, $directory, $id);
 
     if ($stmt->execute()) {
         save_entrance_floor($conn, $id, $input);
+        save_building_open($conn, $id, $input);
         log_change($conn, 'building', $id, 'update', $before, change_row($conn, 'buildings', $id));
         echo json_encode(['success' => true]);
     } else {

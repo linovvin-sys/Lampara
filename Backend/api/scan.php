@@ -56,7 +56,6 @@ inside the code. If there is no clearly readable room number visible in the
 photo, respond with exactly: NONE
 PROMPT;
 
-$url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=' . GEMINI_API_KEY;
 $payload = json_encode([
     'contents' => [[
         'role' => 'user',
@@ -68,21 +67,29 @@ $payload = json_encode([
     'generationConfig' => ['temperature' => 0, 'maxOutputTokens' => 500],
 ]);
 
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => $payload,
-    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT => 20,
-]);
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curlError = curl_error($ch);
-curl_close($ch);
+// Real model versions, tried in order (a "-latest" alias once stopped answering). The key goes in a header, not the address,
+// so it cannot end up in a server or proxy log.
+$models = array_values(array_unique(array_filter([defined('GEMINI_MODEL') ? GEMINI_MODEL : null, 'gemini-3.1-flash-lite', 'gemini-3.5-flash'])));
+$response = null; $httpCode = 0; $curlError = '';
+foreach ($models as $model) {
+    $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-goog-api-key: ' . GEMINI_API_KEY],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 20,
+    ]);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+    if (!$curlError && $httpCode === 200) break;
+}
 
 if ($curlError || $httpCode !== 200) {
-    echo json_encode(['success' => false, 'error' => "Couldn't reach the AI service right now — try again in a moment. (" . ($curlError ?: "HTTP $httpCode") . ")"]);
+    echo json_encode(['success' => false, 'error' => "Couldn't reach the AI service right now. Try again in a moment, or type the room number."]);
     exit;
 }
 

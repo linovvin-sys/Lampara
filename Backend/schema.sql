@@ -6,7 +6,7 @@
 -- MAMP db, or one already uploaded to InfinityFree)? Don't re-run this whole
 -- file — just run this one line against it instead:
 --   ALTER TABLE buildings ADD COLUMN floor_count INT NOT NULL DEFAULT 1 AFTER lng;
---   ALTER TABLE buildings ADD COLUMN building_number INT NULL AFTER floor_count;
+--   ALTER TABLE buildings ADD COLUMN building_number VARCHAR(10) NULL AFTER floor_count;   -- "2", "2-A", "2-B"
 --   ALTER TABLE rooms ADD UNIQUE KEY room_number_unique (room_number);
 --   ALTER TABLE rooms MODIFY room_number VARCHAR(30) NULL;
 --   ALTER TABLE rooms ADD COLUMN category ENUM('office','classroom','cr','canteen') NOT NULL DEFAULT 'office' AFTER room_type;
@@ -40,10 +40,12 @@ CREATE TABLE IF NOT EXISTS buildings (
     floor_count INT NOT NULL DEFAULT 1,
     -- Which floor the main entrance is on (optional; the indoor "I just arrived at the entrance" list uses it).
     entrance_floor VARCHAR(50) NULL,
+    -- Open type: no hallways, entry point or floor plan (a court, a field). Added on first use for older databases (Backend/building_open.php).
+    is_open TINYINT(1) NOT NULL DEFAULT 0,
     -- The school's room-numbering scheme encodes this as the first digit of
     -- every room number (e.g. "1101" = building 1, floor 1, room 01) — NULL
     -- for buildings with no numbered rooms (e.g. the Gymnasium).
-    building_number INT NULL,
+    building_number VARCHAR(10) NULL,
     -- Legacy free-text field, kept for any building-level facts that don't
     -- belong to a specific room (general hours, campus-wide notes). Room-level
     -- facts now live in the `rooms` table below instead of being crammed here.

@@ -12,3 +12,6 @@ Frontend/assets/photos/*
 
 # end-to-end test screenshots
 tests/e2e/shots/
+
+# backups hold the database and uploads
+backups/

@@ -13,7 +13,31 @@ if (!function_exists('lampara_session_start')) {
             session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax', 'secure' => $https]);
         }
         @session_start();
+        // An admin who has been away for 8 hours is signed out (the clock restarts with every request).
+        if (!empty($_SESSION['admin_id'])) {
+            if (!empty($_SESSION['admin_seen']) && time() - (int) $_SESSION['admin_seen'] > 8 * 3600) { $_SESSION = []; @session_destroy(); return; }
+            $_SESSION['admin_seen'] = time();
+        }
     }
+}
+
+// Roles: 'admin' does everything; 'psmo' manages the buildings and rooms (details, photos, floor plans, indoor paths, doors, calibration)
+// and nothing else: not the outdoor campus map, visitor reports, the campus-only switch or the chat test.
+if (!function_exists('lampara_admin_role')) {
+    function lampara_admin_role(): string { return ($_SESSION['admin_role'] ?? 'admin') === 'psmo' ? 'psmo' : 'admin'; }
+    // The only API files and admin pages a PSMO account may use.
+    function lampara_psmo_allows(string $file): bool
+    {
+        return in_array(basename($file), [
+            // pages
+            'buildings.php', 'building-edit.php', 'room-edit.php', 'doors.php',
+            // endpoints
+            'rooms.php', 'floor-plans.php', 'floor-plan-graph.php', 'building-doors.php', 'photos.php', 'qr-anchors.php',
+            'flags.php', 'changes.php', 'admin-sync.php', 'ping.php', 'account.php',
+        ], true);
+    }
+    // Where a PSMO account lands.
+    function lampara_psmo_home(): string { return 'buildings.php'; }
 }
 
 if (!function_exists('lampara_same_origin_or_die')) {

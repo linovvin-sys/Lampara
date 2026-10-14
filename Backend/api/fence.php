@@ -44,6 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
     });
+    require_once __DIR__ . '/../audit_log.php';
+    audit_log($conn, 'campus_fence', $v === '1' ? 'on' : 'off');
     echo json_encode(['success' => true, 'enabled' => $v === '1']);
     exit;
 }

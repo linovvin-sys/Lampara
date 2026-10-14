@@ -124,6 +124,7 @@ function failure($message) {
 
 // The optional columns (room subtitle, building entrance floor) ride along with an offline edit when they exist.
 function syncExtras($conn, $table, $id, array $p) {
+    if ($table === 'buildings') { require_once __DIR__ . '/../building_open.php'; save_building_open($conn, (int) $id, $p); }
     $col = $table === 'rooms' ? 'subtitle' : 'entrance_floor';
     if (!array_key_exists($col, $p) || !column_exists($conn, $table, $col)) return;
     $v = trim((string) $p[$col]);
@@ -135,6 +136,8 @@ function syncExtras($conn, $table, $id, array $p) {
 }
 
 function applyOp($conn, $type, array $p, $force, array &$tempMap) {
+    // A PSMO account may change buildings, rooms and floor calibration, not the outdoor walkways (node., edge., entrance.).
+    if (lampara_admin_role() === 'psmo' && !preg_match('/^(building|room|calibration)\\./', (string) $type)) return failure('This account can only change buildings and rooms.');
     switch ($type) {
 
         case 'building.create': {
@@ -142,10 +145,12 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             if ($name === '' || !isset($p['lat'], $p['lng'])) return failure('A building needs a name and a location.');
             $lat = (float) $p['lat']; $lng = (float) $p['lng'];
             $floors = max(1, (int) ($p['floor_count'] ?? 1));
-            $number = nullableInt($p['building_number'] ?? null);
+            $number = normalize_building_number($p['building_number'] ?? null);
+            if ($number === false) return failure('The building number looks like 2, or 2-A, 2-B.');
+            ensure_building_number_text($conn);
             $dir = trim((string) ($p['directory'] ?? ''));
             $stmt = $conn->prepare("INSERT INTO buildings (name, lat, lng, floor_count, building_number, directory) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param('sddiis', $name, $lat, $lng, $floors, $number, $dir);
+            $stmt->bind_param('sddiss', $name, $lat, $lng, $floors, $number, $dir);
             $stmt->execute();
             $id = $stmt->insert_id;
             $stmt->close();
@@ -166,11 +171,13 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             if ($name === '' || !isset($p['lat'], $p['lng'])) return failure('A building needs a name and a location.');
             $lat = (float) $p['lat']; $lng = (float) $p['lng'];
             $floors = max(1, (int) ($p['floor_count'] ?? 1));
-            $number = nullableInt($p['building_number'] ?? null);
+            $number = normalize_building_number($p['building_number'] ?? null);
+            if ($number === false) return failure('The building number looks like 2, or 2-A, 2-B.');
+            ensure_building_number_text($conn);
             $dir = trim((string) ($p['directory'] ?? ''));
             $beforeRow = change_row($conn, 'buildings', $id);
             $stmt = $conn->prepare("UPDATE buildings SET name = ?, lat = ?, lng = ?, floor_count = ?, building_number = ?, directory = ? WHERE id = ?");
-            $stmt->bind_param('sddiisi', $name, $lat, $lng, $floors, $number, $dir, $id);
+            $stmt->bind_param('sddissi', $name, $lat, $lng, $floors, $number, $dir, $id);
             $stmt->execute();
             $stmt->close();
             syncExtras($conn, 'buildings', $id, $p);

@@ -40,11 +40,20 @@ class Database
 
     public function connect()
     {
+        // The built-in fallback (the database owner "root" with no password) is for a laptop only. Anywhere else, db.php must name
+        // a database user that can touch lampara_db and nothing more (see Backend/db.example.php).
+        $local = in_array(strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? 'localhost')[0]), ['localhost', '127.0.0.1', '[::1]'], true) || PHP_SAPI === 'cli';
+        if (!file_exists(__DIR__ . '/db.php') && $this->username === 'root' && $this->password === '' && !$local) {
+            error_log('Lampara: refusing to connect as root with no password on a non-local host. Create Backend/db.php.');
+            http_response_code(500);
+            die('The server is not set up yet.');
+        }
         $this->conn = new mysqli($this->host, $this->username, $this->password, $this->database, $this->port);
 
         if ($this->conn->connect_error) {
-            die("Database Connection Failed: " . $this->conn->connect_error .
-                "\n\nDid you create the 'lampara_db' database and run schema.sql yet?");
+            error_log('Lampara database connection failed: ' . $this->conn->connect_error);   // the reason stays in the server log, not on the page
+            http_response_code(500);
+            die('The database is not available right now.');
         }
 
         $this->conn->set_charset("utf8mb4");

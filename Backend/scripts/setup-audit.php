@@ -221,8 +221,6 @@ foreach ($buildings as $b) {
         // calibration
         if ($p['north_offset'] !== null && (float) $p['mx'] > 0 && (float) $p['my'] > 0) {
             ok(sprintf('Calibrated: about %.1f m wide, plan-up points %d deg from north.', (float) $p['mx'] * 100, (int) round((float) $p['north_offset'])));
-        } else {
-            fix('Not calibrated: the indoor AR guide is off for this floor. Floor Calibration (two ends of a hallway, real distance, compass).');
         }
 
         // rooms

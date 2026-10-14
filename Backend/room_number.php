@@ -32,7 +32,8 @@ function compact_room_number($value)
 // SQL that gives the same key for a column, so lookups can compare in the database.
 const ROOM_NUMBER_COMPACT_SQL = "REPLACE(REPLACE(UPPER(r.room_number), ' ', ''), '-', '')";
 
-// Is this number already used by another room IN THE SAME BUILDING (ignoring case, spaces and dashes)?
+// Is this number already used by another room in the same building, or in a sibling that shares its building number (2-A and 2-B both
+// start their rooms with 2, so a room number may not repeat across them)? Ignores case, spaces and dashes.
 // Two buildings may both have a 1101: a room is its building plus its number. For an existing room ($exceptId) the building is
 // looked up; for a new one pass $buildingId.
 function room_number_taken($conn, $roomNumber, $exceptId = 0, $buildingId = null)
@@ -48,8 +49,10 @@ function room_number_taken($conn, $roomNumber, $exceptId = 0, $buildingId = null
         $buildingId = $row ? (int) $row[0] : null;
     }
     $key = compact_room_number($roomNumber);
-    $stmt = $conn->prepare("SELECT 1 FROM rooms r WHERE " . ROOM_NUMBER_COMPACT_SQL . " = ? AND r.id <> ? AND r.building_id <=> ? LIMIT 1");
-    $stmt->bind_param('sii', $key, $exceptId, $buildingId);
+    $ids = building_group_ids($conn, $buildingId);
+    $in = implode(',', array_map('intval', $ids)) ?: '0';
+    $stmt = $conn->prepare("SELECT 1 FROM rooms r WHERE " . ROOM_NUMBER_COMPACT_SQL . " = ? AND r.id <> ? AND r.building_id IN ($in) LIMIT 1");
+    $stmt->bind_param('si', $key, $exceptId);
     $stmt->execute();
     $taken = (bool) $stmt->get_result()->fetch_row();
     $stmt->close();
@@ -74,4 +77,47 @@ function ensure_room_number_key($conn)
     if ($old) $parts[] = 'DROP INDEX room_number_unique';
     if (!$new) $parts[] = 'ADD UNIQUE KEY room_building_number (building_id, room_number)';
     try { $conn->query('ALTER TABLE rooms ' . implode(', ', $parts)); } catch (Throwable $e) { /* writes still work; the per-building check above is the guard */ }
+}
+
+// Building numbers: a number, optionally with a letter: "2", "2-A", "2-B". Returns the canonical text, null for none, or false if it does
+// not look like one.
+function normalize_building_number($value)
+{
+    $s = trim((string) $value);
+    if ($s === '') return null;
+    if (!preg_match('/^(\d{1,3})\s*[-\s]?\s*([A-Za-z])?$/', $s, $m)) return false;
+    return $m[1] . (isset($m[2]) && $m[2] !== '' ? '-' . strtoupper($m[2]) : '');
+}
+
+// The buildings that share this building's number: "2-A" and "2-B" are siblings (their rooms all start with 2). A building with no number
+// (or an unknown one) is on its own.
+function building_group_ids($conn, $buildingId): array
+{
+    if ($buildingId === null) return [];
+    $stmt = $conn->prepare('SELECT building_number FROM buildings WHERE id = ?');
+    $stmt->bind_param('i', $buildingId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_row();
+    $stmt->close();
+    $digits = preg_replace('/\D/', '', (string) ($row[0] ?? ''));
+    if ($digits === '') return [(int) $buildingId];
+    $like = $digits . '-%';
+    $stmt = $conn->prepare('SELECT id FROM buildings WHERE building_number = ? OR building_number LIKE ?');
+    $stmt->bind_param('ss', $digits, $like);
+    $stmt->execute();
+    $ids = array_map(fn($r) => (int) $r[0], $stmt->get_result()->fetch_all());
+    $stmt->close();
+    return $ids ?: [(int) $buildingId];
+}
+
+// buildings.building_number used to be a whole number; letters need text. Changes the column the first time it is needed (a no-op after).
+function ensure_building_number_text($conn)
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $c = $conn->query("SHOW COLUMNS FROM buildings LIKE 'building_number'")->fetch_assoc();
+    if ($c && stripos($c['Type'], 'int') !== false) {
+        try { $conn->query('ALTER TABLE buildings MODIFY building_number VARCHAR(10) NULL'); } catch (Throwable $e) { /* stays a number: letters are refused below */ }
+    }
 }

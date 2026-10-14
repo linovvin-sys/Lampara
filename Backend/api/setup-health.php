@@ -12,6 +12,7 @@ header('Cache-Control: no-store');
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/_require_admin.php';
+require_once __DIR__ . '/../change_log.php';
 
 $db = new Database();
 $conn = $db->connect();
@@ -30,7 +31,7 @@ function add(&$items, $level, $building, $floor, $problem, $detail, $href, $acti
                 'title' => $title, 'detail' => $detail, 'href' => $href, 'action' => $action];
 }
 
-$buildings = rows_of($conn, "SELECT id, name, lat, lng, floor_count, entrance_node_id FROM buildings ORDER BY name");
+$buildings = rows_of($conn, "SELECT id, name, lat, lng, floor_count, entrance_node_id, " . (column_exists($conn, 'buildings', 'is_open') ? 'is_open' : '0 AS is_open') . " FROM buildings ORDER BY name");
 $plans = rows_of($conn, "SELECT id, building_id, floor, north_offset, meters_per_unit_x mx, meters_per_unit_y my FROM floor_plans ORDER BY building_id, id");
 $plansByBuilding = [];
 foreach ($plans as $p) $plansByBuilding[(int) $p['building_id']][] = $p;
@@ -51,21 +52,6 @@ foreach (rows_of($conn,
     $linked[(int) $r['pb']] = true;
 }
 
-// Rooms on a floor that has a plan but no marker placed on it.
-$unmarked = [];
-foreach (rows_of($conn,
-    "SELECT r.building_id, r.floor, COUNT(*) c
-     FROM rooms r
-     JOIN floor_plans fp ON fp.building_id = r.building_id AND fp.floor = r.floor
-     WHERE r.map_x IS NULL OR r.map_y IS NULL
-     GROUP BY r.building_id, r.floor") as $r) {
-    $unmarked[(int) $r['building_id']][$r['floor']] = (int) $r['c'];
-}
-// Buildings whose entrance and exit were chosen in Admin > Doors (the table may not exist yet: then none were).
-$doorsSet = [];
-try {
-    foreach (rows_of($conn, "SELECT building_id, COUNT(DISTINCT kind) k FROM building_doors GROUP BY building_id") as $r) $doorsSet[(int) $r['building_id']] = (int) $r['k'] >= 2;
-} catch (Throwable $e) { /* no doors saved yet */ }
 $unnumbered = [];
 foreach (rows_of($conn,
     "SELECT building_id, COUNT(*) c FROM rooms
@@ -77,10 +63,17 @@ if (!rows_of($conn, "SELECT id FROM campus_nodes LIMIT 1")) {
     add($items, 'fix', 'Campus', '', 'No walkways drawn', 'Outdoor directions need a connected walkway network.', 'campus-paths.php', 'Open Campus Paths');
 }
 
+// Visitors coming from outside the gates (Heritage, JEG) must go in by the human main entrance. It is the point named "Main Entrance", or a gate
+// whose name says entrance. A gate called an exit is only a way out.
+if (rows_of($conn, "SELECT id FROM campus_nodes LIMIT 1") && !rows_of($conn, "SELECT id FROM campus_nodes WHERE name REGEXP 'main[[:space:]]*entrance' OR (node_type = 'gate' AND name REGEXP 'entr' AND name NOT REGEXP 'exit|vehicle') LIMIT 1")) {
+    add($items, 'fix', 'Campus', '', 'No main entrance for people on foot', 'Drop a Gate point at the walking entrance, connect it to the paths, and name it "Main Entrance". Until then the guide has to send people in through the exit gate.', 'campus-paths.php', 'Add the entrance');
+}
+
 foreach ($buildings as $b) {
     $bid = (int) $b['id'];
     $name = $b['name'];
-    $edit = 'building-edit.php?edit=' . $bid;
+    $edit = 'buildings.php?tab=details&b=' . $bid;
+    if (!empty($b['is_open'])) continue; // open type: no entrance point, hallways or floor plans to set up
 
     if ($b['entrance_node_id'] === null) {
         add($items, 'fix', $name, '', 'No entrance set', 'Outdoor routing to this building fails until an entrance point is set.', 'campus-paths.php', 'Set entrance');
@@ -100,27 +93,17 @@ foreach ($buildings as $b) {
         if (empty($nodeCount[$pid])) {
             add($items, 'fix', $name, $fl, 'No walkable path', 'Draw the hallways so routes and the indoor arrow can follow them.', $edit, 'Draw paths');
         }
-        if ($p['north_offset'] === null || (float) $p['mx'] <= 0 || (float) $p['my'] <= 0) {
-            add($items, 'fix', $name, $fl, 'Not calibrated', 'Indoor AR stays off for this floor until it is calibrated.', 'floor-calibration.php', 'Calibrate');
-        }
         if (count($bp) > 1 && empty($linked[$pid])) {
             add($items, 'fix', $name, $fl, 'No stairs link to another floor', 'Routes cannot cross between floors without a stairs or elevator connection.', $edit, 'Link stairs');
         }
-        $n = $unmarked[$bid][$p['floor']] ?? 0;
-        if ($n > 0) {
-            add($items, 'fix', $name, $fl, "$n room" . ($n > 1 ? 's' : '') . ' without a plan marker', 'Place each room on the plan so the arrow can lead to its door.', 'room-edit.php?building=' . $bid, 'Place markers');
-        }
-    }
-    if (empty($doorsSet[$bid]) && count($buildings) > 1) {
-        add($items, 'tip', $name, '', 'Entrance and exit points not set', 'Routes between buildings guess where the door is until it is chosen.', 'doors.php?building=' . $bid, 'Set doors');
     }
     if (!empty($unnumbered[$bid])) {
         $n = $unnumbered[$bid];
-        add($items, 'tip', $name, '', "$n room" . ($n > 1 ? 's' : '') . ' without a number', 'Sign scanning cannot find rooms that have no number.', 'room-edit.php?building=' . $bid, 'Review rooms');
+        add($items, 'tip', $name, '', "$n room" . ($n > 1 ? 's' : '') . ' without a number', 'Sign scanning cannot find rooms that have no number.', 'buildings.php?tab=rooms&b=' . $bid, 'Review rooms');
     }
 }
 
-// ---- Guided setup: nine steps per building, in the order an admin does them -------------------
+// ---- Guided setup: the steps per building, in the order an admin does them -------------------
 $roomCounts = [];
 foreach (rows_of($conn, "SELECT building_id, COUNT(*) c FROM rooms GROUP BY building_id") as $r) {
     $roomCounts[(int) $r['building_id']] = (int) $r['c'];
@@ -130,22 +113,19 @@ foreach ($buildings as $b) {
     $bid = (int) $b['id'];
     $bp = $plansByBuilding[$bid] ?? [];
     $floors = max(1, (int) $b['floor_count']);
-    $edit = 'building-edit.php?edit=' . $bid;
+    $edit = 'buildings.php?tab=details&b=' . $bid;
+    $isOpen = !empty($b['is_open']);
     $allHavePath = $bp && !array_filter($bp, fn($p) => empty($nodeCount[(int) $p['id']]));
-    $allCalibrated = $bp && !array_filter($bp, fn($p) => $p['north_offset'] === null || (float) $p['mx'] <= 0 || (float) $p['my'] <= 0);
-    $unmarkedHere = array_sum($unmarked[$bid] ?? []);
     // key, label, what it means in plain words, button text, where to do it
     $defs = [
         ['pin',       'Pin it on the map',    'Tells students where the building is.',                         'Open the building', $edit,                              $b['lat'] !== null && $b['lng'] !== null],
         ['floors',    'Set the floors',       'How many floors it has.',                                       'Set the floors',    $edit,                              (int) $b['floor_count'] >= 1],
         ['plans',     'Upload floor plans',   'A picture of each floor, so rooms can be shown on it.',         'Upload plans',      $edit,                              count($bp) >= $floors],
         ['paths',     'Draw walkable paths',  'Trace the hallways the arrow will follow indoors.',             'Draw paths',        $edit,                              (bool) $allHavePath],
-        ['calibrate', 'Calibrate each floor', 'Tells the indoor guide how big each floor really is.',          'Calibrate floors',  'floor-calibration.php',            (bool) $allCalibrated],
-        ['rooms',     'Add rooms',            'Register the offices, classrooms and labs.',                    'Add rooms',         'room-edit.php?building=' . $bid,   ($roomCounts[$bid] ?? 0) > 0],
-        ['markers',   'Place room markers',   'Pin each room on its floor plan so the arrow can reach its door.', 'Place markers',  'room-edit.php?building=' . $bid,   ($roomCounts[$bid] ?? 0) > 0 && $unmarkedHere === 0],
+        ['rooms',     'Add rooms',            'Register the offices, classrooms and labs.',                    'Add rooms',         'buildings.php?tab=rooms&b=' . $bid,   ($roomCounts[$bid] ?? 0) > 0],
         ['entrance',  'Set the entrance',     'Where outdoor directions end at the door.',                     'Set the entrance',  'campus-paths.php',                 $b['entrance_node_id'] !== null],
-        ['doors',     'Mark the doors',       'Which path point is the way in and the way out, inside the building.', 'Set doors',        'doors.php?building=' . $bid,       !empty($doorsSet[$bid])],
     ];
+    if ($isOpen) $defs = array_values(array_filter($defs, fn($d) => in_array($d[0], ['pin', 'rooms'], true)));
     $steps = array_map(fn($d) => ['key' => $d[0], 'label' => $d[1], 'hint' => $d[2], 'cta' => $d[3], 'href' => $d[4], 'done' => (bool) $d[5]], $defs);
     $done = count(array_filter($steps, fn($st) => $st['done']));
     $next = null;
