@@ -129,6 +129,16 @@ window.LamparaGuide = createApp({
   data() {
     return {
       arBuild: AR_BUILD,
+      // game touches on the start screen: the player strip, a talking mascot, and a star on buildings you have already reached
+      hudStrip: window.LamparaGameHud ? LamparaGameHud.strip({ local: true }) : '',
+      hudBuddy: window.LamparaGameHud ? LamparaGameHud.buddy('Pick a building and your quest begins!|Tap a building, then press Start.|Every arrival earns points.') : '',
+      sceneHtml: window.LamparaPixelScene ? LamparaPixelScene.html({ walker: false, moon: false, stars: 40, seed: 11 }) : '',
+      pinIcon: window.LamparaMascots ? LamparaMascots.icon('pin', 44) : '',
+      gateTip: 0,
+      gateTips: ['Hold your phone upright.', 'Open sky gives the best location.', 'Stay still for a moment while I find you.', 'Almost there. Every arrival earns points!'],
+      hasMusic: !!window.LamparaAudio,
+      musicOn: window.LamparaAudio ? LamparaAudio.enabled() : false,
+      stampIcon: window.LamparaMascots ? LamparaMascots.icon('star', 18) : '',
       started: false,
       checking: true,
       quickStart: false,
@@ -184,6 +194,7 @@ window.LamparaGuide = createApp({
       debugUi: /[?&]debug\b/.test(location.search), // the build label is for testers only
       rooms: [],              // the directory, so the start screen and the search bar can find offices and rooms, not only buildings
       pendingRoom: null,      // a room picked by name: its building is the outdoor destination, and 'Find inside' opens that room afterwards
+      exitCard: new URLSearchParams(location.search).get('exit') === '1',   // came out of a building on an indoor route: greet with a card
       pendingTarget: null,    // the building picked on the start screen (chosen as soon as the AR view is up)
       gateStage: '',          // what start-up is doing: 'map' | 'camera' | 'gps' | 'ready'
       gateAcc: null,          // GPS accuracy while waiting for a fix
@@ -215,10 +226,14 @@ window.LamparaGuide = createApp({
     arrivedAtTarget() { return !!this.guidance && this.guidance.icon === 'arrive' && this.guidance.step === -1; },
     roomHere() { const r = this.pendingRoom; return r && this.target && String(r.building_id) === String(this.target.id) ? r : null; },
     doorHref() { return this.roomHere ? '../Student/journey.php?arrived=1&to=' + this.roomHere.id : '../Student/scan.php'; },
-    doorSub() { return this.roomHere ? 'Show me the way to ' + this.roomHere.room_name : 'Find a room on the floor plan'; },
+    doorSub() { return this.roomHere ? 'Show me the way to ' + this.roomHere.room_name : 'Scan a room sign to find your floor'; },
     insideHref() { return this.roomHere ? '../Student/scan.php?room=' + this.roomHere.id : '../Student/scan.php'; },
-    insideLabel() { return 'I am inside'; },
+    insideLabel() { return 'Scan room sign'; },
     // Clear navigation is in effect: a building is chosen and the switch is on. Everything but the search bar, Ask Lampara and the path is hidden.
+    // question chips for the chat, made from this building's real rooms
+    chatStarters() { return this.chatOpenFor ? LamparaChat.starters(this.rooms, this.chatOpenFor.id) : []; },
+    // how full the little signal bar is: a tight GPS fix (a few metres) fills it, a rough one (60 m or more) leaves it nearly empty
+    accFill() { return this.gateAcc === null ? 0 : Math.max(0.08, Math.min(1, 1 - (this.gateAcc - 5) / 55)); },
     clearActive() { return this.clearNav && !!this.target; },
     searchMatches() {
       const q = this.searchQuery.trim().toLowerCase();
@@ -251,6 +266,18 @@ window.LamparaGuide = createApp({
     }
   },
   async mounted() {
+    // Music on the start screen (the building list and the "getting ready" steps). It stops the moment the camera is up and
+    // navigation has started. Phones keep sound back until the first tap, so the first tap on this screen is what starts it.
+    setInterval(() => { if (this.checking && this.gateStage) this.gateTip = (this.gateTip + 1) % this.gateTips.length; }, 3200);   // a new tip from your mascot every few seconds
+    if (window.LamparaAudio) {
+      LamparaAudio.mute(!this.musicOn);
+      const begin = () => { if (!this.started && this.musicOn) LamparaAudio.play('start'); };
+      begin();
+      document.addEventListener('pointerdown', begin, { once: true, capture: true });
+      document.addEventListener('visibilitychange', () => { if (this.started) return; if (document.hidden) LamparaAudio.stop(); else begin(); });
+      this.$watch('started', (on) => { if (on) LamparaAudio.stop(); });
+    }
+    if (window.LamparaMascots && window.LamparaGameHud) LamparaMascots.onChange(() => { this.hudStrip = LamparaGameHud.strip({ local: true }); });
     try {
       if (navigator.permissions && navigator.permissions.query) {
         const status = await navigator.permissions.query({ name: 'camera' });
@@ -272,6 +299,14 @@ window.LamparaGuide = createApp({
       const b = to ? this.buildings.find((x) => String(x.id) === to) : null;
       if (b) this.pendingTarget = b;
     } catch (e) { /* loaded again on start */ }
+    // The search page links here with ?gate=<point id> to walk to a campus gate: it is routed like a building, to that walkway point.
+    const gid = new URLSearchParams(location.search).get('gate');
+    if (gid && window.LamparaGates) {
+      try {
+        const g = LamparaGates.list(await LamparaCache.loadCampusGraph('../../../Backend/api/campus-graph.php')).find((x) => String(x.nodeId) === gid);
+        if (g) this.pendingTarget = LamparaGates.asTarget(g);
+      } catch (e) { /* no walkway map: the gate is simply not preselected */ }
+    }
     // The directory loads on its own: a slow or missing one only means no room results.
     await this.loadRooms();
     // Manual Search links here with ?room=<id> (and ?to=<its building>): remember the room for the 'Find inside' button.
@@ -281,6 +316,7 @@ window.LamparaGuide = createApp({
   },
   methods: {
     async start() {
+      this.exitCard = false;
       this.checking = true;
       this.quickStart = false;
       this.statusText = '';
@@ -469,7 +505,7 @@ window.LamparaGuide = createApp({
       this.started = true;
       LamparaLocar.setGraph(this.campusGraph);
       LamparaLocar.setBuildings(this.buildings);          // the name labels first, so choosing a building below can swap its label for the marker
-      if (this.pendingTarget) { const b = this.buildings.find((x) => x.id === this.pendingTarget.id); if (b) this.selectBuilding(b); }
+      if (this.pendingTarget) { const b = this.pendingTarget.gate ? this.pendingTarget : this.buildings.find((x) => x.id === this.pendingTarget.id); if (b) this.selectBuilding(b); }
       this.startMiniMap();
       // Feeds the "turn left/right" hint and the status chip.
       this._guideTimer = setInterval(() => this.updateGuidance(), 300);
@@ -1104,24 +1140,10 @@ window.LamparaGuide = createApp({
       } catch (e) { /* the cached copy stays */ }
     },
     // Rooms and offices matching what was typed: every word must appear in the name, number, floor or building. Best matches first.
+    // Rooms and offices matching what was typed (number, name, initials, building, floor...), the same search as Manual Search.
     findRooms(query) {
-      const words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
-      if (!this.rooms.length || !words.length || String(query).trim().length < 2) return [];
-      const compact = (t) => String(t || '').toLowerCase().replace(/[\s\-\u2013\u2014]+/g, '');
-      const out = [];
-      this.rooms.forEach((r) => {
-        const name = String(r.room_name || '').toLowerCase(), hay = name + ' ' + String(r.subtitle || '').toLowerCase() + ' ' + String(r.building_name || '').toLowerCase() + ' ' + String(r.floor || '').toLowerCase();
-        let score = 0;
-        for (const w of words) {
-          if (compact(r.room_number) === compact(w)) score += 9;
-          else if (name === w) score += 8;
-          else if (name.split(/[^a-z0-9]+/).some((x) => x.startsWith(w))) score += 6;
-          else if (hay.indexOf(w) !== -1) score += 3;
-          else return;
-        }
-        out.push({ r, score });
-      });
-      return out.sort((a, b) => b.score - a.score || String(a.r.room_name).localeCompare(String(b.r.room_name))).slice(0, 5).map((x) => x.r);
+      if (String(query || '').trim().length < 2) return [];
+      return RoomSearch.rank(this.rooms, query, 5);
     },
     roomLabel(r) { return (r.room_number ? r.room_number + ' \u2014 ' : '') + r.room_name + (r.subtitle ? ' (' + r.subtitle + ')' : ''); },
     // Picking a room on the start screen: its building becomes the destination.
@@ -1211,11 +1233,21 @@ window.LamparaGuide = createApp({
     },
     // Reaching a destination for real earns points, once per building; reaching all of them is the Campus Explorer achievement.
     rewardArrival(b) {
-      const M = window.LamparaMascots, S = window.LamparaMascotShop;
-      if (!M || !S || (window.LamparaTutorial && LamparaTutorial.active)) return;
+      const M = window.LamparaMascots;
+      if (!M || b.gate || (window.LamparaTutorial && LamparaTutorial.active)) return;   // a gate is not a building: no stamps or points for it
+      M.event('arrive', String(b.id));
       if (!M.award('visit:' + b.id, 10)) return;
-      S.toast('Arrived at ' + b.name, 10);
-      if (this.buildings.length && M.visited() >= this.buildings.length && M.award('explorer', 50)) S.toast('Campus Explorer', 50);
+      M.toast('Arrived at ' + b.name, 10);
+      if (this.buildings.length && M.visited() >= this.buildings.length && M.award('explorer', 50)) M.toast('Campus Explorer', 50);
+    },
+    stamped(id) { return !!window.LamparaMascots && LamparaMascots.earnedList()['visit:' + id] !== undefined; },
+    // The way back from the start screen: where you came from, or the home page when this page was opened directly.
+    goBack() { if (history.length > 1 && document.referrer) history.back(); else location.href = 'index.php'; },
+    toggleMusic() {
+      this.musicOn = !this.musicOn;
+      LamparaAudio.setEnabled(this.musicOn);
+      LamparaAudio.mute(!this.musicOn);
+      if (this.musicOn && !this.started) LamparaAudio.play('start'); else LamparaAudio.stop();
     },
     openMascots() { if (window.LamparaMascotShop) LamparaMascotShop.open(); },
     replayTutorial() {
@@ -1245,30 +1277,28 @@ window.LamparaGuide = createApp({
       const isSameBuilding = this.chatOpenFor && this.chatOpenFor.id === building.id;
       this.chatOpenFor = building;
       if (!isSameBuilding || this.chatMessages.length === 0) {
-        this.chatMessages = [{ role: 'assistant', text: `Ask me anything about ${building.name} — I'll only answer from what's registered.` }];
+        this.chatMessages = [{ role: 'assistant', text: `Hi! Ask me anything about ${building.name}: where an office is, when it opens, what is on each floor. I only answer from what is registered, so if I don't know, I'll say so.` }];
       }
     },
-    async sendChat() {
-      if (!this.chatInput.trim() || this.chatLoading) return;
-      if (window.LamparaMascots && LamparaMascots.award('first-question', 5) && window.LamparaMascotShop) LamparaMascotShop.toast('First Question', 5);
-      const userText = this.chatInput;
-      const history = this.chatMessages.map(m => ({ role: m.role, text: m.text }));
+    chatFormat: (t) => LamparaChat.format(t),
+    chatRoomHref: (id) => LamparaChat.roomHref(id),
+    chatScrollDown() { this.$nextTick(() => { const el = this.$refs.chatLog; if (el) el.scrollTop = el.scrollHeight; }); },
+    async sendChat(text) {
+      const userText = String(text === undefined ? this.chatInput : text).trim();
+      if (!userText || this.chatLoading) return;
+      if (window.LamparaMascots) { LamparaMascots.event('ask'); if (LamparaMascots.award('first-question', 5)) LamparaMascots.toast('First Question', 5); }
+      const history = this.chatMessages.map((m) => ({ role: m.role, text: m.text }));
       this.chatMessages.push({ role: 'user', text: userText });
       this.chatInput = '';
       this.chatLoading = true;
-      try {
-        const res = await fetch('../../../Backend/api/chat.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ building_id: this.chatOpenFor.id, message: userText, history })
-        });
-        const data = await res.json();
-        this.chatMessages.push({ role: 'assistant', text: data.reply || "I don't have that information." });
-      } catch (e) {
-        this.chatMessages.push({ role: 'assistant', text: "Couldn't reach the server — try again once you're back online." });
-      } finally {
-        this.chatLoading = false;
-      }
+      this.chatScrollDown();
+      let out;
+      try { out = await LamparaChat.ask({ buildingId: this.chatOpenFor.id, message: userText, history }); }
+      catch (e) { out = LamparaChat.localAnswer(userText, this.chatOpenFor.id); }
+      this.chatMessages.push({ role: 'assistant', text: out.reply, rooms: out.rooms || [], followups: out.followups || [], offline: !!out.offline });
+      this.chatLoading = false;
+      this.chatScrollDown();
+      if (window.LamparaAudio) LamparaAudio.blip('a');
     },
     formatMessage(text) {
       const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

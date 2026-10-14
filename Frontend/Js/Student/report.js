@@ -97,7 +97,8 @@
       });
       const d = await res.json();
       if (!d.success) throw new Error(d.error || 'Could not send the report.');
-      if (d.urgent) $('s4').querySelector('.rp-sub').textContent = 'Your report is showing to everyone now, marked as not yet checked. The school staff will confirm it.';
+      if (d.downgraded) $('s4').querySelector('.rp-sub').textContent = 'Thank you. Staff will check it first. A report is shown to everyone straight away only when it has a photo, your location, and you are at the place.';
+      else if (d.urgent) $('s4').querySelector('.rp-sub').textContent = 'Your report is showing to everyone now, marked as not yet checked. The school staff will confirm it.';
       show('s4');
     } catch (e) {
       err.textContent = e.message || 'Could not send the report.'; err.hidden = false;

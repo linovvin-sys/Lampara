@@ -1,0 +1,23 @@
+/* The Ask page: a night scene behind a full-height chat. The chat pieces themselves live in Css/chat-pixel.css. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: linear-gradient(180deg, var(--t-night, #0f1138) 0%, var(--t-sky2, #1b1f6e) 60%, var(--t-blue, #2e3192) 100%); background-attachment: fixed; font-family: 'Outfit', system-ui, sans-serif; color: #fff; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ask-bg { position: fixed; inset: 0; z-index: 0; --ps-city-h: min(18vh, 10rem); }
+.ask { position: relative; z-index: 1; max-width: 40rem; margin: 0 auto; height: 100dvh; display: flex; flex-direction: column; }
+
+.ask-top { position: relative; display: flex; align-items: center; gap: 0.7rem; padding: max(0.7rem, env(safe-area-inset-top)) 0.9rem 0.9rem; background: var(--ch-night); }
+.ask-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: repeating-linear-gradient(90deg, var(--t-accent, #ffd100) 0 14px, transparent 14px 22px); }
+.ask-title { flex: 1; min-width: 0; }
+.ask-title h1 { margin: 0; font: 700 1.2rem/1.2 var(--ch-font); }
+.ask-title p { margin: 0.1rem 0 0; display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: rgba(255, 255, 255, 0.75); }
+.ask-dot { width: 0.5rem; height: 0.5rem; background: #22c55e; flex: none; }
+.ask-dot.off { background: var(--t-accent, #ffd100); }
+.ch-icon:disabled { opacity: 0.45; cursor: default; }
+
+.ask-scope { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.9rem; }
+.ask-scope label { flex: none; font: 600 0.85rem var(--ch-font); color: var(--t-cream2, #fff3b8); }
+.ask-scope select { flex: 1; min-width: 0; min-height: 2.75rem; padding: 0 0.8rem; border: 0; background: var(--ch-cream); color: var(--t-ink, #15173f); font: 600 0.92rem var(--ch-font); clip-path: var(--ch-px-s); box-shadow: inset 0 -4px 0 rgba(22, 24, 80, 0.2); }
+.ask-scope select:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--t-accent, #ffd100); }
+
+.ask-main { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.ask .ch-composer { flex: none; }

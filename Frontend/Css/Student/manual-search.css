@@ -7,7 +7,7 @@
   --green-700: var(--blue-700);
   --moss-100:  var(--yellow-100);
   --moss-500:  var(--yellow-700);
-  --navy: #15173f;
+  --navy: var(--t-ink, #15173f);
 }
 
 * { box-sizing: border-box; }
@@ -101,7 +101,7 @@ body { font-family: 'Outfit', sans-serif; color: var(--ink); background: #f6f6fb
 .offline-note p { margin: 0; font-size: 0.8125rem; color: #5b4800; line-height: 1.5; }
 
 .help-line { margin: 0 1rem 1rem; padding: 0.8rem 1rem; border-radius: 1rem; background: #fff; border: 1px solid var(--line); font-size: 0.9rem; line-height: 1.5; color: var(--ink); }
-.help-line a { color: var(--blue-700, #23267a); font-weight: 800; }
+.help-line a { color: var(--blue-700, var(--t-blue2, #23267a)); font-weight: 800; }
 
-.room-sub { margin-top: 0.1rem; font-size: 0.9rem; font-weight: 600; color: var(--blue-700, #23267a); overflow-wrap: anywhere; }
+.room-sub { margin-top: 0.1rem; font-size: 0.9rem; font-weight: 600; color: var(--blue-700, var(--t-blue2, #23267a)); overflow-wrap: anywhere; }
 .room-sub mark { background: var(--yellow-400); color: inherit; border-radius: 0.2rem; padding: 0 0.1rem; }

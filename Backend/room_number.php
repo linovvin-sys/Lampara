@@ -32,15 +32,46 @@ function compact_room_number($value)
 // SQL that gives the same key for a column, so lookups can compare in the database.
 const ROOM_NUMBER_COMPACT_SQL = "REPLACE(REPLACE(UPPER(r.room_number), ' ', ''), '-', '')";
 
-// Is this number already used by another room (ignoring case, spaces and dashes)?
-function room_number_taken($conn, $roomNumber, $exceptId = 0)
+// Is this number already used by another room IN THE SAME BUILDING (ignoring case, spaces and dashes)?
+// Two buildings may both have a 1101: a room is its building plus its number. For an existing room ($exceptId) the building is
+// looked up; for a new one pass $buildingId.
+function room_number_taken($conn, $roomNumber, $exceptId = 0, $buildingId = null)
 {
     if ($roomNumber === null) return false;
+    ensure_room_number_key($conn);
+    if ($buildingId === null && $exceptId > 0) {
+        $q = $conn->prepare('SELECT building_id FROM rooms WHERE id = ?');
+        $q->bind_param('i', $exceptId);
+        $q->execute();
+        $row = $q->get_result()->fetch_row();
+        $q->close();
+        $buildingId = $row ? (int) $row[0] : null;
+    }
     $key = compact_room_number($roomNumber);
-    $stmt = $conn->prepare("SELECT 1 FROM rooms r WHERE " . ROOM_NUMBER_COMPACT_SQL . " = ? AND r.id <> ? LIMIT 1");
-    $stmt->bind_param('si', $key, $exceptId);
+    $stmt = $conn->prepare("SELECT 1 FROM rooms r WHERE " . ROOM_NUMBER_COMPACT_SQL . " = ? AND r.id <> ? AND r.building_id <=> ? LIMIT 1");
+    $stmt->bind_param('sii', $key, $exceptId, $buildingId);
     $stmt->execute();
     $taken = (bool) $stmt->get_result()->fetch_row();
     $stmt->close();
     return $taken;
+}
+
+// The database used to allow each room number once across the whole school. It is now once per building: swaps the old unique key for
+// (building_id, room_number) the first time a write needs it (a no-op afterwards, and safe to run on a database that is already updated).
+function ensure_room_number_key($conn)
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $old = false; $new = false;
+    $r = $conn->query('SHOW INDEX FROM rooms');
+    while ($i = $r->fetch_assoc()) {
+        if ($i['Key_name'] === 'room_number_unique') $old = true;
+        if ($i['Key_name'] === 'room_building_number') $new = true;
+    }
+    if ($new && !$old) return;
+    $parts = [];
+    if ($old) $parts[] = 'DROP INDEX room_number_unique';
+    if (!$new) $parts[] = 'ADD UNIQUE KEY room_building_number (building_id, room_number)';
+    try { $conn->query('ALTER TABLE rooms ' . implode(', ', $parts)); } catch (Throwable $e) { /* writes still work; the per-building check above is the guard */ }
 }

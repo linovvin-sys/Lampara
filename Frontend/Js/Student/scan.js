@@ -17,7 +17,10 @@ createApp({
   data() {
     return {
       stage: 'scan', scanning: false, manualNumber: '', room: null, reported: false,
-      cameraReady: false, cameraFailed: false, detectedNumber: null, aiReadFailed: false, cameraStream: null,
+      pickRooms: [], altRooms: [], cameraReady: false, cameraFailed: false, detectedNumber: null, aiReadFailed: false, cameraStream: null,
+      sceneHtml: window.LamparaPixelScene ? LamparaPixelScene.html({ walker: false, moon: false, stars: 36, seed: 19 }) : '',
+      hasMusic: !!window.LamparaAudio,
+      musicOn: window.LamparaAudio ? LamparaAudio.enabled() : false,
       onCampus: null, // null = still checking, true/false once GPS resolves
       liveBox: null, // screen-space {left, top, width, height} of the currently detected text, or null
       destQuery: '', destResults: [], destination: null, destResultsTruncated: false,
@@ -55,6 +58,16 @@ createApp({
     };
   },
   async mounted() {
+    // Music on the screen where you pick a destination (right after a scan, or "Where are you now?" from Manual Search); it ends
+    // when you leave that screen. Phones keep sound back until a tap, so the first tap here also starts it.
+    if (window.LamparaAudio) {
+      LamparaAudio.mute(!this.musicOn);
+      const sync = () => { if (this.stage === 'result' && this.musicOn && !document.hidden) LamparaAudio.play('pick'); else LamparaAudio.stop(); };
+      this.$watch('stage', sync);
+      document.addEventListener('pointerdown', () => { if (this.stage === 'result' && this.musicOn) LamparaAudio.play('pick'); }, { capture: true });
+      document.addEventListener('visibilitychange', sync);
+      window.addEventListener('pagehide', () => LamparaAudio.stop());
+    }
     // Entered from Manual Search (no camera involved at all) — the tapped
     // room is the DESTINATION, not "where you are" (there was no scan to
     // establish that). Jump straight to the result screen and ask for the
@@ -185,9 +198,23 @@ createApp({
     // Link to the indoor AR guide, or null when it can't work yet: it needs a
     // real route, and every floor on that route calibrated (meters per plan
     // unit + which way is north) — see the admin Floor Calibration page.
-    // Destination in a different building: the three-step route (leave this one, walk outside, find the room).
+    // The animated floor-plan route (Student/journey.php). Same building: one route from this room to the destination.
+    // Another building: the three-step route (leave this one, walk outside, find the room).
+    // What to offer before anyone types: the rooms on the floor just scanned, then the offices people look for most.
+    // Only rooms with a spot on the floor plan, so the animated route can always be drawn.
+    quickGroups() {
+      if (!this.room) return [];
+      const all = (LamparaCache.getRooms() || []).filter((r) => r.map_x !== null && r.map_x !== undefined && r.id !== this.room.id);
+      const num = (a, b) => String(a.room_number || '').localeCompare(String(b.room_number || ''), undefined, { numeric: true });
+      const here = all.filter((r) => String(r.building_id) === String(this.room.building_id) && r.floor === this.room.floor).sort(num).slice(0, 5);
+      const offices = all.filter((r) => r.category === 'office' && !here.includes(r)).sort((a, b) => String(a.room_name).localeCompare(String(b.room_name))).slice(0, 6);
+      const out = [];
+      if (here.length) out.push({ title: 'On this floor', rooms: here, here: true });
+      if (offices.length) out.push({ title: 'Offices around campus', rooms: offices, here: false });
+      return out;
+    },
     journeyUrl() {
-      if (!this.room || !this.destination || this.room.building_id === this.destination.building_id) return null;
+      if (!this.room || !this.destination || String(this.room.id) === String(this.destination.id)) return null;
       if (this.room.map_x === null || this.room.map_y === null || this.destination.map_x === null || this.destination.map_y === null) return null;
       return `journey.php?from=${this.room.id}&to=${this.destination.id}`;
     },
@@ -347,7 +374,8 @@ createApp({
       canvas.getContext('2d').drawImage(video, 0, 0);
       return canvas.toDataURL('image/jpeg', 0.85);
     },
-    async lookupRoom(roomNumber) {
+    // Every room with this number. Two buildings can both have a 1101, so this can be more than one: see applyMatches().
+    async lookupRooms(roomNumber) {
       // "1101a", "1101-A" and "1101 - A" are all the same room.
       roomNumber = RoomNumber.normalize(roomNumber) || String(roomNumber).trim();
       if (navigator.onLine) {
@@ -356,13 +384,52 @@ createApp({
           const data = await res.json();
           if (data.success) {
             if (data.rooms.length) LamparaCache.mergeRooms(data.rooms);
-            return data.rooms.length ? data.rooms[0] : null;
+            return data.rooms;
           }
         } catch (e) { /* fall through to cache */ }
       }
       const key = RoomNumber.compact(roomNumber);
-      return LamparaCache.getRooms().find((r) => r.room_number && RoomNumber.compact(r.room_number) === key) || null;
+      return LamparaCache.getRooms().filter((r) => r.room_number && RoomNumber.compact(r.room_number) === key);
     },
+    // A good-enough GPS fix, or null (no permission, no signal, too slow): the tiebreaker then falls back to the last scan, then asks.
+    quickFix() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }), () => resolve(null), { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 });
+      });
+    },
+    // The same room number in several buildings: work out which one the student is in.
+    //   1. GPS: clearly nearest to one of those buildings (within 150 m, and the next one at least 40 m farther)
+    //   2. the building of their last scan (they are most likely still there; "Not this building?" is on the result)
+    //   3. otherwise ask. Never guess between buildings without one of these.
+    async pickBuilding(list) {
+      const fix = await this.quickFix();
+      if (fix && fix.acc <= 80) {
+        const bs = LamparaCache.getBuildings() || [];
+        const dist = (b) => { const R = 6371008.8, r = (d) => d * Math.PI / 180, dLat = r(b.lat - fix.lat), dLng = r(b.lng - fix.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(fix.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.min(1, Math.sqrt(h))); };
+        const ranked = list.map((room) => { const b = bs.find((x) => String(x.id) === String(room.building_id)); return { room, d: b && b.lat != null ? dist(b) : Infinity }; }).sort((a, b) => a.d - b.d);
+        if (ranked[0].d <= 150 && (ranked.length < 2 || ranked[1].d - ranked[0].d >= 40)) return ranked[0].room;
+      }
+      const mine = LamparaCache.getMyFloor();
+      const last = mine && list.find((r) => String(r.building_id) === String(mine.building_id));
+      return last || null;
+    },
+    // Sets the result for a scanned or typed number: the room, or the "which building?" question when it is not clear.
+    async applyMatches(list) {
+      this.pickRooms = []; this.altRooms = []; this.room = null;
+      if (list.length > 1) {
+        const r = await this.pickBuilding(list);
+        if (r) { this.room = r; this.altRooms = list.filter((x) => x.id !== r.id); }
+        else this.pickRooms = list;
+      } else this.room = list[0] || null;
+      if (this.room) { LamparaCache.setMyFloor(this.room); this.noteScan(); }
+    },
+    chooseBuilding(r) {
+      this.altRooms = this.pickRooms.filter((x) => x.id !== r.id); this.pickRooms = []; this.room = r;
+      LamparaCache.setMyFloor(r); this.noteScan();
+    },
+    notThisBuilding() { this.pickRooms = [this.room, ...this.altRooms]; this.altRooms = []; this.room = null; },
+    buildingLabel(r) { return (r.building_number ? 'Bldg ' + r.building_number + ' \u00b7 ' : '') + r.building_name; },
     // Used by the Manual Search entry point (?room=<id>) — fetches the full
     // directory rather than a single-room endpoint (there isn't a by-id one),
     // which conveniently also refreshes the whole offline room cache.
@@ -381,6 +448,7 @@ createApp({
     },
     async performScan() {
       this.detectedNumber = null;
+      this.pickRooms = []; this.altRooms = [];
       this.aiReadFailed = false;
       const typedNumber = this.manualNumber.trim();
 
@@ -389,8 +457,7 @@ createApp({
       if (typedNumber) {
         this.scanning = true;
         try {
-          this.room = await this.lookupRoom(typedNumber);
-          if (this.room) LamparaCache.setMyFloor(this.room);
+          await this.applyMatches(await this.lookupRooms(typedNumber));
         } finally {
           this.scanning = false;
           this.stage = 'result';
@@ -429,8 +496,7 @@ createApp({
           return;
         }
         this.detectedNumber = data.room_number;
-        this.room = await this.lookupRoom(data.room_number);
-        if (this.room) LamparaCache.setMyFloor(this.room);
+        await this.applyMatches(await this.lookupRooms(data.room_number));
         this.stage = 'result';
       } catch (e) {
         alert("Couldn't reach the AI service — check your connection and try again.");
@@ -479,7 +545,24 @@ createApp({
       this.destQuery = d.room_number + ' — ' + d.room_name;
       this.destResults = [];
       this.destResultsTruncated = false;
+      if (this.openAnimatedRoute()) return;
       this.loadFloorPlansForRoute();
+    },
+    // Reading a room sign counts toward the weekly quests (each different room once).
+    toggleMusic() {
+      this.musicOn = !this.musicOn;
+      LamparaAudio.setEnabled(this.musicOn);
+      LamparaAudio.mute(!this.musicOn);
+      if (this.musicOn && this.stage === 'result') LamparaAudio.play('pick'); else LamparaAudio.stop();
+    },
+    noteScan() { if (window.LamparaMascots) LamparaMascots.event('scan', String(this.room.id)); },
+    // Once both ends are known, the animated floor-plan route (Student/journey.php) is the way to show it, same building or not.
+    // The older plan viewer below stays as the fallback for rooms that have no spot on the plan yet.
+    openAnimatedRoute() {
+      const url = this.journeyUrl;
+      if (!url) return false;
+      location.href = url;
+      return true;
     },
     // Planning-mode counterpart to searchDestinations — same debounced,
     // offline-fallback pattern, just filling in "where you are" instead of
@@ -510,6 +593,7 @@ createApp({
       LamparaCache.setMyFloor(r);
       this.originQuery = r.room_number + ' — ' + r.room_name;
       this.originResults = [];
+      if (this.destination && this.openAnimatedRoute()) return;
       this.loadFloorPlansForRoute();
     },
     // Planning-mode only — goes back to "where are you now?" without losing

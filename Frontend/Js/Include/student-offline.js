@@ -17,7 +17,7 @@
 const StudentOffline = (() => {
   const API = new URL('../../../Backend/api/', location.href).href;
   const PAGES = ['../Public/index.php', '../Public/guide.php', '../Public/guide-ar.php',
-                 '../Student/scan.php', '../Student/manual-search.php', '../Student/indoor-ar.php', '../Student/where.php', '../Student/journey.php', '../Student/report.php', '../Public/map.php'];
+                 '../Student/scan.php', '../Student/manual-search.php', '../Student/indoor-ar.php', '../Student/where.php', '../Student/journey.php', '../Student/report.php', '../Public/map.php', '../Public/ask.php'];
   const DATA_FRESH_MS = 60 * 60 * 1000;        // don't re-download the directory more than hourly on page loads
   const PAGES_EVERY_MS = 6 * 60 * 60 * 1000;
   const HEARTBEAT_MS = 30000;
@@ -131,6 +131,16 @@ const StudentOffline = (() => {
           }
         }
       } catch (e) { /* maps are optional: the rest of the directory still saves */ }
+
+      // Room and building photos (shown on the room details card): saved too, so they still show with no signal.
+      if (workerKeepsImages) {
+        for (const x of [...b.buildings, ...r.rooms]) {
+          if (!x.photo_path) continue;
+          parts.push(x.photo_path);
+          const u = new URL('../../' + x.photo_path, location.href).href;
+          if (!(await caches.match(u))) await fetch(u).catch(() => {});
+        }
+      }
 
       const signature = hash(parts.join('|'));
       const previous = getLS(SIG_KEY);

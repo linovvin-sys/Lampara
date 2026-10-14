@@ -1,0 +1,87 @@
+/* Manual search as a game screen: the pixel night scene behind, cream pixel cards for rooms, chunky coloured buttons.
+   Loaded after manual-search.css and only re-skins it. Motion is transform and opacity only. */
+:root {
+  --px: polygon(0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
+  --px-s: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --pxf: 'Pixelify Sans', 'Outfit', system-ui, sans-serif; --cream: var(--t-cream, #fff8d6); --ok: #22c55e; --blue: var(--t-blue, #2e3192);
+}
+html, body { background: linear-gradient(180deg, var(--t-night, #0f1138) 0%, var(--t-sky2, #1b1f6e) 60%, var(--t-blue, #2e3192) 100%); background-attachment: fixed; }
+.ms-bg { position: fixed; inset: 0; z-index: 0; --ps-city-h: min(22vh, 12rem); }
+.shell { position: relative; z-index: 1; background: transparent; }
+
+/* ---- top bar ---- */
+.topbar { background: var(--t-night, #0f1138); }
+.topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: repeating-linear-gradient(90deg, var(--t-accent, #ffd100) 0 14px, transparent 14px 22px); }
+.topbar h1 { font-family: var(--pxf); font-weight: 700; letter-spacing: 0.01em; }
+.back-btn { width: 2.75rem; height: 2.75rem; border-radius: 0; clip-path: var(--px-s); background: var(--t-light, #dcddf4); color: var(--navy); box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.25); }
+.back-btn:hover { background: #fff; }
+.top-sub .dot { border-radius: 0; }
+
+.ms-buddy { margin: 0.2rem 0 0.7rem; }
+.ms-hud { margin-bottom: 1rem; }
+
+/* ---- search and filters ---- */
+.search-box { border: 3px solid var(--t-night, #0f1138); border-radius: 0; clip-path: var(--px); background: #fff; box-shadow: none; }
+.search-box:focus-within { border-color: var(--t-accent, #ffd100); }
+.search-clear { border-radius: 0; clip-path: var(--px-s); }
+.filter-pill { border: 0; border-radius: 0; clip-path: var(--px-s); background: var(--cream); color: var(--navy); font-family: var(--pxf); font-weight: 600; box-shadow: inset 0 -4px 0 rgba(22, 24, 80, 0.2); transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.filter-pill:hover { background: var(--t-cream2, #fff3b8); color: var(--navy); }
+.filter-pill:active { transform: scale(0.96); }
+.filter-pill.is-active { background: var(--t-accent, #ffd100); color: var(--navy); box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); }
+.filter-pill:focus-visible, .act:focus-visible, .back-btn:focus-visible, .here-pick:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #fff; }
+
+/* ---- "You are on" ---- */
+.here-card { border: 3px solid var(--t-night, #0f1138); border-radius: 0; clip-path: var(--px); background: var(--cream); box-shadow: inset 0 -6px 0 rgba(22, 24, 80, 0.1); }
+.here-label { font-family: var(--pxf); color: var(--blue); }
+.here-pick { border: 0; border-radius: 0; clip-path: var(--px-s); background: var(--navy); color: #fff; font-family: var(--pxf); font-weight: 600; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.3); }
+.here-opt { border-radius: 0; }
+.here-opt.on { background: var(--t-accent, #ffd100); border-color: var(--t-accent, #ffd100); }
+.here-hint { color: #4b4f6a; }
+
+/* ---- results ---- */
+.result-count { color: rgba(255, 255, 255, 0.85); font-family: var(--pxf); }
+.group-head { color: #fff; font-family: var(--pxf); font-weight: 700; }
+.group-head .count { border: 0; border-radius: 0; clip-path: var(--px-s); background: var(--t-cream2, #fff3b8); color: var(--navy); }
+.here-tag { border-radius: 0; clip-path: var(--px-s); font-family: var(--pxf); }
+.empty-state { color: rgba(255, 255, 255, 0.8); }
+.empty-state strong { color: #fff; font-family: var(--pxf); }
+.reset-btn { border-radius: 0; clip-path: var(--px-s); background: var(--t-accent, #ffd100); color: var(--navy); font-family: var(--pxf); box-shadow: inset 0 -5px 0 var(--t-accent-dark, #d4ab00); }
+
+.room-card { border: 3px solid var(--t-night, #0f1138); border-radius: 0; clip-path: var(--px); background: var(--cream); box-shadow: inset 0 -6px 0 rgba(22, 24, 80, 0.1); animation: ms-rise 380ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+@keyframes ms-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.room-icon { border-radius: 0; clip-path: var(--px-s); background: var(--t-accent, #ffd100); box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); }
+.room-icon.kind-office { background: #8f93e6; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.25); }
+.room-icon.kind-cr { background: #7dd3fc; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2); }
+.room-icon.kind-canteen { background: #fdba74; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2); }
+.room-thumb { border-radius: 0; clip-path: var(--px-s); border: 0; }
+.room-name { font-family: var(--pxf); font-weight: 700; }
+.room-name mark, .room-sub mark { background: var(--t-accent, #ffd100); border-radius: 0; }
+.floor-hint { border-radius: 0; clip-path: var(--px-s); font-family: var(--pxf); font-weight: 600; }
+
+/* the three things you can do with a room: one colour each */
+.act { border: 0; border-radius: 0; clip-path: var(--px-s); font-family: var(--pxf); font-weight: 600; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.28); transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.act:active { transform: scale(0.96); }
+.act-inside { background: var(--t-accent, #ffd100); color: var(--navy); box-shadow: inset 0 -5px 0 var(--t-accent-dark, #d4ab00); }
+.act-inside:hover { background: var(--t-accent-hover, #ffdb2e); }
+.act-outside { background: var(--blue); color: #fff; }
+.act-outside:hover { filter: none; background: #3a3eae; }
+.act-map { background: var(--ok); color: var(--navy); border: 0; }
+.act-map:hover { background: #3ad672; border: 0; }
+
+/* ---- notes at the bottom sit on dark pixel panels ---- */
+.help-line, .offline-note { border: 0; border-radius: 0; clip-path: var(--px); background: rgba(15, 17, 56, 0.92); color: rgba(255, 255, 255, 0.9); }
+.help-line a { color: var(--t-accent, #ffd100); }
+.offline-note { align-items: flex-start; }
+.offline-note p { color: rgba(255, 255, 255, 0.85); }
+.offline-note svg { color: var(--t-accent, #ffd100); }
+
+@media (prefers-reduced-motion: reduce) { .room-card { animation: none; } .filter-pill, .act { transition: none; } }
+
+/* gates and exits */
+.room-icon.kind-gate { background: #7dd3fc; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2); }
+.gate-kind { display: inline-block; padding: 0.05rem 0.5rem; clip-path: var(--px-s); font-family: var(--pxf); font-weight: 600; background: var(--t-light, #dcddf4); color: var(--navy); }
+.gate-kind.is-people { background: #bbf7d0; } .gate-kind.is-vehicles { background: #fdba74; } .gate-kind.is-both { background: #fde68a; }
+.more-btn { display: block; width: 100%; margin: 1rem 0 0.4rem; min-height: 3rem; border: 0; clip-path: var(--px-s); background: var(--blue); color: #fff; font: 600 1rem var(--pxf); box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.3); cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.more-btn:active { transform: scale(0.97); }
+.more-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #fff; }
+@media (prefers-reduced-motion: reduce) { .more-btn { transition: none; } }

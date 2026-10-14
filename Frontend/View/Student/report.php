@@ -9,9 +9,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Report a problem</title>
-<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=2">
-<link rel="shortcut icon" href="../../assets/favicon.ico?v=2">
+<link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
+<link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
 <meta name="theme-color" content="#161850">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,7 +63,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
     <select id="bld"><option value="">Not at a building (on the walkway)</option></select>
     <label class="rp-label" for="note">Anything we should know? (optional)</label>
     <textarea id="note" maxlength="255" rows="3" placeholder="For example: the gate is locked"></textarea>
-    <label class="rp-urgent" for="urgent"><input type="checkbox" id="urgent"><span><b>This is dangerous or urgent</b><small>It will show to everyone straight away, marked "not yet checked by staff".</small></span></label>
+    <label class="rp-urgent" for="urgent"><input type="checkbox" id="urgent"><span><b>This is dangerous or urgent</b><small>It shows to everyone straight away, marked "not yet checked by staff", when it has a photo and you are at the place. Please use it only for real danger.</small></span></label>
     <p class="rp-err" id="err" hidden></p>
     <button type="button" class="rp-btn rp-ok" id="send">Send report</button>
   </section>
@@ -81,5 +81,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 <script src="../../Js/Student/report.js?v=<?= $pageJsVer ?>"></script>
 <script src="../../Js/Include/privacy-notice.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/privacy-notice.js') ?>"></script>
+<script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
+<script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
 </body>
 </html>

@@ -15,54 +15,13 @@ function floorRank(name) {
   return null;
 }
 
-// ---- Smarter search: every word must match somewhere (name, number, building, floor, kind), a typo is forgiven,
-// and results are ranked so the best match is first. Runs on the cached directory, so it also works offline.
-const KIND_WORDS = { office: 'office offices', classroom: 'classroom classrooms class lab laboratory room', cr: 'cr comfort restroom bathroom toilet', canteen: 'canteen cafeteria food eat' };
-const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-function within1(a, b) {            // edit distance <= 1 (typo tolerance)
-  if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0, j = 0, miss = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { i++; j++; continue; }
-    if (++miss > 1) return false;
-    if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++; }
-  }
-  return miss + (a.length - i) + (b.length - j) <= 1;
-}
-// How well one word fits one room: 0 = no match. Higher is better.
-function wordScore(w, r) {
-  const name = norm(r.room_name), num = RoomNumber.compact(r.room_number).toLowerCase();
-  const nameWords = name.split(/[^a-z0-9]+/).filter(Boolean);
-  if (num && (num === w || RoomNumber.matches(r.room_number, w))) return num === w ? 9 : 7;
-  if (name === w) return 10;
-  if (nameWords.some((x) => x === w)) return 8;
-  if (nameWords.some((x) => x.startsWith(w))) return 6;
-  if (name.includes(w)) return 4;
-  const sub = norm(r.subtitle);
-  if (sub && sub.includes(w)) return 5;
-  const bld = norm(r.building_name), flr = norm(r.floor), kind = KIND_WORDS[r.category] || KIND_WORDS[r.room_type] || '';
-  if (bld.includes(w) || flr.includes(w) || kind.split(' ').some((x) => x.startsWith(w))) return 3;
-  if (w.length >= 4 && [...nameWords, ...bld.split(/[^a-z0-9]+/)].some((x) => within1(w, x))) return 2;
-  return 0;
-}
-// Cut the matched words out of a name so the page can bold them.
-function highlight(text, q) {
-  const words = norm(q).split(/\s+/).filter(Boolean);
-  const src = String(text || ''), low = norm(src);
-  if (!words.length || low.length !== src.length) return [{ t: src, hit: false }];
-  const mark = new Array(src.length).fill(false);
-  words.forEach((w) => { let i = low.indexOf(w); while (i !== -1) { for (let k = i; k < i + w.length; k++) mark[k] = true; i = low.indexOf(w, i + w.length); } });
-  const out = [];
-  for (let i = 0; i < src.length; i++) {
-    if (out.length && out[out.length - 1].hit === mark[i]) out[out.length - 1].t += src[i];
-    else out.push({ t: src[i], hit: mark[i] });
-  }
-  return out;
-}
+// ---- Smarter search: shared with the walking guide (Js/Include/room-search.js): every word must match somewhere, a partial room
+// number works, filler like "room" is ignored, initials work and a typo is forgiven.
+const { norm, wordScore, highlight } = RoomSearch;
 
 createApp({
   data() {
-    return { q: '', filterType: 'all', rooms: [], loading: true, isOffline: !navigator.onLine, cachedAt: null, me: null, picking: false, recentIds: [] };
+    return { hudStrip: window.LamparaGameHud ? LamparaGameHud.strip({ href: '../Public/guide-ar.php?shop=1' }) : '', gates: [], qd: '', cap: 30, hudBuddy: window.LamparaGameHud ? LamparaGameHud.buddy('Looking for a room? Type its name or number.|Tap Find inside to see the way on the floor plan.|Tap Walk there to start outside.|Every room you reach earns points!') : '', q: '', filterType: 'all', rooms: [], loading: true, isOffline: !navigator.onLine, cachedAt: null, me: null, picking: false, recentIds: [] };
   },
   computed: {
     // Every building + floor in the directory, in building then floor order: the choices for "You are on".
@@ -76,20 +35,35 @@ createApp({
         String(a.building_name).localeCompare(String(b.building_name)) || (floorRank(a.floor) ?? 99) - (floorRank(b.floor) ?? 99));
     },
     meKey() { return this.me ? this.me.building_id + '|' + this.me.floor : ''; },
-    searching() { return this.q.trim().length > 0; },
+    searching() { return this.qd.trim().length > 0; },
     // Somewhere to ask when search is not enough: an information-type office from the directory.
     helpRoom() { return this.rooms.find((r) => /admission|information|registrar/i.test(r.room_name)) || null; },
     // What the list shows: one ranked list while searching, otherwise the rooms you used last, then every building.
-    sections() {
+    allSections() {
       if (this.searching) return [{ id: 'results', name: '', rooms: this.filtered }];
       const recent = this.filterType === 'all' ? this.recentIds.map((id) => this.rooms.find((r) => String(r.id) === String(id))).filter(Boolean) : [];
       return (recent.length ? [{ id: 'recent', name: 'Recent', rooms: recent, recent: true }] : []).concat(this.groups);
+    },
+    // Draw only the first `cap` cards (more on request): a long directory stays quick to scroll and to type into.
+    sections() {
+      let left = this.cap;
+      return this.allSections.map((g) => { const rooms = g.rooms.slice(0, Math.max(0, left)); left -= rooms.length; return { ...g, rooms }; }).filter((g) => g.rooms.length);
+    },
+    totalCards() { return this.allSections.reduce((n, g) => n + g.rooms.length, 0); },
+    shownCards() { return this.sections.reduce((n, g) => n + g.rooms.length, 0); },
+    // Campus gates that match what was typed (or all of them under the "Gates and exits" filter). People can look for them
+    // as "entrance", "exit", "gate", "vehicle", "car", "pedestrian"...
+    gateMatches() {
+      const words = RoomSearch.words(this.qd);
+      if (this.filterType !== 'all' && this.filterType !== 'gate') return [];
+      if (this.filterType === 'all' && !words.length) return [];
+      return this.gates.filter((g) => words.every((w) => norm(g.words).includes(w)));
     },
     // Rooms that pass the kind filter and the search words; best match first while searching.
     filtered() {
       let list = this.rooms;
       if (this.filterType !== 'all') list = list.filter((r) => (r.category || (r.room_type === 'office' ? 'office' : 'classroom')) === this.filterType);
-      const words = norm(this.q).split(/\s+/).filter(Boolean);
+      const words = RoomSearch.words(this.qd);
       if (!words.length) return list;
       const scored = [];
       list.forEach((r) => {
@@ -115,12 +89,18 @@ createApp({
     },
     kinds() {
       const has = (k) => this.rooms.some((r) => (r.category || (r.room_type === 'office' ? 'office' : 'classroom')) === k);
-      return [['all', 'All'], ['office', 'Offices'], ['classroom', 'Classrooms and labs'], ['cr', 'Restrooms'], ['canteen', 'Canteen']].filter(([k]) => k === 'all' || has(k));
+      return [['all', 'All'], ['office', 'Offices'], ['classroom', 'Classrooms and labs'], ['cr', 'Restrooms'], ['canteen', 'Canteen'], ['gate', 'Gates and exits']].filter(([k]) => k === 'all' || (k === 'gate' ? this.gates.length > 0 : has(k)));
     }
   },
   async mounted() {
+    if (window.LamparaMascots && window.LamparaGameHud) LamparaMascots.onChange(() => { this.hudStrip = LamparaGameHud.strip({ href: '../Public/guide-ar.php?shop=1' }); });
     this.me = LamparaCache.getMyFloor();
     try { this.recentIds = JSON.parse(localStorage.getItem('lampara_recent_rooms') || '[]'); } catch (e) { this.recentIds = []; }
+    // type-ahead: wait a moment after the last keystroke before re-searching, and start the list from the top again
+    this.$watch('q', (v) => { clearTimeout(this._qt); this._qt = setTimeout(() => { this.qd = v; this.cap = 30; }, v ? 140 : 0); });
+    this.$watch('filterType', () => { this.cap = 30; });
+    // the campus gates, from the walkway map (kept for offline like the room directory)
+    if (window.LamparaGates) LamparaCache.loadCampusGraph('../../../Backend/api/campus-graph.php').then((g) => { this.gates = LamparaGates.list(g); }).catch(() => {});
     this.loadFromCache();
     window.addEventListener('online', () => { this.isOffline = false; this.search(); });
     window.addEventListener('offline', () => { this.isOffline = true; });
@@ -135,7 +115,7 @@ createApp({
         localStorage.setItem('lampara_recent_rooms', JSON.stringify(ids));
       } catch (e) { /* storage blocked */ }
     },
-    hl(text) { return highlight(text, this.q); },
+    hl(text) { return highlight(text, this.qd); },
     clearSearch() { this.q = ''; this.$refs.box && this.$refs.box.focus(); },
     chooseFloor(c) {
       this.me = { building_id: c.building_id, building_name: c.building_name, floor: c.floor };
