@@ -26,7 +26,7 @@ include __DIR__ . '/../Include/buildings-head.php';
       <div class="page-head">
         <div>
           <h1>Building editor</h1>
-          <p>Register a building, its floors and floor plans, walkable paths, and QR anchors.</p>
+          <p>Register a building, its floors and floor plans, and walkable paths.</p>
         </div>
         <a class="btn btn-secondary" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a>
       </div>
@@ -319,28 +319,6 @@ include __DIR__ . '/../Include/buildings-head.php';
                           <h4 class="side-title u-e3b1d6">Points ({{ pathPointList.length }})</h4>
                           <button type="button" class="btn-remove-all" :disabled="pathLocked || !pathPointList.length" @click="removeAllPathNodes">Remove all</button>
                         </div>
-                        <!-- One AR anchor QR per FLOOR, not per point — this is what
-                             the indoor AR guide scans to establish its real starting
-                             position instead of guessing from the camera's own pose.
-                             Pick the point first (select it below), then set it. -->
-                        <div class="tinted-card" style="padding:0.7rem 0.8rem; margin-bottom:0.75rem;">
-                          <p class="u-c7d2f6">AR anchor for this floor</p>
-                          <template v-if="floorQrAnchor">
-                            <p class="u-32e0ef">Set at <strong>{{ floorQrAnchor.label || 'this point' }}</strong>.</p>
-                            <div class="u-a6db54">
-                              <button type="button" class="btn btn-secondary u-6196eb" @click="showFloorQr">View / print</button>
-                              <button type="button" class="btn-link u-615d80" @click="removeFloorQr">Remove</button>
-                            </div>
-                          </template>
-                          <template v-else>
-                            <p class="u-32e0ef">
-                              None yet. Select a point below (ideally the entrance or a landing), then set it as this floor's one AR anchor.
-                            </p>
-                            <button type="button" class="btn btn-secondary u-6196eb" :disabled="selectedNodeId === null || qrBusy" @click="setFloorQr">
-                              {{ qrBusy ? 'Generating…' : (selectedNodeId === null ? 'Select a point first' : 'Set selected point as AR anchor') }}
-                            </button>
-                          </template>
-                        </div>
                         <p class="sr-only" role="status" aria-live="polite">{{ pathLive }}</p>
                         <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem; margin-bottom:0.6rem;" :disabled="pathLocked" @click="addPathNodeAtCenter">Add point at plan centre</button>
                         <div v-if="pathUndo" class="undo-bar" role="status">
@@ -420,28 +398,6 @@ include __DIR__ . '/../Include/buildings-head.php';
               </div>
             </teleport>
 
-            <teleport to="body">
-              <div class="modal-overlay" :class="{ 'is-open': showingFloorQr }" :aria-hidden="!showingFloorQr">
-                <div class="modal-backdrop" @click="showingFloorQr = false"></div>
-                <div class="modal-sheet" style="max-width:24rem; text-align:center;" role="dialog" aria-modal="true" aria-label="Floor AR anchor QR">
-                  <div class="modal-head">
-                    <h3>{{ pathEditorFloor }} — AR anchor</h3>
-                    <button type="button" class="modal-close" @click="showingFloorQr = false" aria-label="Close">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-                    </button>
-                  </div>
-                  <div class="modal-body u-82c013">
-                    <div class="qr-print-canvas" ref="qrCanvas"></div>
-                    <p class="u-2565fb">
-                      Print this and post it at <strong>{{ floorQrAnchor ? (floorQrAnchor.label || 'this spot') : '' }}</strong>. Scanning it when starting the AR guide on this floor sets the exact starting anchor instead of guessing from the camera.
-                    </p>
-                  </div>
-                  <div class="modal-foot" style="justify-content:flex-end;">
-                    <button type="button" class="btn btn-primary" @click="showingFloorQr = false">Done</button>
-                  </div>
-                </div>
-              </div>
-            </teleport>
 
           </div>
 
