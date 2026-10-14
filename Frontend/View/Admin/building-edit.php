@@ -124,7 +124,7 @@ include __DIR__ . '/../Include/buildings-head.php';
 
                   </div>
                   <div class="bform-map">
-                <div class="field-divider u-5a7715"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>Location</div>
+                <div class="field-divider u-5a7715" data-important><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.1"/></svg>Location</div>
                 <p class="pick-hint">Tap the map to pin the building, then drag the pin to fine-tune. The map is the campus topo export.</p>
                 <div class="pick-map-wrap">
                   <div ref="pickMap" class="pick-map" role="application" aria-label="Map for pinning the building"></div>

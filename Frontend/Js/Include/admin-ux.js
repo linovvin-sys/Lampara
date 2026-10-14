@@ -321,7 +321,7 @@
     }
     if (!form._accBound) { form._accBound = true; form.addEventListener('submit', function () { Object.keys(accOpen).forEach(function (k) { accOpen[k] = true; }); accordion(); }, true); }
     heads.forEach(function (h, i) {
-      var key = h.textContent.trim();
+      var key = h.textContent.replace(/\*/g, '').trim();
       if (!(key in accOpen)) accOpen[key] = i === 0;
       if (!h.classList.contains('acc-head')) {
         h.classList.add('acc-head'); h.setAttribute('role', 'button'); h.tabIndex = 0;
@@ -336,9 +336,35 @@
   // Tapping a section in the jump bar opens it first.
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('.ux-jump a'); if (!a) return;
-    var h = document.getElementById(a.hash.slice(1)); if (h && h.classList.contains('acc-head')) { accOpen[h.textContent.trim()] = true; accordion(); }
+    var h = document.getElementById(a.hash.slice(1)); if (h && h.classList.contains('acc-head')) { accOpen[h.textContent.replace(/\*/g, '').trim()] = true; accordion(); }
   }, true);
   setInterval(accordion, 500);
+
+  /* ================= 5. Required fields get a red asterisk, and each form says what it means ================= */
+  function labelFor(c) {
+    if (c.id) { var l = document.querySelector('label[for="' + c.id.replace(/"/g, '') + '"]'); if (l) return l; }
+    var wrap = c.closest('label'); if (wrap) return wrap.querySelector('span') || wrap;
+    var f = c.closest('.field, .ac-field, .field-row > div'); if (f) { var q = f.querySelector('label'); if (q && !q.contains(c)) return q; }
+    var p = c.previousElementSibling; while (p && p.tagName !== 'LABEL') p = p.previousElementSibling;
+    return p;
+  }
+  function markRequired() {
+    var seen = new Set();
+    document.querySelectorAll('.admin-main input[required], .admin-main select[required], .admin-main textarea[required], .admin-main [data-important]').forEach(function (c) {
+      if (c.type === 'hidden' || c.disabled || c.offsetParent === null && !c.hasAttribute('data-important')) return;
+      var l = c.hasAttribute('data-important') && !/^(INPUT|SELECT|TEXTAREA)$/.test(c.tagName) ? c : labelFor(c);
+      if (!l) return; seen.add(l);
+      if (!l.querySelector(':scope > .req')) { var m = document.createElement('span'); m.className = 'req'; m.setAttribute('aria-hidden', 'true'); m.textContent = ' *'; l.appendChild(m); }
+    });
+    document.querySelectorAll('.admin-main .req').forEach(function (m) { if (!seen.has(m.parentNode)) m.remove(); });   // no longer required: the star goes
+    document.querySelectorAll('.admin-main form').forEach(function (f) {
+      var has = !!f.querySelector('.req');
+      var note = f.querySelector(':scope > .req-note, :scope > * > .req-note');
+      if (has && !note) { var n = document.createElement('p'); n.className = 'req-note'; n.innerHTML = '<span class="req" aria-hidden="true">*</span> Required'; f.insertBefore(n, f.firstChild); }
+      else if (!has && note) note.remove();
+    });
+  }
+  setInterval(markRequired, 600);
 
   setInterval(buildJump, 500);
   function start() { scan(); buildJump(); }

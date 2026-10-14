@@ -13,6 +13,7 @@
 //        the reply carries a `snapshot` of what was removed, for Undo
 // DELETE /api/campus-graph.php?all=1                   -> remove EVERY node (and so every edge, and every building's entrance)
 //        the reply carries a `snapshot` for Undo
+// DELETE /api/campus-graph.php?ids=1,2,3               -> remove several nodes at once (same cascade); the reply carries one `snapshot` for all of them, for Undo
 // POST   /api/campus-graph.php?action=restore          -> put a snapshot back (same ids, names, connections and entrances)
 //        body (JSON): the `snapshot` returned by either delete above
 // POST   /api/campus-graph.php?action=edge             -> connect two nodes
@@ -245,6 +246,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         $stmt->execute();
         echo json_encode(['success' => true]);
         $stmt->close();
+        exit;
+    }
+    if (!empty($_GET['ids'])) {
+        $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', (string) $_GET['ids'])), fn($i) => $i > 0)));
+        if (!$ids || count($ids) > 500) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'Choose between 1 and 500 points']); exit; }
+        $snapshot = campus_snapshot($conn, $ids);
+        $in = implode(',', $ids);
+        $conn->query("DELETE FROM campus_nodes WHERE id IN ($in)");   // edges cascade, entrances are set to NULL
+        echo json_encode(['success' => true, 'removed' => count($ids), 'snapshot' => $snapshot]);
         exit;
     }
     if (!empty($_GET['all'])) {

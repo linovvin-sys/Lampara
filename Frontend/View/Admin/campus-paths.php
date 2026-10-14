@@ -123,7 +123,13 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 </select>
                 <button type="button" class="btn btn-secondary view-gap-btn" :disabled="locked" @click="connectGap">Connect</button></span></p>
           </div>
-          <div ref="mapArea" class="paths-map" :class="{ 'is-locked-surface': locked }" aria-label="Campus walkway map. Use the buttons below and the Selected point panel to edit without a mouse."></div>
+          <div ref="mapArea" class="paths-map" aria-label="Campus walkway map. Use the buttons below and the Selected point panel to edit without a mouse."></div>
+          <div v-if="multi" class="multi-bar" role="region" aria-label="Selected points">
+            <span class="multi-count"><b>{{ pickedIds.length }}</b> selected. Tap points on the map to add or remove them.</span>
+            <button type="button" class="btn btn-secondary" @click="pickInView">Select all in view</button>
+            <button type="button" class="btn btn-secondary" :disabled="!pickedIds.length" @click="pickedIds = []; redraw()">Clear</button>
+            <button type="button" class="btn btn-danger" :disabled="!pickedIds.length || deletingMany" @click="deleteMany">{{ deletingMany ? 'Deleting…' : 'Delete ' + pickedIds.length }}</button>
+          </div>
           <p class="sr-only" role="status" aria-live="polite">{{ liveMsg }}</p>
           <div class="here-row ctl-groups">
             <div class="ctl-group" role="group" aria-labelledby="grpAdd"><span class="ctl-title" id="grpAdd">Add points</span><div class="ctl-buttons">
@@ -136,6 +142,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             <button type="button" class="btn btn-secondary" :disabled="locating || recording || locked" @click="captureLocation">
               {{ locating ? 'Locating…' : 'Capture my location' }}
             </button>
+            </div></div>
+            <div class="ctl-group" role="group" aria-labelledby="grpPick"><span class="ctl-title" id="grpPick">Remove points</span><div class="ctl-buttons">
+              <button type="button" class="btn" :class="multi ? 'btn-primary' : 'btn-secondary'" :aria-pressed="multi" :disabled="locked" @click="toggleMulti">{{ multi ? 'Done selecting' : 'Select several' }}</button>
             </div></div>
             <div class="ctl-group" role="group" aria-labelledby="grpWalk"><span class="ctl-title" id="grpWalk">Record a walk</span><div class="ctl-buttons">
             <button type="button" class="btn" :class="recording ? 'btn-rec-on' : 'btn-secondary'" :disabled="locating || locked" @click="toggleWalk">

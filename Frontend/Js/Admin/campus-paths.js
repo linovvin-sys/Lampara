@@ -67,6 +67,7 @@ createApp({
       liveMsg: '',            // what the last delete removed: { label, snapshot }, for the Undo button
       locked: EditorLock.get('campus-paths'),
       lockIcon: EditorLock.icon,
+      multi: false, pickedIds: [], deletingMany: false,
       nameDraft: '', typeDraft: 'junction', entranceDraft: '', savingPoint: false, savedNote: '', smoothing: false,
       pathsOnly: viewPref('pathsonly', '0') === '1',
       nameError: '',
@@ -465,6 +466,7 @@ createApp({
 
     // ---- drawing ----
     redraw() {
+      if (this.$refs.mapArea) this.$refs.mapArea.classList.toggle('is-locked-surface', !!this.locked);   // by hand: Vue's :class would erase Leaflet's own classes
       this.layer.clearLayers();
       const byId = new Map(this.nodes.map((n) => [String(n.id), n]));
       // With a path view on, only that path's points, connections and the two buildings at its ends are drawn.
@@ -501,8 +503,8 @@ createApp({
       // so a crowded spot such as the main entrance stays readable. Zooming in makes room for more.
       const placed = [];
       this.nodes.forEach((n) => {
-        if (!showNode(n) || (this.pathsOnly && String(n.id) !== String(this.selectedId))) return;
-        const cls = ['cp-node', n.node_type, String(n.id) === String(this.selectedId) ? 'is-selected' : '', n._pending ? 'is-pending' : ''].join(' ');
+        if (!showNode(n) || (this.pathsOnly && String(n.id) !== String(this.selectedId) && !this.pickedIds.includes(String(n.id)))) return;
+        const cls = ['cp-node', n.node_type, String(n.id) === String(this.selectedId) ? 'is-selected' : '', n._pending ? 'is-pending' : '', this.pickedIds.includes(String(n.id)) ? 'is-picked' : ''].join(' ');
         const icon = L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
         const m = L.marker([n.lat, n.lng], { icon, draggable: !this.locked, zIndexOffset: 500 });
         // The point's letter, so the map matches the list beside it.
@@ -613,6 +615,49 @@ createApp({
       const out = await this.save({ type: 'edge.delete', payload: { id: edge.id }, label: 'Replaced a corner with a curve' }, () => this.request(API + '?edge_id=' + edge.id, 'DELETE'));
       if (out && !out.queued) this.baseGraph.edges = this.baseGraph.edges.filter((e) => String(e.id) !== String(edge.id));
       this.rebuild();
+    },
+
+    // ---- select several points and remove them together ----
+    toggleMulti() {
+      this.multi = !this.multi; this.pickedIds = [];
+      if (this.multi) this.select(null); else this.redraw();
+      this.liveMsg = this.multi ? 'Selecting several points. Tap points to choose them.' : 'Back to normal editing.';
+      if (this.multi) this.redraw();
+    },
+    togglePick(id) {
+      const k = String(id), i = this.pickedIds.indexOf(k);
+      if (i >= 0) this.pickedIds.splice(i, 1); else this.pickedIds.push(k);
+      this.redraw();
+    },
+    pickInView() {
+      const b = this.map.getBounds(), rv = this.routeView;
+      this.pickedIds = this.nodes.filter((n) => b.contains([n.lat, n.lng]) && (!rv || !rv.ok || rv.nodeIds.has(String(n.id)))).map((n) => String(n.id));
+      this.redraw();
+    },
+    async deleteMany() {
+      if (this.lockedNow('delete points') || !this.pickedIds.length || this.deletingMany) return;
+      if (!(await AdminOffline.guardOnline('Deleting several points'))) return;
+      const ids = this.pickedIds.slice(), set = new Set(ids);
+      const joins = this.baseGraph.edges.filter((e) => set.has(String(e.node_a_id)) || set.has(String(e.node_b_id))).length;
+      const entrances = this.baseBuildings.filter((b) => set.has(String(b.entrance_node_id))).map((b) => b.name);
+      if (!(await AdminConfirm({
+        title: 'Delete ' + ids.length + ' point' + (ids.length === 1 ? '' : 's') + '?',
+        text: [joins ? joins + ' connection' + (joins === 1 ? '' : 's') + ' go with them.' : '',
+               entrances.length ? 'The entrance of ' + entrances.join(', ') + ' will be empty until you set a new one.' : '',
+               'You can undo this right afterwards.'].filter(Boolean).join(' '),
+        confirmText: 'Delete ' + ids.length, danger: true }))) return;
+      this.deletingMany = true;
+      try {
+        const data = await this.request(API + '?ids=' + ids.join(','), 'DELETE');
+        this.undo = { label: 'Deleted ' + ids.length + ' point' + (ids.length === 1 ? '' : 's'), snapshot: data.snapshot };
+        this.baseGraph.nodes = this.baseGraph.nodes.filter((x) => !set.has(String(x.id)));
+        this.baseGraph.edges = this.baseGraph.edges.filter((e) => !set.has(String(e.node_a_id)) && !set.has(String(e.node_b_id)));
+        this.baseBuildings.forEach((b) => { if (set.has(String(b.entrance_node_id))) b.entrance_node_id = null; });
+        this.pickedIds = []; this.selectedId = null; this.liveMsg = 'Deleted ' + ids.length + ' points';
+        this.rebuild();
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Could not delete', text: e.message || 'Try again.' });
+      } finally { this.deletingMany = false; }
     },
 
     // ---- naming ----
@@ -826,6 +871,7 @@ createApp({
 
     // ---- taps ----
     async onNodeTap(node) {
+      if (this.multi) { this.togglePick(node.id); return; }
       if (this.pickingDirectionFor !== null) { this.headingToward(node.lat, node.lng); this.pickingDirectionFor = null; return; }
       // Tap a second node while one is selected -> connect them, then keep the
       // new one selected so you can chain along a walkway without re-tapping.
@@ -841,6 +887,7 @@ createApp({
       this.select(String(this.selectedId) === String(node.id) ? null : node.id);
     },
     async onMapTap(lat, lng) {
+      if (this.multi) return;   // while choosing points to remove, a tap on empty map does nothing
       if (this.pickingDirectionFor !== null) { this.headingToward(lat, lng); this.pickingDirectionFor = null; return; }
       // Tapping empty map while a point is selected just deselects (so a stray
       // tap doesn't drop an unwanted point) — tap again to actually add one.

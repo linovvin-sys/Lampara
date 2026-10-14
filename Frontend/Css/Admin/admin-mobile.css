@@ -202,3 +202,11 @@ html.is-embed .hide-embed { display: none !important; }
 .acc-head:focus-visible { outline: 2px solid var(--v2-blue, #2e3192); outline-offset: 2px; border-radius: 0.5rem; }
 .acc-head:active { transform: scale(0.99); }
 .acc-head[aria-expanded="false"] { margin-block: 0.2rem; }
+
+.btn-danger { background: #b3261e; color: #fff; border: 0; }
+.btn-danger:hover:not(:disabled) { background: #8c1d14; }
+.btn-danger:disabled { opacity: 0.45; }
+
+/* required fields */
+.req { color: #d92d20; font-weight: 800; }
+.req-note { margin: 0 0 0.6rem; font-size: 0.8125rem; color: var(--v2-soft, #5b5f82); }
