@@ -19,7 +19,7 @@ function floorRank(name) {
 // number works, filler like "room" is ignored, initials work and a typo is forgiven.
 const { norm, wordScore, highlight } = RoomSearch;
 
-createApp({
+window.LamparaGuide = createApp({
   data() {
     return { hudStrip: window.LamparaGameHud ? LamparaGameHud.strip({ href: '../Public/guide-ar.php?shop=1' }) : '', gates: [], qd: '', cap: 30, hudBuddy: window.LamparaGameHud ? LamparaGameHud.buddy('Looking for a room? Type its name or number.|Tap Find inside to see the way on the floor plan.|Tap Walk there to start outside.|Every room you reach earns points!') : '', q: '', filterType: 'all', rooms: [], loading: true, isOffline: !navigator.onLine, cachedAt: null, me: null, picking: false, recentIds: [] };
   },

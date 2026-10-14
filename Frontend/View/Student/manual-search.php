@@ -29,6 +29,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../Css/pixel-scene.css?v=<?= filemtime(__DIR__ . '/../../Css/pixel-scene.css') ?>">
 <link rel="stylesheet" href="../../Css/game-hud.css?v=<?= filemtime(__DIR__ . '/../../Css/game-hud.css') ?>">
+<link rel="stylesheet" href="../../Css/Public/guide-tutorial.css?v=<?= filemtime(__DIR__ . '/../../Css/Public/guide-tutorial.css') ?>">
 <link rel="stylesheet" href="../../Css/Student/manual-search-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/Student/manual-search-pixel.css') ?>">
 <script src="../../assets/vendor/vue.global.prod.js"></script>
 </head>
@@ -50,6 +51,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <template v-else>Loading directory&hellip;</template>
       </p>
     </div>
+    <button type="button" class="back-btn tour-btn" aria-label="Replay the tour" onclick="window.LamparaTutorial && LamparaTutorial.start(true)">?</button>
   </header>
 
   <main class="body">
@@ -186,6 +188,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
+<script>window.LamparaTour = 'manual';</script>
+<script src="../../Js/Public/guide-tutorial.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-tutorial.js') ?>"></script>
 <script src="../../Js/Include/enroll-fab.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/enroll-fab.js') ?>"></script>
 </body>
 </html>

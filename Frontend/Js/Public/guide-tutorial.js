@@ -4,74 +4,52 @@
 (function () {
   'use strict';
 
-  var FLAG = 'lampara_tutorial_done';
-  var SETTING_KEYS = ['lampara_ar_voice', 'lampara_ar_minimap', 'lampara_ar_clear'];
+  // Two short tours share this engine: the outdoor guide (default) and the manual room search (window.LamparaTour = 'manual').
+  var TOUR = window.LamparaTour === 'manual' ? 'manual' : 'guide';
 
   // All the words live here. text: what to do. after: what the control is for, shown once it has been used (then Next).
-  // ach: the achievement earned for finishing the step. `same` phases share the previous step number.
-  var PTS = 2, DONE_PTS = 14;   // 23 steps x 2 + 14 = 60 points in all: enough for a first mascot or two, not the shop
-  var STEPS = [
-    { id: 'search',    ach: 'Destination Picker', title: 'Pick a building',      text: 'Tap the search box and choose a building from the list.', after: 'That building is now your destination. Lampara draws the path to it and gives you turn-by-turn directions. You can also type a name or a room.' },
-    { id: 'browse',    ach: 'Window Shopper',     title: 'Browse all buildings', text: 'Tap the arrow to see every building in one list.', after: 'This list shows every building and how far it is from you. Tap any one to switch your destination.' },
-    { id: 'hide',      ach: 'Clean View',         title: 'Hide the controls',    text: 'Tap the eye to see what it does.', note: 'Safe to tap: nothing changes during the tour.', after: 'The eye hides the extra buttons so you can focus on the path. Tap it again to bring them back.' },
-    { id: 'refresh',   ach: 'Path Fixer',         title: 'Refresh path',         text: 'Tap this to see when to use it.', note: 'Safe to tap: it does not run during the tour.', after: 'If the arrows drift off the walkway, this recaptures your location and lays the path again. Best used under open sky.' },
-    { id: 'turn',      ach: 'Turn Reader',        title: 'Your next turn',       text: 'Tap the directions card to see how to read it.', after: 'The big words are your next move and the number is how far to go. Below that are your destination, total distance and walking time.' },
-    { id: 'clear',     ach: 'Clean Slate',        title: 'Clear',                text: 'Tap Clear to see what it does.', note: 'Safe to tap: it does not clear anything during the tour.', after: 'Clear stops navigating and removes the path. Use it when you want to pick a new destination.' },
-    { id: 'voice',     ach: 'Loud and Clear',     title: 'Voice directions',     text: 'Tap the speaker button.', after: 'Voice directions read each turn out loud as you get close, so you can keep your eyes up. Tap it again to turn it off.' },
-    { id: 'dirs',      ach: 'List Reader',        title: 'All directions',       text: 'Tap the list button.', after: 'This is every turn on your way, in order, with your current step highlighted.' },
-    { id: 'dirsClose', same: true, ach: 'Tidy Up', title: 'Close the list',       text: 'Now tap the X to close the list.', after: 'Closed. You can open the list again from the same button at any time.' },
-    { id: 'ask',       ach: 'Curious Cat',        title: 'Ask Lampara',          text: 'Tap Ask Lampara.', after: 'Ask about offices, rooms and hours. Lampara answers only from what the school has registered for that building.' },
-    { id: 'askClose',  same: true, ach: 'Chat Closer', title: 'Close the chat',   text: 'Now tap the X to close the chat.', after: 'Closed. Your messages stay while you keep the same destination.' },
-    { id: 'scan',      ach: 'Sign Scanner',       title: 'Scan room sign',       text: 'Tap Scan room sign to see what it does.', note: 'Safe to tap: it does not open the scanner during the tour.', after: 'Already inside a building? Scan the sign at a room door so Lampara knows your floor and room. When you arrive at your destination, a big Go inside button appears in the directions card instead.' },
-    { id: 'map',       ach: 'Map Reader',         title: 'Mini-map',             text: 'Tap the mini-map.', after: 'North is up. You are the dot and the line is your route. In real use, tap the map to zoom in and out.' },
-    { id: 'mapToggle', same: true, ach: 'Map Switch', title: 'Show or hide the map', text: 'Tap Mini-map in the menu.', after: 'That switches the mini-map off or on. This tour puts it back the way you had it.' },
-    { id: 'more',      ach: 'Menu Opener',        title: 'More options',         text: 'Tap the three dots to open the menu.', after: 'The extra tools live here. Let us look at each one.' },
-    { id: 'mCamera',   same: true, ach: 'Camera Check',     title: 'Camera',            text: 'Tap Camera to see what it does.', after: 'Hides or shows the camera picture. The camera keeps running underneath.' },
-    { id: 'mLocation', same: true, ach: 'Distance Check',   title: 'Distance readout',  text: 'Tap Distance readout.', after: 'Shows or hides how far you are from your building.' },
-    { id: 'mClear',    same: true, ach: 'Path Cleaner',     title: 'Clear navigation',  text: 'Tap Clear navigation.', after: 'Removes your path and stops navigating, the same as the Clear button.' },
-    { id: 'mHide',     same: true, ach: 'Focus Mode',       title: 'Hide the controls', text: 'Tap Hide the controls.', after: 'Keeps only your directions, Ask Lampara and the path on screen. This tour turns it off while it runs.' },
-    { id: 'mScan',     same: true, ach: 'Indoor Explorer',  title: 'Scan signage',      text: 'Tap Scan signage.', after: 'Opens the sign scanner for finding your way inside a building.' },
-    { id: 'mManual',   same: true, ach: 'Offline Helper',   title: 'Search manually',   text: 'Tap Search manually.', after: 'No signal? Look up a room by hand. Pages you have opened before still work offline.' },
-    { id: 'mMap',      same: true, ach: 'Campus Explorer',  title: 'Campus map',        text: 'Tap Campus map.', after: 'Opens the whole campus on a map.' },
-    { id: 'mReplay',   same: true, ach: 'Tour Guide',       title: 'Replay tutorial',   text: 'Tap Replay tutorial.', after: 'Plays this tour again whenever you like. Your settings stay as they are.' },
-    { id: 'done',      ach: 'Tour Complete',      title: "You're ready",         text: 'Pick a building and follow the path. You can replay this tour from More options.' }
+  // ach: the achievement earned for finishing the step.
+  var GUIDE_STEPS = [
+    { id: 'search', ach: 'Destination Picker', title: 'Pick a building',  text: 'Tap the search box and choose a building.', after: 'That is your destination. Lampara draws the path and gives you turn-by-turn directions.' },
+    { id: 'turn',   ach: 'Turn Reader',        title: 'Your next turn',   text: 'Tap the directions card.', note: 'Safe to tap: nothing changes during the tour.', after: 'Big words are your next move, the number is how far. Voice, Refresh and All steps sit right under it.' },
+    { id: 'voice',  ach: 'Loud and Clear',     title: 'Voice directions', text: 'Tap the speaker button.', after: 'Turns are read out loud as you get close, so you can keep your eyes up. Tap again to turn it off.' },
+    { id: 'more',   ach: 'Menu Opener',        title: 'More options',     text: 'Tap the three dots.', after: 'Camera, mini-map, scan a room sign, search by hand, report a problem, and this tour all live here.' },
+    { id: 'done',   ach: 'Tour Complete',      title: "You're ready",     text: 'Follow the path. Replay this tour any time from the three dots.' }
   ];
-  var n = 0; STEPS.forEach(function (x) { if (!x.same) n++; x.step = n; x.pts = x.id === 'done' ? DONE_PTS : PTS; });
+  var MANUAL_STEPS = [
+    { id: 'mSearch', ach: 'Room Hunter',   title: 'Search',          text: 'Tap the box and type a room, office or number.', after: 'Results narrow as you type. Rooms, offices and buildings all match.' },
+    { id: 'mFilter', ach: 'Filter Fan',    title: 'Narrow it down',  text: 'Tap a kind of room.', after: 'Handy for finding the nearest restroom, library or office without typing.' },
+    { id: 'mFloor',  ach: 'Floor Finder',  title: 'Where are you?',  text: 'Tap to choose your floor.', after: 'Tell us your floor and every room says whether to go up, down or stay put.' },
+    { id: 'mFind',   ach: 'Inside Expert', title: 'Find inside',     text: 'Tap Find inside on a room.', note: 'Safe to tap: it does not open anything during the tour.', after: 'That opens the floor plan with the way to the door. The map button shows it on campus.' },
+    { id: 'done', key: 'mDone', ach: 'Search Complete', title: "That's it",     text: 'Type a room and go. Tap the ? button to replay this tour.' }
+  ];
+  var GUIDE_B = {
+    search: { targets: ['.search-pill', '.dd-panel'], allow: ['.search-pill input', '.dd-panel'], tap: '.dd-item', afterTargets: ['.search-pill'] },
+    turn:   { targets: ['.nav-card'], needsTarget: true, shield: 'Directions card' },
+    voice:  { targets: ['[data-tut=voice]'], needsTarget: true, tap: true },
+    more:   { targets: ['[data-tut=more]'], needsTarget: true, tap: true, afterTargets: ['.menu-pop'] },
+    done:   { targets: [] }
+  };
+  var MANUAL_B = {
+    mSearch: { targets: ['.search-box'], tap: true },
+    mFilter: { targets: ['.filter-row'], tap: '.filter-pill' },
+    mFloor:  { targets: ['.here-card'], tap: '.here-pick' },
+    mFind:   { targets: ['.room-card .act-inside'], force: { filterType: 'all', picking: false }, shield: 'Find inside' },
+    done:    { targets: [] }
+  };
+  var CFG = {
+    guide:  { flag: 'lampara_tutorial_done',        steps: GUIDE_STEPS,  B: GUIDE_B,  pts: 8, donePts: 12, snap: ['voiceOn', 'miniMapOn', 'clearNav', 'cameraOn', 'locationOn'], keys: ['lampara_ar_voice', 'lampara_ar_minimap', 'lampara_ar_clear'], base: { menuOpen: false, directionsOpen: false, showAllBuildings: false, searchOpen: false }, skip: 'Skip the tutorial? You can replay it from the three dots.' },
+    manual: { flag: 'lampara_tutorial_manual_done', steps: MANUAL_STEPS, B: MANUAL_B, pts: 5, donePts: 8,  snap: ['q', 'filterType', 'picking'], keys: [], base: { picking: false }, skip: 'Skip the tour? Tap the ? button to replay it.' }
+  };
+  var FLAG = CFG[TOUR].flag, SETTING_KEYS = CFG[TOUR].keys, STEPS = CFG[TOUR].steps, B = CFG[TOUR].B, SKIP_ASK = CFG[TOUR].skip;
+  var n = 0; STEPS.forEach(function (x) { n++; x.step = n; x.pts = x.id === 'done' ? CFG[TOUR].donePts : CFG[TOUR].pts; });
   var SAMPLE_NOTE = 'No destination yet, so we are using {name} as a sample.';
   var SAMPLE_GPS_NOTE = 'These are sample directions. Real ones need a location fix.';
-  var SKIP_ASK = 'Skip the tutorial? You can replay it from the menu.';
 
   // How each step works. targets: what to spotlight (the first must exist). allow: what may be tapped (defaults to targets).
   // tap: any tap on an allowed control finishes it; tap as a selector: only a tap on that does. shield: tap to continue without
   // running the real control. until: finishes when this turns true. ui: menus/sheets that must be open. needsTarget: uses a destination.
   // afterTargets: what to spotlight while the explanation shows (default: the same control).
-  function menuItem(name, label) { return { targets: ['.menu-pop [data-tut=' + name + ']'], needsTarget: true, ui: { menuOpen: true }, shield: label }; }
-  var B = {
-    search:    { targets: ['.search-pill', '.dd-panel'], allow: ['.search-pill input', '.dd-panel'], tap: '.dd-item', afterTargets: ['.search-pill'] },
-    browse:    { targets: ['[data-tut=browse]'], tap: true, afterTargets: ['.search-pill', '.dd-panel'] },
-    hide:      { targets: ['.sp-btn[aria-pressed]'], needsTarget: true, shield: 'Hide the controls' },
-    clear:     { targets: ['.nav-clear'], needsTarget: true, shield: 'Clear' },
-    refresh:   { targets: ['[data-tut=refresh]'], needsTarget: true, shield: 'Refresh path' },
-    turn:      { targets: ['.nav-card'], needsTarget: true, shield: 'Directions card' },
-    voice:     { targets: ['[data-tut=voice]'], needsTarget: true, tap: true },
-    dirs:      { targets: ['[data-tut=dirs]'], needsTarget: true, tap: true, afterTargets: ['.dir-sheet'] },
-    dirsClose: { targets: ['.dir-close'], needsTarget: true, ui: { directionsOpen: true }, until: function (vm) { return !vm.directionsOpen; }, afterTargets: ['[data-tut=dirs]'] },
-    ask:       { targets: ['.ask-btn'], needsTarget: true, tap: true, afterTargets: ['.chat-panel > .chat-head'] },
-    askClose:  { targets: ['[data-tut=chat-close]'], needsTarget: true, chat: true, until: function (vm) { return !vm.chatOpenFor; }, afterTargets: ['.ask-btn'] },
-    scan:      { targets: ['.scan-btn'], shield: 'Scan room sign' },
-    map:       { targets: ['.mini-map'], force: { miniMapOn: true }, tap: true },
-    mapToggle: { targets: ['.menu-pop [data-tut=menu-minimap]'], needsTarget: true, ui: { menuOpen: true }, tap: true, afterTargets: ['[data-tut=more]'] },
-    more:      { targets: ['[data-tut=more]'], tap: true, afterTargets: ['.menu-pop'] },
-    mCamera:   menuItem('m-camera', 'Camera'),
-    mLocation: menuItem('m-location', 'Distance readout'),
-    mClear:    menuItem('m-clear', 'Clear navigation'),
-    mHide:     menuItem('m-hide', 'Hide the controls'),
-    mScan:     menuItem('m-scan', 'Scan signage'),
-    mManual:   menuItem('m-manual', 'Search manually'),
-    mMap:      menuItem('m-map', 'Campus map'),
-    mReplay:   menuItem('m-replay', 'Replay tutorial'),
-    done:      { targets: [] }
-  };
 
   var A = window.LamparaAudio || { play: function () {}, stop: function () {}, blip: function () {}, chime: function () {} };
   var M = window.LamparaMascots || null;
@@ -135,7 +113,7 @@
   // ---- settings snapshot: nothing the tutorial toggles is kept ----
   function snapshot() {
     snap = { vm: {}, raw: {} };
-    ['voiceOn', 'miniMapOn', 'clearNav', 'cameraOn', 'locationOn'].forEach(function (k) { snap.vm[k] = vm[k]; });
+    CFG[TOUR].snap.forEach(function (k) { snap.vm[k] = vm[k]; });
     SETTING_KEYS.forEach(function (k) { snap.raw[k] = store(function () { return localStorage.getItem(k); }); });
   }
   function restore() {
@@ -145,18 +123,18 @@
       store(function () { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
     });
     for (var k in snap.vm) vm[k] = snap.vm[k];
-    if (!snap.vm.voiceOn) store(function () { window.speechSynthesis && window.speechSynthesis.cancel(); });
+    if (TOUR === 'guide' && !snap.vm.voiceOn) store(function () { window.speechSynthesis && window.speechSynthesis.cancel(); });
     snap = null;
   }
 
   // ---- start / stop ----
   function start(force) {
     vm = window.LamparaGuide;
-    if (!vm || active || !vm.started) return;
+    if (!vm || active || (TOUR === 'guide' && !vm.started)) return;
     build();
     snapshot();
     sample = null; sampleBuilding = null;
-    vm.clearNav = false;            // with a destination, "Clear navigation" would hide the very controls we point at (not saved)
+    if (TOUR === 'guide') vm.clearNav = false;            // with a destination, "Clear navigation" would hide the very controls we point at (not saved)
     active = true; confirming = false;
     root.hidden = false;
     A.play();
@@ -171,14 +149,14 @@
     resetUi({});
     if (vm.chatOpenFor) vm.chatOpenFor = null;
     restore();
-    if (sample && vm.target && vm.target.id === sample) vm.clearNavigation();
+    if (TOUR === 'guide' && sample && vm.target && vm.target.id === sample) vm.clearNavigation();
     root.hidden = true;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
   function askSkip() { confirming = true; render(); }
 
   // ---- steps ----
-  var BASE_UI = { menuOpen: false, directionsOpen: false, showAllBuildings: false, searchOpen: false };
+  var BASE_UI = CFG[TOUR].base;
   function resetUi(want) {
     for (var k in BASE_UI) { var v = want && k in want ? want[k] : BASE_UI[k]; if (vm[k] !== v) vm[k] = v; }
   }
@@ -208,7 +186,7 @@
   }
   function award(s) {
     toast = null;
-    if (M && M.award('t:' + s.id, s.pts)) { toast = s; A.chime(); }
+    if (M && M.award('t:' + (s.key || s.id), s.pts)) { toast = s; A.chime(); }
   }
   // The words appear a letter at a time with a game-style chirp. The full text is already in the box (hidden), so the card
   // never changes size, and screen readers get the whole sentence at once.
@@ -369,7 +347,7 @@
     get active() { return active; },
     start: start,
     // The list of achievements the tour can give, for the mascot shop.
-    achievements: STEPS.map(function (x) { return { id: 't:' + x.id, name: x.ach, about: x.title, pts: x.pts }; }),
+    achievements: GUIDE_STEPS.map(function (x) { return { id: 't:' + x.id, name: x.ach, about: x.title, pts: x.pts || (x.id === 'done' ? CFG.guide.donePts : CFG.guide.pts) }; }).concat(MANUAL_STEPS.map(function (x) { return { id: 't:' + (x.key || x.id), name: x.ach, about: x.title, pts: x.id === 'done' ? CFG.manual.donePts : CFG.manual.pts }; })),
     // Stand-in directions for when there is no location fix (indoors, offline): the real card needs a position.
     sampleGuidance: function () {
       return { icon: 'straight', title: 'Continue straight', dist: 'for 40 m', detail: 'then turn left at the next corner', badge: '', facing: null, totalM: 120, etaMin: 2, step: -1, sample: true };
@@ -382,7 +360,7 @@
     if (!vm || !vm.$watch) return;
     var forced = /[?&]tutorial=1(&|$)/.test(location.search);
     if (!forced && isDone()) return;
-    vm.$watch(function () { return vm.started && !vm.scanningAnchor; }, function (ready) {
+    vm.$watch(function () { return TOUR === 'manual' ? !vm.loading : vm.started && !vm.scanningAnchor; }, function (ready) {
       if (!ready || askedThisSession) return;
       askedThisSession = true;          // storage blocked or not, once per visit
       setTimeout(function () { start(forced); }, 500);
