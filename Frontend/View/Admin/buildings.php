@@ -56,7 +56,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                     <template v-if="!loaded">
                       <tr v-for="n in 5" :key="'sk' + n" aria-hidden="true"><td colspan="6"><div class="sk-row"><span class="sk sk-avatar"></span><div class="sk-stack"><span class="sk sk-line w-40"></span><span class="sk sk-line w-25"></span></div></div></td></tr>
                     </template>
-                    <tr v-for="b in filtered" :key="b.id">
+                    <tr v-for="b in visibleRows" :key="b.id">
                       <td>
                         <div class="bt-name"><img v-if="b.photo_path" class="bt-thumb" :src="'../../' + b.photo_path" :alt="'Photo of ' + b.name">
                         <span v-else class="avatar" :style="{ background: colorFor(b.id) }" aria-hidden="true">{{ b.name.charAt(0) }}</span>
@@ -92,6 +92,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                   </tbody>
                 </table>
               </div>
+              <div v-if="loaded && !q.trim() && filtered.length > 5" class="rows-toggle"><button type="button" class="btn btn-secondary" :aria-expanded="showAllRows" @click="showAllRows = !showAllRows">{{ showAllRows ? 'Show less' : 'Show all ' + filtered.length + ' buildings' }}</button></div>
               <div v-if="loaded && filtered.length === 0" class="empty-art"><img src="../../assets/illustrations/empty-map.svg" alt="" width="120" height="90"><strong>No buildings match</strong><span>Try a different name, or clear the search.</span></div>
             </div>
 

@@ -1,12 +1,15 @@
+const ROW_LIMIT = 5;
 (function () {
 const { createApp } = Vue;
 const COLORS = ['#2e3192', '#ffd100', '#ff0000', '#6a6dd0', '#ffe066', '#9b9ce6'];
 
 window.LamparaListApp = createApp({
-  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [], loaded: false, health: [], healthLoaded: false, drawer: null, photoBusy: false, photoOver: false, menuFor: null, sortBy: (() => { try { return localStorage.getItem('lampara_bsort') || 'attention'; } catch (e) { return 'attention'; } })() }; },
+  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [], loaded: false, health: [], healthLoaded: false, drawer: null, photoBusy: false, photoOver: false, menuFor: null, showAllRows: false, sortBy: (() => { try { return localStorage.getItem('lampara_bsort') || 'attention'; } catch (e) { return 'attention'; } })() }; },
   computed: {
     // The list in the order you picked. "Needs attention" puts closed buildings and the ones with the most setup problems first, so the
     // first row is always the best place to start.
+    // The table starts with the first few rows (so the page is not one long list); "Show all" opens the rest. A search always shows every match.
+    visibleRows() { return this.showAllRows || this.q.trim() || this.filtered.length <= ROW_LIMIT ? this.filtered : this.filtered.slice(0, ROW_LIMIT); },
     filtered() {
       const q = this.q.trim().toLowerCase();
       const list = q ? this.buildings.filter(b => b.name.toLowerCase().includes(q)) : this.buildings.slice();
@@ -43,6 +46,10 @@ window.LamparaListApp = createApp({
       // The campus centre (from the school's settings) until real data loads.
       this.map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView(CampusBounds.CENTER, 17);
       TopoBase.add(this.map);   // the campus 2D topo export
+      // The card is laid out after the map is made, so the map starts at size 0 and its drawing layer stays 0 wide: shapes exist but cannot be seen.
+      // Re-measure whenever the box changes size and once everything has loaded.
+      if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { if (this.map) this.map.invalidateSize(); }).observe(this.$refs.mapArea);
+      setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 400);
     },
     renderMarkers() {
       if (!this.map) return;

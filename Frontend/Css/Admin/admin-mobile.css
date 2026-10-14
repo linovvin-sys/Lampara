@@ -2,7 +2,7 @@
    step by step with min-width queries. Rules for bigger screens are only ever added, never taken away. */
 
 /* ---- touch basics: big targets, no iOS zoom on focus, nothing wider than the screen ---- */
-.admin-main { overflow-wrap: anywhere; }
+.admin-main { overflow-wrap: break-word; }   /* not "anywhere": that lets table columns shrink to one letter */
 .admin-main img, .admin-main video, .admin-main canvas { max-width: 100%; }
 .admin-main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .admin-main select, .admin-main textarea { font-size: 1rem; min-height: 2.75rem; max-width: 100%; }
@@ -200,3 +200,11 @@ html.is-embed .hide-embed { display: none !important; }
 /* required fields */
 .req { color: #d92d20; font-weight: 800; }
 .req-note { margin: 0 0 0.6rem; font-size: 0.8125rem; color: var(--v2-soft, #5b5f82); }
+
+.sort-box label { white-space: nowrap; }
+.rows-toggle { display: flex; justify-content: center; padding: 0.8rem 0 0.2rem; }
+.rows-toggle .btn { min-width: 12rem; }
+
+/* The buildings table at laptop width: the "Updated" column is hidden (its heading already was), and the table scrolls sideways instead of clipping. */
+@media (min-width: 960px) and (max-width: 1599px) { .btable td[data-label="Updated"] { display: none; } .btable .bt-name { min-width: 9rem; } }
+@media (min-width: 900px) { .table-wrap { overflow-x: auto; } }

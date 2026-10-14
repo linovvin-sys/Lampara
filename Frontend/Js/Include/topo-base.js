@@ -15,8 +15,8 @@
     load().then(function (list) {
       list.forEach(function (f) {
         if (!f.points || f.points.length < 2) return;
-        if (f.kind === 'road') L.polyline(f.points, { color: '#c9cde8', weight: 4, opacity: 0.95, interactive: false }).addTo(g);
-        else L.polygon(f.points, { color: '#9ca2cf', weight: 1, fillColor: f.building_id ? '#d8dbf3' : '#e6e8f5', fillOpacity: 0.95, interactive: false }).addTo(g);
+        if (f.kind === 'road') L.polyline(f.points, { color: '#aab0d8', weight: 5, opacity: 1, interactive: false }).addTo(g);
+        else L.polygon(f.points, { color: '#7f87c0', weight: 1.5, fillColor: f.building_id ? '#c3c8ee' : '#dfe2f4', fillOpacity: 1, interactive: false }).addTo(g);
       });
       g.eachLayer(function (l) { if (l.bringToBack) l.bringToBack(); });
     });
