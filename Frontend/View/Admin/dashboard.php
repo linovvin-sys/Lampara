@@ -44,7 +44,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
         </div>
         <div class="page-actions">
           <a href="buildings.php?new=1" class="btn btn-secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New building</a>
-          <a href="buildings.php?tab=rooms" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New room</a>
+          <a href="buildings.php?tab=rooms" class="btn btn-secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New room</a>
         </div>
       </div>
 
@@ -60,14 +60,14 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
           <li v-for="t in nextUp" :key="t.key">
             <span class="nu-dot" :class="t.kind" aria-hidden="true"></span>
             <div class="nu-text"><strong>{{ t.title }}</strong><small>{{ t.detail }}</small></div>
-            <a :href="t.href" class="btn" :class="t.kind === 'fix' ? 'btn-primary' : 'btn-secondary'">{{ t.cta }}</a>
+            <a :href="t.href" class="btn" :class="t.kind === 'fix' ? 'btn-primary' : 'btn-secondary'" @click="t.href === '#reports' && (collapsed.reports = false)">{{ t.cta }}</a>
           </li>
         </ul>
         <p v-else-if="!loading && !healthLoading && health" class="nu-ok">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
           Every route and floor is ready for students.
         </p>
-        <p v-if="more > 0" class="nu-more">+ {{ more }} more below in Setup health. <a href="#healthTitle">See them</a></p>
+        <p v-if="more > 0" class="nu-more">{{ more }} more to look at. <a href="#healthTitle" @click="collapsed.health = false">See the full list</a></p>
       </section>
 
             <section class="stat-grid is-compact" aria-label="Directory totals">
@@ -102,12 +102,6 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
         </a>
       </section>
 
-      <div class="card-tools">
-        <span class="card-tools-label">Sections</span>
-        <button type="button" class="link-sm" @click="setAllCards(true)" :disabled="allCollapsed">Show less</button>
-        <span aria-hidden="true">&middot;</span>
-        <button type="button" class="link-sm" @click="setAllCards(false)" :disabled="noneCollapsed">Show all</button>
-      </div>
 
       <section class="card health-card" aria-labelledby="healthTitle">
         <div class="card-head">

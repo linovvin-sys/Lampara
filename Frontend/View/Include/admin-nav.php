@@ -43,12 +43,12 @@ $navItems = [
         'icon'  => '<path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z"/><path d="M9 4v13M15 7v13"/>',
         'children' => [
             'campus-paths' => [
-                'label' => 'Campus Paths',
+                'label' => 'Walking paths',
                 'href'  => 'campus-paths.php',
                 'icon'  => '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 17c4-1 2-6 5-8s3-2 3-2"/>',
             ],
             'building-outlines' => [
-                'label' => 'Building Outlines',
+                'label' => 'Link buildings to the map',
                 'href'  => 'building-outlines.php',
                 'icon'  => '<path d="M4 8l8-4 8 4v8l-8 4-8-4Z"/><path d="M4 8l8 4 8-4M12 12v8"/>',
             ],
@@ -65,7 +65,7 @@ $navItems = [
         'icon'  => '<rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/>',
         'children' => [
             'manage-buildings' => [
-                'label' => 'Buildings',
+                'label' => 'Buildings and rooms',
                 'href'  => 'buildings.php',
                 'icon'  => '<rect x="4" y="3" width="16" height="18" rx="1.2"/><path d="M9 21v-4.5h6V21M9 7.5h1.2M9 11h1.2M9 14.5h1.2M13.8 7.5H15M13.8 11H15"/>',
             ],
@@ -87,7 +87,7 @@ $navItems = [
         'icon'  => '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
     ],
     'data-pack' => [
-        'label' => 'Data',
+        'label' => 'Backup and import',
         'href'  => 'data-pack.php',
         'icon'  => '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
     ],
@@ -102,7 +102,7 @@ $navItems = [
         'icon'  => '<path d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M4 21h16M14 12v.01"/>',
     ],
     'test-chat' => [
-        'label' => 'Try the chat',
+        'label' => 'Test the assistant',
         'href'  => 'test-chat.php',
         'icon'  => '<path d="M21 12c0 4.418-4.03 8-9 8-1.06 0-2.078-.163-3.024-.463L3 21l1.5-4.5C3.55 15.06 3 13.57 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z"/>',
     ],
@@ -116,12 +116,11 @@ foreach ($navItems as $k => $it) {
     if (!empty($it['children'])) { foreach ($it['children'] as $ck => $c) $leaf[$ck] = $c; }
     else $leaf[$k] = $it;
 }
+// Five places for everyday work; the expert tools wait under "More tools" until you open it.
 $navSections = [
-    'Overview'         => ['dashboard', 'hazards', 'enrollment-steps'],
-    'Buildings'        => ['manage-buildings', 'doors'],
-    'Campus outdoors'  => ['campus-paths', 'building-outlines', 'campus-map'],
-    'Tools'            => ['test-chat', 'data-pack'],
-    'Your account'     => ['account', 'settings'],
+    'Home'       => ['dashboard', 'manage-buildings', 'hazards'],
+    'Your school' => ['settings', 'account'],
+    'More tools' => ['enrollment-steps', 'doors', 'campus-paths', 'building-outlines', 'campus-map', 'test-chat', 'data-pack'],
 ];
 require_once __DIR__ . '/../../../Backend/institution.php';
 // Pages of features this school switched off are left out of the menu.
@@ -130,7 +129,7 @@ foreach ($navSections as $sn => $ks) $navSections[$sn] = array_values(array_diff
 $navSections = array_filter($navSections);   // a section with nothing left disappears
 // A PSMO account sees only the building and room pages.
 $isPsmo = lampara_admin_role() === 'psmo';
-if ($isPsmo) $navSections = ['Buildings' => ['manage-buildings'], 'Your account' => ['account']]; // buildings and their rooms; doors are a tab inside a building
+if ($isPsmo) $navSections = ['Buildings' => ['manage-buildings'], 'Your school' => ['account']]; // buildings and their rooms; doors are a tab inside a building
 // The three tabs along the bottom of a phone, and which pages count as "inside" each one.
 $tabs = [
     ['label' => 'Home',      'href' => 'dashboard.php',      'icon' => $leaf['dashboard']['icon'],        'match' => ['dashboard']],
@@ -215,9 +214,9 @@ foreach ($navSections as $sectionName => $keys) {
   </div>
 
   <nav aria-label="Admin sections" class="nav-sections">
-    <?php foreach ($navSections as $sectionName => $keys): ?>
-      <div class="nav-section">
-        <div class="nav-section-label"><?= htmlspecialchars($sectionName) ?></div>
+    <?php foreach ($navSections as $sectionName => $keys): $more = $sectionName === 'More tools'; $open = $more && in_array($litKey, $keys, true); ?>
+      <<?= $more ? 'details' : 'div' ?> class="nav-section<?= $more ? ' nav-more' : '' ?>"<?= $open ? ' open' : '' ?>>
+        <<?= $more ? 'summary' : 'div' ?> class="nav-section-label"><?= htmlspecialchars($sectionName) ?></<?= $more ? 'summary' : 'div' ?>>
         <?php foreach ($keys as $key): $item = $leaf[$key]; ?>
           <a href="<?= htmlspecialchars($item['href']) ?>" class="<?= $litKey === $key ? 'is-active' : '' ?>" title="<?= htmlspecialchars($item['label']) ?>"<?= $litKey === $key ? ' aria-current="page"' : '' ?>>
             <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $item['icon'] ?></svg></span>
@@ -225,7 +224,7 @@ foreach ($navSections as $sectionName => $keys) {
             <?php if ($litKey === $key): ?><span class="nav-here"><span class="sr-only">Current page</span></span><?php endif; ?>
           </a>
         <?php endforeach; ?>
-      </div>
+      </<?= $more ? 'details' : 'div' ?>>
     <?php endforeach; ?>
   </nav>
 

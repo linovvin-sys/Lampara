@@ -1,8 +1,8 @@
 const { createApp } = Vue;
 // Which dashboard cards are collapsed is remembered in this browser (storage may be blocked: then every card starts open).
-const COLLAPSE_KEY = 'lampara_dash_collapsed';
+const COLLAPSE_KEY = 'lampara_dash_collapsed2';   // v2: the detail cards now start folded
 function loadCollapsed() {
-  const base = { health: false, progress: false, recent: false, reports: false };
+  const base = { health: true, progress: true, recent: true, reports: true };
   try { return Object.assign(base, JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}')); } catch (e) { return base; }
 }
 const COLORS = ['#2e3192', '#ffd100', '#ff0000', '#6a6dd0', '#ffe066', '#9b9ce6'];
@@ -23,7 +23,7 @@ createApp({
     nextUp() {
       const out = [];
       const items = this.health ? this.health.items || [] : [];
-      items.filter((it) => it.level === 'fix').slice(0, 2).forEach((it, i) => {
+      items.filter((it) => it.level === 'fix').slice(0, 1).forEach((it, i) => {
         out.push({ key: 'fix' + i, kind: 'fix', title: it.building + (it.floor ? ' \u00b7 ' + it.floor : '') + ': ' + it.problem, detail: it.detail || '', href: it.href, cta: it.action });
       });
       if (this.openFlags.length) {
@@ -32,7 +32,7 @@ createApp({
           detail: 'Newest: room ' + (f.room_number || f.room_name) + ' in ' + f.building_name, href: '#reports', cta: 'Review' });
       }
       if (!out.length) items.slice(0, 2).forEach((it, i) => out.push({ key: 'tip' + i, kind: 'tip', title: it.building + (it.floor ? ' \u00b7 ' + it.floor : '') + ': ' + it.problem, detail: it.detail || '', href: it.href, cta: it.action }));
-      return out.slice(0, 3);
+      return out.slice(0, 2);
     },
     // How many setup items are not shown in the short list above.
     more() {
