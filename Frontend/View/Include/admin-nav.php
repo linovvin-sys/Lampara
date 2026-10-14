@@ -122,6 +122,12 @@ $navSections = [
     'Your school' => ['settings', 'account'],
     'More tools' => ['enrollment-steps', 'doors', 'campus-paths', 'building-outlines', 'campus-map', 'test-chat', 'data-pack'],
 ];
+// The expert pages, grouped by what they are for.
+$moreGroups = [
+    'Campus map'          => ['campus-paths', 'building-outlines', 'campus-map'],
+    'Building setup'      => ['doors', 'enrollment-steps'],
+    'Assistant and data'  => ['test-chat', 'data-pack'],
+];
 require_once __DIR__ . '/../../../Backend/institution.php';
 // Pages of features this school switched off are left out of the menu.
 $off = array_filter(['hazards' => !inst_feature('hazards'), 'enrollment-steps' => !inst_feature('enrollment'), 'test-chat' => !inst_feature('chat')]);
@@ -155,6 +161,8 @@ foreach ($navSections as $sectionName => $keys) {
 <link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
 <script defer src="../../Js/Include/admin-ux.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-ux.js') ?>"></script>
+<script>try { var __t = localStorage.getItem('lampara_admin_theme'); if (__t === 'dark' || (!__t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.setAttribute('data-admin-theme', 'dark'); } catch (e) { /* storage blocked: light */ }</script>
+<link rel="stylesheet" href="../../Css/Admin/admin-dark.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-dark.css') ?>">
 <script>try { if (localStorage.getItem('lampara_admin_sidebar') === '1') document.documentElement.classList.add('sb-collapsed'); } catch (e) { /* storage blocked: stays open */ }</script>
 <a href="#adminMain" class="skip-link">Skip to main content</a>
 <div class="admin-topbar">
@@ -168,6 +176,7 @@ foreach ($navSections as $sectionName => $keys) {
       </span>
       Admin
     </a>
+    <button type="button" class="admin-header-btn theme-toggle theme-toggle-m" data-admin-theme-toggle aria-label="Switch to dark mode" aria-pressed="false" title="Dark mode"><svg class="ico-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg><svg class="ico-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></button>
     <button type="button" class="admin-search-icon" data-admin-search aria-label="Search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
   </div>
 </div>
@@ -188,6 +197,7 @@ foreach ($navSections as $sectionName => $keys) {
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
       <span>Search</span><kbd>Ctrl K</kbd>
     </button>
+    <button type="button" class="admin-header-btn theme-toggle" data-admin-theme-toggle aria-label="Switch to dark mode" aria-pressed="false" title="Dark mode"><svg class="ico-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg><svg class="ico-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></button>
     <a class="admin-header-btn" href="../Public/index.php" target="_blank" rel="noopener" title="Open the student site" aria-label="Open the student site">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
     </a>
@@ -214,18 +224,32 @@ foreach ($navSections as $sectionName => $keys) {
   </div>
 
   <nav aria-label="Admin sections" class="nav-sections">
-    <?php foreach ($navSections as $sectionName => $keys): $more = $sectionName === 'More tools'; $open = $more && in_array($litKey, $keys, true); ?>
-      <<?= $more ? 'details' : 'div' ?> class="nav-section<?= $more ? ' nav-more' : '' ?>"<?= $open ? ' open' : '' ?>>
-        <<?= $more ? 'summary' : 'div' ?> class="nav-section-label"><?= htmlspecialchars($sectionName) ?></<?= $more ? 'summary' : 'div' ?>>
-        <?php foreach ($keys as $key): $item = $leaf[$key]; ?>
+    <?php
+    $linkHtml = function ($key) use ($leaf, $litKey) { $item = $leaf[$key]; ob_start(); ?>
           <a href="<?= htmlspecialchars($item['href']) ?>" class="<?= $litKey === $key ? 'is-active' : '' ?>" title="<?= htmlspecialchars($item['label']) ?>"<?= $litKey === $key ? ' aria-current="page"' : '' ?>>
             <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $item['icon'] ?></svg></span>
             <span class="nav-label"><?= htmlspecialchars($item['label']) ?></span>
             <?php if ($litKey === $key): ?><span class="nav-here"><span class="sr-only">Current page</span></span><?php endif; ?>
           </a>
+    <?php return ob_get_clean(); };
+    foreach ($navSections as $sectionName => $keys):
+      if ($sectionName === 'More tools'):
+        $open = in_array($litKey, $keys, true); ?>
+      <details class="nav-section nav-more"<?= $open ? ' open' : '' ?>>
+        <summary class="nav-section-label"><?= htmlspecialchars($sectionName) ?></summary>
+        <?php foreach ($moreGroups as $gName => $gKeys): $gKeys = array_values(array_intersect($gKeys, $keys)); if (!$gKeys) continue; ?>
+          <details class="nav-group"<?= in_array($litKey, $gKeys, true) ? ' open' : '' ?>>
+            <summary><?= htmlspecialchars($gName) ?></summary>
+            <?php foreach ($gKeys as $key) echo $linkHtml($key); ?>
+          </details>
         <?php endforeach; ?>
-      </<?= $more ? 'details' : 'div' ?>>
-    <?php endforeach; ?>
+      </details>
+    <?php else: ?>
+      <div class="nav-section">
+        <div class="nav-section-label"><?= htmlspecialchars($sectionName) ?></div>
+        <?php foreach ($keys as $key) echo $linkHtml($key); ?>
+      </div>
+    <?php endif; endforeach; ?>
   </nav>
 
   <div class="sidebar-footer">
@@ -262,5 +286,6 @@ foreach ($navSections as $sectionName => $keys) {
 <script src="../../Js/Include/admin-search.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-search.js') ?>"></script>
 <script src="../../Js/Include/dropzone.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/dropzone.js') ?>"></script>
 <script src="../../Js/Include/admin-nav.js"></script>
+<script src="../../Js/Include/admin-theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-theme.js') ?>"></script>
 <script src="../../Js/Include/read-more.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/read-more.js') ?>"></script>
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>" data-admin="1"></script>

@@ -10,7 +10,7 @@ const COLORS = ['#2e3192', '#ffd100', '#ff0000', '#6a6dd0', '#ffe066', '#9b9ce6'
 createApp({
   data() {
     return { baseBuildings: [], baseRooms: [], buildings: [], rooms: [], openFlags: [], loading: true,
-      changes: [], undoing: null, health: null, healthLoading: true, healthError: '', showAllHealth: false, openIds: [], showDone: false, collapsed: loadCollapsed() };
+      changes: [], undoing: null, health: null, healthLoading: true, healthError: '', showAllHealth: false, showAllChanges: false, openIds: [], showDone: false, collapsed: loadCollapsed() };
   },
   computed: {
     // "Good morning, name": the dashboard speaks to you first.
@@ -47,6 +47,7 @@ createApp({
       if (reports) bits.push(reports + ' student report' + (reports === 1 ? '' : 's') + ' to review');
       return bits.length ? bits.join(' and ') + '. Start here:' : 'A few optional improvements:';
     },
+    visibleChanges() { return this.showAllChanges ? this.changes : this.changes.slice(0, 5); },
     allCollapsed() { return Object.values(this.collapsed).every(Boolean); },
     noneCollapsed() { return !Object.values(this.collapsed).some(Boolean); },
     // ---- building setup progress ----

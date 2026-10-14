@@ -210,9 +210,9 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 
       <!-- Who changed which room or building, newest first, with an Undo for each change that can still be undone. -->
       <section class="card changes-card" aria-labelledby="changesTitle" v-if="changes.length">
-        <div class="card-head"><h2 class="section-title flush" id="changesTitle">Recent changes</h2></div>
+        <div class="card-head"><h2 class="section-title flush" id="changesTitle">Recent changes</h2><span class="pill pill-blue">{{ changes.length }}</span></div>
         <ul class="changes-list">
-          <li v-for="c in changes" :key="c.id">
+          <li v-for="c in visibleChanges" :key="c.id">
             <div class="ch-text">
               <strong>{{ c.label }}</strong>
               <span>{{ ({ create: 'Added', update: 'Edited', delete: 'Deleted' })[c.action] }} {{ c.entity }} &middot; {{ c.admin_name }} &middot; {{ timeAgo(c.created_at) }}</span>
@@ -221,6 +221,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
             <span v-else class="ch-why">{{ c.why_not }}</span>
           </li>
         </ul>
+        <button v-if="changes.length > 5" type="button" class="btn btn-ghost health-more" :aria-expanded="showAllChanges" @click="showAllChanges = !showAllChanges">{{ showAllChanges ? 'Show less' : 'Show all ' + changes.length }}</button>
       </section>
 
       <div class="grid-2">
