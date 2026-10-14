@@ -1,0 +1,73 @@
+/* The campus map in the Lampara game theme: night navy, cream pixel cards, gold buttons. Loaded after map.css and only re-skins it. */
+:root {
+  --px-s: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+  --pxf: 'Pixelify Sans', 'Outfit', system-ui, sans-serif;
+  --night: var(--t-night, #0f1138); --navy: var(--t-ink2, #161850); --gold: var(--t-accent, #ffd100); --cream: var(--t-cream, #fff8d6);
+}
+body { background: var(--night); color: #fff; }
+
+/* top bar */
+.map-top { background: var(--night); border-bottom: 0; position: relative; color: #fff; }
+.map-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: repeating-linear-gradient(90deg, var(--gold) 0 14px, transparent 14px 22px); }
+.titles h1 { font-family: var(--pxf); font-weight: 700; letter-spacing: 0.01em; }
+.titles p { color: rgba(255,255,255,.7); }
+.map-top .back { width: 2.75rem; height: 2.75rem; border-radius: 0; clip-path: var(--px-s); background: var(--t-light, #dcddf4); color: var(--navy); box-shadow: inset 0 -4px 0 rgba(0,0,0,.25); }
+.seg { padding: 0.2rem; border-radius: 0; clip-path: var(--px-s); background: rgba(255,255,255,.1); border: 0; }
+.seg button { font-family: var(--pxf); font-weight: 600; min-height: 2.5rem; border-radius: 0; clip-path: var(--px-s); color: rgba(255,255,255,.85); transition: transform 160ms cubic-bezier(0.23,1,0.32,1), background-color 160ms ease-out; }
+.seg button:active { transform: scale(0.96); }
+.seg button[aria-selected="true"] { background: var(--gold); color: var(--navy); box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); }
+
+/* the viewer sits on the night sky; the 2D map is a framed sheet */
+.stage { background: linear-gradient(180deg, var(--night) 0%, var(--t-sky2, #1b1f6e) 100%); }
+.viewport .canvas img { border: 4px solid var(--cream); box-shadow: 0 0 0 4px var(--night), 0 18px 40px -10px rgba(0,0,0,.6); }
+.state { color: rgba(255,255,255,.8); } .state strong { color: #fff; font-family: var(--pxf); } .state svg { color: var(--gold); }
+.spinner { border-radius: 0; border-color: rgba(255,255,255,.2); border-top-color: var(--gold); }
+
+/* pins */
+.mk-dot { background: var(--t-blue, #2e3192); border-color: var(--cream); }
+.mk-label { font-family: var(--pxf); font-weight: 600; border-radius: 0; clip-path: var(--px-s); background: var(--night); border: 0; box-shadow: none; padding: 4px 10px; }
+.mk.sel .mk-label { background: var(--gold); color: var(--navy); }
+
+/* map buttons */
+.controls button, .pager button { border: 0; border-radius: 0; clip-path: var(--px-s); background: var(--cream); color: var(--navy); box-shadow: inset 0 -4px 0 rgba(22,24,80,.2); transition: transform 160ms cubic-bezier(0.23,1,0.32,1); }
+.controls button:active, .pager button:active { transform: scale(0.96); background: #fff; }
+.pager { border: 0; border-radius: 0; background: var(--night); box-shadow: none; padding: 0.3rem; clip-path: var(--px-s); }
+.pager span { color: #fff; font-family: var(--pxf); }
+.hint { border-radius: 0; clip-path: var(--px-s); background: var(--night); font-family: var(--pxf); font-weight: 500; }
+
+/* key places strip */
+.key-places { background: var(--night); border-bottom: 0; }
+.key-places button { border: 0; border-radius: 0; clip-path: var(--px-s); background: var(--cream); color: var(--navy); font-family: var(--pxf); font-weight: 600; box-shadow: inset 0 -4px 0 rgba(22,24,80,.2); }
+.key-places button.on { background: var(--gold); color: var(--navy); }
+.key-places .rr-pick { border-right-color: rgba(255,255,255,.2); }
+
+/* cards and sheets: cream pixel panels */
+.mk-card, .pins-sheet, .street-card { background: var(--cream); color: var(--navy); border: 0; box-shadow: none; }
+.mk-card, .street-card { border-radius: 0; clip-path: var(--px-s); }
+.pins-sheet { border-radius: 0; clip-path: var(--px-s); }
+.pins-head strong, .mk-card-text strong, .st-card-head strong { font-family: var(--pxf); font-weight: 700; color: var(--navy); }
+.mk-card-text span, .bld-head-text span, .bld-dir, .pins-sheet li small { color: #4a4c78; }
+.mk-card-icon, .mk-card button, .pins-head button, .st-x { border-radius: 0; clip-path: var(--px-s); background: #fff; color: var(--navy); }
+.pins-sheet li { color: var(--navy); }
+.pins-sheet li:active { background: #fff; }
+.bld-sheet li .num { color: var(--navy); font-weight: 700; }
+.bld-sheet li.is-target .room-btn { background: #fff; }
+.bld-photo { border-radius: 0; }
+.bld-walk, .room-dlg-go, .st-go { border-radius: 0; clip-path: var(--px-s); background: var(--gold); color: var(--navy); font-family: var(--pxf); box-shadow: inset 0 -4px 0 var(--t-accent-dark, #d4ab00); }
+.room-dlg-go.alt, .st-alt { background: var(--navy); color: #fff; box-shadow: inset 0 -4px 0 rgba(0,0,0,.35); border-radius: 0; clip-path: var(--px-s); font-family: var(--pxf); }
+.bld-walk:active, .room-dlg-go:active, .st-go:active, .st-alt:active { transform: scale(0.97); }
+.room-dlg { background: var(--cream); color: var(--navy); border-radius: 0; clip-path: var(--px-s); }
+.room-dlg-body h2 { font-family: var(--pxf); }
+.room-dlg-meta { color: #4a4c78; }
+.room-dlg-close { border-radius: 0; clip-path: var(--px-s); background: #fff; color: var(--navy); border: 0; font-family: var(--pxf); }
+.street-chips button { border: 0; border-radius: 0; clip-path: var(--px-s); background: var(--cream); color: var(--navy); font-family: var(--pxf); font-weight: 600; box-shadow: inset 0 -4px 0 rgba(22,24,80,.2); }
+.street-chips button.on { background: var(--gold); }
+
+/* Building panel: the rooms get the room. The photo is a slim banner, the panel can grow to most of the screen, and only the room list scrolls. */
+.bld-sheet { max-height: min(68%, 36rem); overflow: hidden; }
+.bld-sheet > * { flex: none; }
+.bld-photo { height: 4.5rem; }
+.bld-sheet .bld-dir { max-height: 3.2rem; overflow-y: auto; }
+.bld-sheet #bldRooms { flex: 1 1 auto; min-height: 7rem; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+@media (max-height: 640px) { .bld-photo { display: none; } .bld-sheet { max-height: 86%; } }
+@media (prefers-reduced-motion: reduce) { .seg button, .controls button { transition: none; } }

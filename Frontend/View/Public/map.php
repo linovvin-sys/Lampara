@@ -17,7 +17,7 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">
 <link rel="shortcut icon" href="../../assets/favicon.ico?v=3">
 <link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png?v=3">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#0f1138">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,6 +26,9 @@ $jsVer = max(filemtime(__DIR__ . '/../../Js/Public/map.js'), filemtime(__DIR__ .
 <script src="../../Js/Include/skeleton.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/skeleton.js') ?>"></script>
 <link rel="stylesheet" href="../../assets/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="../../Css/Public/map.css?v=<?= $cssVer ?>">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
+<link rel="stylesheet" href="../../Css/Public/map-pixel.css?v=<?= filemtime(__DIR__ . '/../../Css/Public/map-pixel.css') ?>">
 <script type="importmap">
 { "imports": {
   "three": "../../assets/vendor/three-0.160.0/three.module.js",

@@ -13,8 +13,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const EARTH_R = 6371008.8;
 // Colour carries meaning: campus buildings in the Lampara navy family (one tint each), everything else quiet, gold for
 // what you are looking at. Red stays reserved for alerts elsewhere in the app.
-const COLOR_NEUTRAL = 0xe2e4ea;      // neighbourhood buildings: neutral, so the campus is what stands out
-const COLOR_TREE = 0xc9d2c4;         // trees: a quiet sage, readable as greenery without competing
+const COLOR_NEUTRAL = 0xc9cde6;      // neighbourhood buildings: neutral, so the campus is what stands out
+const COLOR_TREE = 0x8fae9f;         // trees: a quiet sage, readable as greenery without competing
 const COLOR_EDGE = 0x7c8bb5;
 const COLOR_HOVER_EDGE = 0xf5b400;   // the 2D map's gold selection ring, as an outline: "you can tap this"
 const COLOR_SELECTED = 0xffd100;     // Lampara gold, filled: "this is the one you picked"
@@ -282,7 +282,7 @@ export async function createViewer(container, url, { onProgress, footprints, onS
   renderer.domElement.style.touchAction = 'none';
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xeef1f8);
+  scene.background = new THREE.Color(0x14174a);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a97b8, 1.05));
   const sun = new THREE.DirectionalLight(0xffffff, 1.5);
   sun.position.set(radius, radius * 1.6, radius * 0.8);
