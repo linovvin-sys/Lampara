@@ -85,6 +85,17 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
   <!-- Pre-app overlay: silent permission check, then (if needed) the gate screen. -->
   <transition name="gate-transition">
+    <div v-if="arrivedAtTarget && roomHere && !arrivalDismissed" class="exit-pop" role="dialog" aria-labelledby="arrTitle">
+      <div class="exit-box">
+        <img data-mascot class="exit-mascot" alt="" width="64" height="64">
+        <div class="exit-in">
+          <h2 id="arrTitle">You made it!</h2>
+          <p>You are at <strong>{{ target.name }}</strong>. Now let's find <strong>{{ roomHere.room_name }}</strong> inside.</p>
+          <a :href="doorHref" class="start-btn">Show me the way inside</a>
+          <button type="button" class="start-link" @click="arrivalDismissed = true">Not now</button>
+        </div>
+      </div>
+    </div>
     <div v-if="!started" class="start">
       <div v-if="checking && gateStage" class="ps gate-scene" aria-hidden="true" v-html="sceneHtml"></div>
       <div class="start-inner">
@@ -170,7 +181,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
               </li>
             </ul>
           </template>
-          <p v-if="pendingRoom && pendingTarget" class="start-sub" style="margin-top:.7rem">You will walk to {{ pendingTarget.name }}, then the Find inside button takes you to {{ pendingRoom.room_name }}.</p>
+          <p v-if="pendingRoom && pendingTarget" class="start-sub" style="margin-top:.7rem">You will walk to {{ pendingTarget.name }}, then Lampara takes you inside to {{ pendingRoom.room_name }}.</p>
           <p v-if="!gateList.length && !gateRooms.length" class="start-empty">{{ buildings.length ? 'No building matches \u201c' + gateQuery + '\u201d.' : 'The building list is not loaded yet. You can still start and search later.' }}</p>
 
           <button v-if="!gateQuery.trim() && buildings.length > 4" type="button" class="start-more" @click="gateAll = !gateAll">{{ gateAll ? 'Show fewer' : 'Show all ' + buildings.length + ' buildings' }}</button>

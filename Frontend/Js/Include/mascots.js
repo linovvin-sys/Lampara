@@ -438,6 +438,8 @@
   function refreshImages() {
     var eq = load().eq, imgs = document.querySelectorAll('img[data-mascot]');
     for (var i = 0; i < imgs.length; i++) { var u = uri(eq); if (imgs[i].getAttribute('src') !== u) imgs[i].setAttribute('src', u); }
+    var pid = eq === 'lumi' ? 'bulby' : 'lumi', ps = document.querySelectorAll('img[data-partner]');   // Valentine's running partner: another mascot
+    for (var j = 0; j < ps.length; j++) { var pu = uri(pid); if (ps[j].getAttribute('src') !== pu) ps[j].setAttribute('src', pu); }
   }
 
   var api = {

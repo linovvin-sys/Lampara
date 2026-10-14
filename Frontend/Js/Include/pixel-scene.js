@@ -50,7 +50,29 @@
     });
     out += deco;
     out += '<svg class="ps-city" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges">' + r + '</svg><svg class="ps-props" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges">' + props + '</svg>';
-    if (o.walker !== false) out += '<img data-mascot class="ps-walker" alt="" width="40" height="40">';
+    if (o.walker !== false) {
+      // The runner and whatever goes with them in each season (hidden by the CSS unless that theme is on):
+      // a sleigh and reindeer, a skeleton on their heels, a dragon to ride, a partner running alongside.
+      function art(rows, pal, cls) {
+        var r2 = '';
+        rows.forEach(function (row, j) { for (var i = 0; i < row.length; i++) if (row[i] !== '.') r2 += '<rect x="' + i + '" y="' + j + '" width="1" height="1" fill="' + pal[row[i]] + '"/>'; });
+        return '<svg class="' + cls + '" viewBox="0 0 ' + rows[0].length + ' ' + rows.length + '" shape-rendering="crispEdges" aria-hidden="true">' + r2 + '</svg>';
+      }
+      var SLEIGH = ['..rr..............rr....', '.rrrrrrrrrrrrrrrrrrrrrr.', '.rddddddddddddddddddddr.', '..rrrrrrrrrrrrrrrrrrrr..', '.gggggggggggggggggggggg.', 'gg....................gg'];
+      var DEER = ['..........b.b.', '...........bb.', '..........bbbb', '..bbbbbbbbbbbR', '..bbbbbbbbbbb.', '..bbbbbbbbbb..', '..b.b....b.b..', '..b.b....b.b..'];
+      var SKEL = ['..wwwwww..', '.wwwwwwww.', '.wkkwwkkw.', '.wwwwwwww.', '..wkwkww..', '...wwww...', '...wwwwwww', '...wkwkw..', '...wwwww..', '...wkwkw..', '....www...', '...ww.ww..', '..ww...ww.', '.ww.....ww'];
+      var SEG = ['.rrrr.', 'rrrrrr', 'rrggrr', 'rrggrr', 'rrdddr', '.dddd.'];
+      var HEAD = ['g..g......', '.grrrrr...', 'rrrrwkrrrr', 'rrrrrrrrrr', '.rrrrrrrrw', '..dddddd..'];
+      var HEART2 = ['.r.r.', 'rrrrr', 'rrrrr', '.rrr.', '..r..'];
+      var segs = '';
+      for (var q = 0; q < 5; q++) segs += art(SEG, { r: '#e02d2d', g: '#ffcf33', d: '#9b1c1c' }, 'ps-seg s' + q);
+      out += '<div class="ps-run">'
+        + '<div class="ps-x ps-xm">' + art(SLEIGH, { r: '#e0393e', d: '#a82428', g: '#ffcf33' }, 'ps-sleigh') + art(DEER, { b: '#8a5a2b', R: '#ff2d2d' }, 'ps-deer') + '</div>'
+        + '<div class="ps-x ps-hw">' + art(SKEL, { w: '#e9e9f0', k: '#1a0f06' }, 'ps-skel') + '</div>'
+        + '<div class="ps-x ps-ny">' + segs + art(HEAD, { r: '#e02d2d', g: '#ffcf33', d: '#9b1c1c', w: '#ffffff', k: '#1a0f06' }, 'ps-dhead') + '</div>'
+        + '<div class="ps-x ps-vd"><img data-partner class="ps-partner" alt="" width="40" height="40">' + art(HEART2, { r: '#ff4d86' }, 'ps-pheart') + '</div>'
+        + '<img data-mascot class="ps-walker" alt="" width="40" height="40"></div>';
+    }
     return out;
   }
   function mount(box, o) { if (box) box.innerHTML = html(o); }

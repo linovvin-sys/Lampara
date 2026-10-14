@@ -194,6 +194,7 @@ window.LamparaGuide = createApp({
       debugUi: /[?&]debug\b/.test(location.search), // the build label is for testers only
       rooms: [],              // the directory, so the start screen and the search bar can find offices and rooms, not only buildings
       pendingRoom: null,      // a room picked by name: its building is the outdoor destination, and 'Find inside' opens that room afterwards
+      arrivalDismissed: false,
       exitCard: new URLSearchParams(location.search).get('exit') === '1',   // came out of a building on an indoor route: greet with a card
       pendingTarget: null,    // the building picked on the start screen (chosen as soon as the AR view is up)
       gateStage: '',          // what start-up is doing: 'map' | 'camera' | 'gps' | 'ready'

@@ -149,13 +149,13 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <h2 id="wyTitle">Where are you now?</h2>
           <p>Pick the room you are standing at and we will show the way, floor by floor.</p>
           <div class="wy-opts">
+            <a class="wy-opt wy-opt-card" :href="'../Public/guide-ar.php?to=' + destination.building_id + '&room=' + destination.id">
+              <span class="wy-opt-main">I am outside</span>
+              <span class="wy-opt-sub">Follow the path on your camera to {{ destination.building_name }}, then straight into the floor plan to the room</span>
+            </a>
             <a class="wy-opt wy-opt-card" :href="'journey.php?arrived=1&to=' + destination.id">
               <span class="wy-opt-main">I am at the door of {{ destination.building_name }}</span>
               <span class="wy-opt-sub">Show me the way to the room on the floor plan</span>
-            </a>
-            <a v-if="!saidInside" class="wy-opt wy-opt-card" :href="'../Public/guide-ar.php?to=' + destination.building_id + '&room=' + destination.id">
-              <span class="wy-opt-main">I am still outside</span>
-              <span class="wy-opt-sub">Walk to {{ destination.building_name }} first, with the camera guide</span>
             </a>
           </div>
           <label class="wy-search">

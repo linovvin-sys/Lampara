@@ -285,3 +285,5 @@ body > canvas { position: fixed !important; inset: 0; z-index: 0; }
 .exit-in .start-btn { width: 100%; }
 .exit-in .start-link { display: block; margin: 0.8rem auto 0; color: var(--t-ink2, #161850); }
 .start .exit-in h2, .start .exit-in p { color: var(--t-ink2, #161850); }
+.exit-in h2, .exit-in p { color: var(--t-ink2, #161850); }
+.exit-in a.start-btn { display: block; text-align: center; text-decoration: none; }
