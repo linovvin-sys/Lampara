@@ -22,3 +22,40 @@
 .btn-danger { background: #b3261e; color: #fff; border: 0; }
 .btn-danger:hover:not(:disabled) { background: #8c1d14; }
 .btn-danger:disabled { opacity: 0.45; }
+
+/* the "confirm it is you" dialog */
+.vf { width: min(26rem, calc(100% - 2rem)); padding: 0; border: 0; border-radius: 1.25rem; background: #fff; color: var(--v2-ink, #15173f); box-shadow: 0 30px 70px -20px rgba(21, 23, 63, 0.55); font-family: inherit; }
+.vf[open] { animation: vfIn 240ms cubic-bezier(0.23, 1, 0.32, 1); }
+.vf::backdrop { background: rgba(15, 17, 56, 0.55); backdrop-filter: blur(2px); }
+.vf.is-shake { animation: vfShake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.vf-form { display: grid; gap: 0.8rem; padding: 1.5rem 1.4rem 1.3rem; }
+.vf-icon { width: 3rem; height: 3rem; border-radius: 0.95rem; display: grid; place-items: center; background: var(--v2-blue-50, #eef0fb); color: var(--v2-blue, #2e3192); }
+.vf h2 { margin: 0; font-size: 1.3rem; letter-spacing: -0.01em; }
+.vf-sub { margin: 0; color: var(--v2-soft, #5b5f82); font-size: 0.95rem; line-height: 1.5; }
+.vf-field { display: grid; gap: 0.35rem; font-size: 0.85rem; font-weight: 700; }
+.vf-field input { width: 100%; min-height: 2.9rem; padding: 0 0.9rem; border: 1.5px solid var(--v2-line, #e3e5f1); border-radius: 0.8rem; background: #fff; color: inherit; font: inherit; font-weight: 400; font-size: 1rem; }
+.vf-field input:focus { outline: none; border-color: var(--v2-blue, #2e3192); box-shadow: 0 0 0 3px rgba(46, 49, 146, 0.18); }
+.vf-pw { position: relative; display: block; }
+.vf-pw input { padding-right: 3rem; }
+.vf-eye { position: absolute; right: 0.25rem; top: 50%; transform: translateY(-50%); width: 2.5rem; height: 2.5rem; border: 0; border-radius: 0.6rem; background: transparent; color: var(--v2-soft, #5b5f82); cursor: pointer; display: grid; place-items: center; }
+.vf-eye[aria-pressed="true"] { color: var(--v2-blue, #2e3192); }
+.vf-eye:focus-visible, .vf-link:focus-visible { outline: 2px solid var(--v2-blue, #2e3192); outline-offset: 2px; }
+.vf-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--v2-blue, #2e3192); font: inherit; font-size: 0.875rem; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; min-height: 2rem; }
+.vf-err { margin: 0; padding: 0.6rem 0.8rem; border-radius: 0.7rem; background: #fdecea; color: #b3261e; font-size: 0.9rem; font-weight: 600; }
+.vf-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.3rem; }
+.vf-actions .btn { min-height: 2.9rem; width: 100%; justify-content: center; }
+@keyframes vfIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes vfShake { 10%, 90% { transform: translateX(-2px); } 30%, 70% { transform: translateX(-5px); } 50% { transform: translateX(5px); } }
+@media (prefers-reduced-motion: reduce) { .vf[open], .vf.is-shake { animation: none; } }
+.vf [hidden] { display: none !important; }
+/* A modal dialog sits in the browser's top layer, outside the page-wide dark-mode flip, so it gets its own dark colours. */
+html[data-admin-theme="dark"] .vf { background: #181b52; color: #eceefc; box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.7); }
+html[data-admin-theme="dark"] .vf-icon { background: #262b78; color: #aab0ff; }
+html[data-admin-theme="dark"] .vf-sub, html[data-admin-theme="dark"] .vf-eye { color: #a9aed6; }
+html[data-admin-theme="dark"] .vf-field input { background: #0f1138; border-color: #3a3f8c; color: #eceefc; }
+html[data-admin-theme="dark"] .vf-field input:focus { border-color: #aab0ff; box-shadow: 0 0 0 3px rgba(170, 176, 255, 0.25); }
+html[data-admin-theme="dark"] .vf-link { color: #aab0ff; }
+html[data-admin-theme="dark"] .vf-err { background: #3b1a1a; color: #ffb4ab; }
+html[data-admin-theme="dark"] .vf .btn { filter: none; }
+html[data-admin-theme="dark"] .vf .btn-secondary { background: #0f1138; border-color: #3a3f8c; color: #eceefc; }
+html[data-admin-theme="dark"] .vf .btn-primary { background: #ffd100; color: #15173f; }

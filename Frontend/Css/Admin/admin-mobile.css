@@ -146,3 +146,15 @@
 .map-card, .map-area, .paths-map, .pick-map, .st-map { position: relative; z-index: 0; isolation: isolate; }
 .admin-topbar { z-index: 35; }
 .admin-header, .admin-tabs { z-index: 45; }
+
+/* The remaining pop-ups (SweetAlert) in the admin's look: rounded, Outfit, navy and yellow buttons, phone-sized touch targets. */
+.swal2-popup { font-family: 'Outfit', system-ui, sans-serif; border-radius: 1.25rem; padding: 1.4rem 1.2rem; color: var(--v2-ink, #15173f); }
+.swal2-title { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; }
+.swal2-html-container { color: var(--v2-soft, #5b5f82); line-height: 1.5; }
+.swal2-actions { width: 100%; gap: 0.5rem; }
+.swal2-styled { min-height: 2.9rem; border-radius: 0.9rem !important; font-weight: 700 !important; font-family: inherit !important; }
+.swal2-styled.swal2-confirm { background: var(--yellow-cta, #ffd100) !important; color: var(--navy-deep, #15173f) !important; }
+.swal2-styled.swal2-cancel { background: #fff !important; color: var(--v2-blue, #2e3192) !important; border: 1.5px solid var(--v2-blue-100, #dfe3f7) !important; }
+.swal2-styled:focus-visible { box-shadow: 0 0 0 3px rgba(46, 49, 146, 0.35) !important; }
+.swal2-input, .swal2-textarea { border-radius: 0.8rem; font-family: inherit; }
+@media (max-width: 480px) { .swal2-actions { flex-direction: column-reverse; } .swal2-styled { width: 100%; margin: 0 !important; } }

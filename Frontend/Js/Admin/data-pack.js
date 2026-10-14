@@ -9,23 +9,56 @@
   const li = (ul, items) => { ul.textContent = ''; items.forEach((t) => { const x = document.createElement('li'); x.textContent = t; ul.append(x); }); };
   // Everything here needs the administrator to prove who they are again (password, plus the two-step code if it is on).
   // Good for 5 minutes on the server; a download uses it up.
-  async function verify() {
-    for (let tries = 0; tries < 3; tries++) {
-      const r = await Swal.fire({
-        title: 'Confirm it is you', text: 'Data packs hold your whole directory, so enter your password again.', icon: 'info',
-        html: '<input id="vPw" class="swal2-input" type="password" autocomplete="current-password" placeholder="Your password" aria-label="Your password">' +
-              '<input id="vCode" class="swal2-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Two-step code (only if you use one)" aria-label="Two-step code">',
-        focusConfirm: false, showCancelButton: true, confirmButtonText: 'Confirm',
-        preConfirm: () => ({ password: document.getElementById('vPw').value, code: document.getElementById('vCode').value })
-      });
-      if (!r.isConfirmed) return false;
-      const res = await fetch(API + '?action=verify', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r.value) });
-      let d = {}; try { d = await res.json(); } catch (e) { /* handled below */ }
-      if (d.success) return true;
-      await Swal.fire({ icon: 'error', title: 'Not confirmed', text: d.error || 'Try again.' });
-      if (res.status === 429) return false;
-    }
-    return false;
+  // The "confirm it is you" step is a dialog in the admin's own look (not a pop-up from a library): one password field with a show
+  // toggle, and a code field that appears when the account uses two-step sign-in. Mistakes show inline, so nothing stacks on top of it.
+  let vDlg = null;
+  function buildDialog() {
+    const d = document.createElement('dialog'); d.className = 'vf'; d.setAttribute('aria-labelledby', 'vfTitle');
+    d.innerHTML =
+      '<form method="dialog" class="vf-form" novalidate>' +
+        '<div class="vf-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>' +
+        '<h2 id="vfTitle">Confirm it is you</h2>' +
+        '<p class="vf-sub">A data pack holds your whole directory, so enter your password again before continuing.</p>' +
+        '<label class="vf-field" for="vfPw"><span>Password</span><span class="vf-pw"><input id="vfPw" type="password" autocomplete="current-password" required><button type="button" class="vf-eye" id="vfEye" aria-label="Show the password" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>' +
+        '<button type="button" class="vf-link" id="vfMore">I use a two-step code</button>' +
+        '<label class="vf-field" id="vfCodeRow" for="vfCode" hidden><span>Two-step code</span><input id="vfCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 digits"></label>' +
+        '<p class="vf-err" id="vfErr" role="alert" hidden></p>' +
+        '<div class="vf-actions"><button type="button" class="btn btn-secondary" id="vfCancel">Cancel</button><button type="submit" class="btn btn-primary" id="vfGo">Confirm</button></div>' +
+      '</form>';
+    document.body.appendChild(d);
+    const $d = (id) => d.querySelector('#' + id);
+    $d('vfEye').addEventListener('click', () => { const pw = $d('vfPw'), show = pw.type === 'password'; pw.type = show ? 'text' : 'password'; $d('vfEye').setAttribute('aria-pressed', show); $d('vfEye').setAttribute('aria-label', show ? 'Hide the password' : 'Show the password'); });
+    $d('vfMore').addEventListener('click', () => { $d('vfCodeRow').hidden = false; $d('vfMore').hidden = true; $d('vfCode').focus(); });
+    $d('vfCancel').addEventListener('click', () => d.close('cancel'));
+    d.addEventListener('click', (e) => { if (e.target === d) d.close('cancel'); });   // a tap on the dim area closes it
+    return d;
+  }
+  function verify() {
+    if (!vDlg) vDlg = buildDialog();
+    const d = vDlg, $d = (id) => d.querySelector('#' + id);
+    $d('vfPw').value = ''; $d('vfCode').value = ''; $d('vfErr').hidden = true; $d('vfGo').disabled = false; $d('vfGo').textContent = 'Confirm';
+    $d('vfCodeRow').hidden = true; $d('vfMore').hidden = false; $d('vfPw').type = 'password';
+    d.showModal(); $d('vfPw').focus();
+    return new Promise((resolve) => {
+      let done = false;
+      const fail = (t) => { const e = $d('vfErr'); e.textContent = t; e.hidden = false; d.classList.remove('is-shake'); void d.offsetWidth; d.classList.add('is-shake'); };
+      const onSubmit = async (e) => {
+        e.preventDefault();
+        if (!$d('vfPw').value) { fail('Enter your password.'); $d('vfPw').focus(); return; }
+        $d('vfGo').disabled = true; $d('vfGo').textContent = 'Checking…';
+        try {
+          const res = await fetch(API + '?action=verify', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $d('vfPw').value, code: $d('vfCode').value }) });
+          let r = {}; try { r = await res.json(); } catch (x) { /* handled below */ }
+          if (r.success) { done = true; d.close('ok'); return; }
+          if (r.needs_code) { $d('vfCodeRow').hidden = false; $d('vfMore').hidden = true; if (!$d('vfCode').value) $d('vfCode').focus(); }
+          fail(r.error || 'That did not work. Try again.');
+          if (res.status === 429) { $d('vfGo').textContent = 'Try later'; return; }
+        } catch (x) { fail('Could not reach the server. Check your connection.'); }
+        $d('vfGo').disabled = false; $d('vfGo').textContent = 'Confirm';
+      };
+      const form = d.querySelector('form'); form.addEventListener('submit', onSubmit);
+      d.addEventListener('close', () => { form.removeEventListener('submit', onSubmit); $d('vfPw').value = ''; $d('vfCode').value = ''; resolve(done); }, { once: true });
+    });
   }
   async function send(action, field, file, extra, retried) {
     const f = new FormData(); f.append(field, file); Object.entries(extra || {}).forEach(([k, v]) => f.append(k, v));
