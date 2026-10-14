@@ -225,7 +225,7 @@ window.LamparaRoomApp = createApp({
       const key = RoomNumber.compact(String(next));
       return this.rooms.some((r) => r.room_number && RoomNumber.compact(r.room_number) === key && this.sameNumberGroup(r.building_id, this.form.building_id)) ? '' : String(next);
     },
-    // Buildings that share a first digit (2-A and 2-B) also share their room numbers, so a number cannot repeat across them.
+    // A room number must be unique inside its own building.
     roomNumberError() {
       if (this.form.noSignage || this.forcesNoNumber) return ''; // nothing to validate — this room deliberately has no number
       // Duplicate check runs regardless of whether a numbering prefix is
@@ -293,7 +293,8 @@ window.LamparaRoomApp = createApp({
   },
   methods: {
     sameNumberGroup(a, b) {
-      if (String(a) === String(b)) return true;
+      return String(a) === String(b);   // a room number only has to be unique inside its own building (1-A and 1-B may both have a 1101)
+      /* eslint-disable no-unreachable */
       const digits = (id) => { const x = this.buildings.find((y) => String(y.id) === String(id)); return x && x.building_number ? String(x.building_number).replace(/\D/g, '') : ''; };
       const da = digits(a);
       return da !== '' && da === digits(b);

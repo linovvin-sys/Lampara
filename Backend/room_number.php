@@ -93,7 +93,9 @@ function normalize_building_number($value)
 // (or an unknown one) is on its own.
 function building_group_ids($conn, $buildingId): array
 {
-    if ($buildingId === null) return [];
+    // Each building keeps its own numbering: 1-A and 1-B may both have a room 1101 (the scan screen asks which building when a number
+    // is in more than one). The sibling-sharing rule below is switched off.
+    return $buildingId === null ? [] : [(int) $buildingId];
     $stmt = $conn->prepare('SELECT building_number FROM buildings WHERE id = ?');
     $stmt->bind_param('i', $buildingId);
     $stmt->execute();
