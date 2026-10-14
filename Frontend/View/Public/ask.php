@@ -124,5 +124,7 @@ $f = fn($p) => filemtime(__DIR__ . '/../../' . $p);
 <script src="../../Js/Public/ask.js?v=<?= $f('Js/Public/ask.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= $f('Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Include/game-feel.js?v=<?= $f('Js/Include/game-feel.js') ?>"></script>
+<script src="../../Js/Include/read-more.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/read-more.js') ?>"></script>
+<script src="../../Js/Include/smart-back.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/smart-back.js') ?>"></script>
 </body>
 </html>

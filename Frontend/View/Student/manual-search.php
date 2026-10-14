@@ -39,7 +39,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <div class="ps ms-bg" id="msBg" aria-hidden="true"></div>
 <div id="app" v-cloak class="shell">
   <header class="topbar">
-    <a href="../Public/guide-ar.php" class="back-btn" aria-label="Back to the guide">
+    <a href="../Public/guide-ar.php" class="back-btn" aria-label="Back">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
     </a>
     <div class="top-title">
@@ -188,6 +188,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>"></script>
 <script src="../../Js/Public/guide-audio.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-audio.js') ?>"></script>
 <script src="../../Js/Include/game-feel.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/game-feel.js') ?>"></script>
+<script src="../../Js/Include/read-more.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/read-more.js') ?>"></script>
+<script src="../../Js/Include/smart-back.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/smart-back.js') ?>"></script>
 <script>window.LamparaTour = 'manual';</script>
 <script src="../../Js/Public/guide-tutorial.js?v=<?= filemtime(__DIR__ . '/../../Js/Public/guide-tutorial.js') ?>"></script>
 <script src="../../Js/Include/enroll-fab.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/enroll-fab.js') ?>"></script>

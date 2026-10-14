@@ -263,4 +263,5 @@ foreach ($navSections as $sectionName => $keys) {
 <script src="../../Js/Include/admin-search.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-search.js') ?>"></script>
 <script src="../../Js/Include/dropzone.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/dropzone.js') ?>"></script>
 <script src="../../Js/Include/admin-nav.js"></script>
+<script src="../../Js/Include/read-more.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/read-more.js') ?>"></script>
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>" data-admin="1"></script>
