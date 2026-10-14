@@ -13,6 +13,7 @@ if (isset($_GET['embed'])) { ?>
 <script>document.documentElement.classList.add('is-embed')</script>
 <link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/admin-mobile.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-mobile.css') ?>">
 <script defer src="../../Js/Include/admin-ux.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-ux.js') ?>"></script>
 <script src="../../Js/Include/admin-offline.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-offline.js') ?>"></script>
 <script src="../../Js/Include/admin-savestate.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-savestate.js') ?>"></script>
@@ -160,6 +161,7 @@ foreach ($navSections as $sectionName => $keys) {
 ?>
 <link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
+<link rel="stylesheet" href="../../Css/Admin/admin-mobile.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-mobile.css') ?>">
 <script defer src="../../Js/Include/admin-ux.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-ux.js') ?>"></script>
 <script>try { var __t = localStorage.getItem('lampara_admin_theme'); if (__t === 'dark' || (!__t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.setAttribute('data-admin-theme', 'dark'); } catch (e) { /* storage blocked: light */ }</script>
 <link rel="stylesheet" href="../../Css/Admin/admin-dark.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-dark.css') ?>">
