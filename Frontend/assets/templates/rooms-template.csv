@@ -1,0 +1,4 @@
+building_name,floor,room_number,room_name,category,hours,notes
+Main Building,1st Floor,101,Registrar,office,8am-5pm,Window 1 is for transcripts
+Main Building,1st Floor,102,Lecture Room A,classroom,,
+Main Building,2nd Floor,,Comfort Room,cr,,Next to the stairs

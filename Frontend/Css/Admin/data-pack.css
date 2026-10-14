@@ -1,0 +1,24 @@
+.dp { max-width: 52rem; }
+.dp-card { background: #fff; border: 1px solid var(--line, #dcdde8); border-radius: 1rem; padding: 1.1rem 1.25rem; margin: 0 0 1rem; }
+.dp-card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.dp-card p { margin: 0 0 0.8rem; color: #3b3f66; line-height: 1.5; }
+.dp-card code { background: #eef0fb; padding: 0.05rem 0.35rem; border-radius: 0.3rem; font-size: 0.85em; }
+.dp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; margin: 0.4rem 0 0.8rem; }
+.dp-row input[type="file"] { flex: 1 1 14rem; min-width: 0; padding: 0.5rem; border: 1px dashed var(--line, #cfd1e3); border-radius: 0.6rem; background: #f7f8fd; }
+.dp-row input[type="text"] { padding: 0.6rem 0.75rem; border: 1px solid var(--line, #cfd1e3); border-radius: 0.6rem; font: inherit; width: 12rem; }
+.dp-table { width: 100%; border-collapse: collapse; margin: 0.4rem 0 0.8rem; font-size: 0.9rem; }
+.dp-table th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #5b5f7c; padding: 0.4rem 0.6rem; border-bottom: 2px solid #e3e5f1; }
+.dp-table td { padding: 0.45rem 0.6rem; border-bottom: 1px solid #eceefa; }
+.dp-table td.num, .dp-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dp-list { margin: 0.4rem 0 0.8rem; padding: 0.6rem 0.9rem 0.6rem 1.8rem; border-radius: 0.7rem; font-size: 0.88rem; }
+.dp-list:empty { display: none; }
+.dp-list.bad { background: #fdecea; color: #8c1d14; }
+.dp-list.warn { background: #fff3d6; color: #6b4600; }
+.dp-summary { font-weight: 700; }
+.dp-bad summary { cursor: pointer; font-weight: 700; color: #b3261e; margin: 0.3rem 0; }
+.dp-msg { padding: 0.7rem 1rem; border-radius: 0.8rem; background: #e6f4ea; color: #1e6b34; font-weight: 700; }
+.dp-msg.bad { background: #fde8e6; color: #b3261e; }
+.dp-msg[hidden], [hidden].dp-bad, #dpPreview[hidden], #csvPreview[hidden], #dpConfirm[hidden] { display: none !important; }
+.btn-danger { background: #b3261e; color: #fff; border: 0; }
+.btn-danger:hover:not(:disabled) { background: #8c1d14; }
+.btn-danger:disabled { opacity: 0.45; }

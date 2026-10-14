@@ -86,6 +86,11 @@ $navItems = [
         'href'  => 'settings.php',
         'icon'  => '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
     ],
+    'data-pack' => [
+        'label' => 'Data',
+        'href'  => 'data-pack.php',
+        'icon'  => '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+    ],
     'account' => [
         'label' => 'Account',
         'href'  => 'account.php',
@@ -115,7 +120,7 @@ $navSections = [
     'Overview'         => ['dashboard', 'hazards', 'enrollment-steps'],
     'Buildings'        => ['manage-buildings', 'doors'],
     'Campus outdoors'  => ['campus-paths', 'building-outlines', 'campus-map'],
-    'Tools'            => ['test-chat'],
+    'Tools'            => ['test-chat', 'data-pack'],
     'Your account'     => ['account', 'settings'],
 ];
 require_once __DIR__ . '/../../../Backend/institution.php';

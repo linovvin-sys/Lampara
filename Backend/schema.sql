@@ -7,7 +7,7 @@
 -- file — just run this one line against it instead:
 --   ALTER TABLE buildings ADD COLUMN floor_count INT NOT NULL DEFAULT 1 AFTER lng;
 --   ALTER TABLE buildings ADD COLUMN building_number VARCHAR(10) NULL AFTER floor_count;   -- "2", "2-A", "2-B"
---   ALTER TABLE rooms ADD UNIQUE KEY room_number_unique (room_number);
+--   (old) ALTER TABLE rooms ADD UNIQUE KEY room_number_unique (room_number);  -- superseded: a room number is unique per building, see ensure_room_number_key() in room_number.php
 --   ALTER TABLE rooms MODIFY room_number VARCHAR(30) NULL;
 --   ALTER TABLE rooms ADD COLUMN category ENUM('office','classroom','cr','canteen') NOT NULL DEFAULT 'office' AFTER room_type;
 --   UPDATE rooms SET category = room_type; -- backfill existing rows before this column existed

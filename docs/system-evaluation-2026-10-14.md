@@ -326,7 +326,7 @@ The outdoor AR guidance has never run on a real device in any test I can see. Do
 | Database ids in code | `Js/Include/building-doors.js:14` | `KNOWN = {1: …'Point AG', 3: …'Point T'}`: building **ids** and point **names** baked into the client |
 | Enrollment content | `Js/Include/enrollment-steps.js`, `Js/Student/enrollment.js`, `Js/Student/journey.js:170` | NCST's steps, "Houses of Hero", Amafel room numbers as built-in defaults |
 | Domain rules | `Js/Admin/register-room.js`, `room_number.php` | Room number = building digit + floor digit; "section" suffix |
-| Data model | `schema.sql` | No institution/campus table; `rooms.room_number` is **unique across the whole database** (two institutions would collide on "101"); `app_settings`, `admins`, static maps and the enrollment list are global |
+| Data model | `schema.sql` | No institution/campus table; there is no institution table beyond the new settings record; `rooms.room_number` is unique **per building** in the live database (checked 14 Oct), but `schema.sql` still shows the old whole-database key as a comment, so a fresh install built from it would differ; `app_settings`, `admins`, static maps and the enrollment list are global |
 | Language | All views | English only |
 
 ### 7.2 What good already exists for reuse
@@ -338,7 +338,7 @@ Editable enrollment steps, doors, themes, campus-only switch, open-type building
 2. Serve it from one endpoint; replace the ~30 hard-coded strings and the three coordinate constants with reads from it.
 3. Move built-in enrollment steps and `KNOWN` door defaults out of code (doors already come from the database).
 4. Add a setup wizard: create admin, upload logo, draw campus boundary, choose theme, load a sample dataset.
-5. Make `room_number` unique per building (or per institution) instead of globally.
+5. Bring `schema.sql` in line with the live database (room numbers are already unique per building there).
 
 **Phase 2: true multi-tenant (one install, many schools), roughly 4-6 more weeks.** `institution_id` on buildings, campus nodes, static maps, settings, admins, reports and enrollment steps; subdomain routing; per-tenant storage and AI quota; tenant-aware rate limits and audit log.
 
