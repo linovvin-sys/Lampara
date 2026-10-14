@@ -1,0 +1,14 @@
+/* Tailwind CSS (v4) for the Lampara interface: theme tokens and utilities only.
+   No preflight reset on purpose: the pixel theme and the page stylesheets stay in charge of base styles, and Tailwind lays out the pages
+   (flex, grid, spacing, responsive breakpoints). Rebuild after editing any page:
+     ./tailwindcss-cli -i Frontend/assets/css/tw-input.css -o Frontend/assets/css/tw.css --minify                                          */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../../View";
+@source "../../Js";
+
+@theme {
+  --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}

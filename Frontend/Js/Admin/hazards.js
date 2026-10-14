@@ -32,7 +32,7 @@
         + '<div class="hz-body"><span class="hz-kind ' + esc(r.kind) + '">' + esc(KIND[r.kind] || r.kind) + '</span>' + (r.urgent ? ' <span class="hz-kind">Urgent' + (r.status === 'active' && !r.verified ? ', showing to everyone, not yet checked' : '') + '</span>' : '')
         + '<h3>' + esc(place) + '</h3><div class="hz-meta">' + ago(r.age_min) + ' &middot; ' + esc(r.created_at) + '</div>'
         + (r.note ? '<p class="hz-note">' + esc(r.note) + '</p>' : '') + '</div>'
-        + '<div class="hz-actions">' + map
+        + '<div class="hz-actions grid grid-cols-2 gap-2">' + map
         + (r.status === 'pending' ? '<button type="button" data-act="approve">Approve: show to everyone</button>' : r.status === 'active' ? (!r.verified ? '<button type="button" data-act="verify">Confirm it is real</button>' : '') + '<button type="button" data-act="resolve">Mark as cleared</button>' : '<button type="button" data-act="reopen">Bring back</button>')
         + '<button type="button" class="danger" data-act="delete">' + (r.status === 'pending' ? 'Reject' : 'Delete') + '</button></div></article>';
     }).join('');

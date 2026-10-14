@@ -1,6 +1,5 @@
 /* Account: your own details first, then (for administrators) the team and the activity. Phone first; widens from 720px. */
 .ac { max-width: 64rem; display: grid; gap: 1.1rem; }
-.ac-hero { display: flex; align-items: center; gap: 0.9rem; }
 .ac-avatar { flex: none; width: 3.5rem; height: 3.5rem; border-radius: 1.1rem; display: grid; place-items: center; background: var(--v2-blue, #2e3192); color: #fff; font-size: 1.5rem; font-weight: 800; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2); }
 .ac-avatar.sm { width: 2.75rem; height: 2.75rem; border-radius: 0.9rem; font-size: 1.1rem; background: var(--v2-blue-50, #eef0fb); color: var(--v2-blue, #2e3192); box-shadow: none; }
 .ac-hero h1 { margin: 0; font-size: clamp(1.4rem, 5vw, 1.8rem); line-height: 1.15; overflow-wrap: anywhere; }
@@ -10,22 +9,18 @@
 .chip-btn { cursor: pointer; min-height: 2.25rem; padding: 0 0.85rem; font-size: 0.8125rem; }
 .chip-btn.is-on { background: #15173f; color: #fff; }
 .chip-btn:active { transform: scale(0.97); }
-.ac-chips { margin: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
 
 .ac-tabs { display: flex; gap: 0.25rem; padding: 0.25rem; border-radius: 999px; background: var(--v2-wash, #f4f5fb); overflow-x: auto; scrollbar-width: none; }
 .ac-tab { flex: 1 0 auto; min-height: 2.6rem; padding: 0 1.1rem; border: 0; border-radius: 999px; background: transparent; color: var(--v2-soft, #5b5f82); font: inherit; font-weight: 700; cursor: pointer; transition: background-color 160ms, color 160ms, transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 .ac-tab.is-on { background: #fff; color: var(--v2-ink, #15173f); box-shadow: 0 2px 8px -3px rgba(21, 23, 63, 0.3); }
 .ac-tab:active { transform: scale(0.97); }
 .ac-pane[hidden] { display: none; }
-.ac-pane { display: grid; gap: 1rem; }
 
-.ac-two { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
 .ac-box { background: #fff; border: 1px solid var(--v2-line, #e3e5f1); border-radius: 1.1rem; padding: 1.1rem; display: grid; gap: 0.7rem; align-content: start; min-width: 0; }
 .ac-box h2 { margin: 0; font-size: 1.15rem; }
 .ac-sub { margin: 0; color: var(--v2-soft, #5b5f82); font-size: 0.92rem; line-height: 1.5; }
 .ac-small { margin: 0; color: var(--v2-soft, #5b5f82); font-size: 0.8125rem; line-height: 1.45; }
-.ac-form { display: grid; gap: 0.7rem; }
-.ac-field { display: grid; gap: 0.3rem; font-size: 0.85rem; font-weight: 700; }
+.ac-field { font-size: 0.85rem; font-weight: 700;}
 .ac-field input, .ac-toolbar input, .ac-toolbar select, .ac-codeRow input { min-height: 2.9rem; padding: 0 0.85rem; border: 1.5px solid var(--v2-line, #e3e5f1); border-radius: 0.8rem; background: #fff; color: inherit; font: inherit; font-weight: 400; width: 100%; }
 .ac-field input:focus, .ac-toolbar input:focus, .ac-toolbar select:focus, .ac-codeRow input:focus { outline: none; border-color: var(--v2-blue, #2e3192); box-shadow: 0 0 0 3px rgba(46, 49, 146, 0.18); }
 .ac-meter { height: 0.4rem; border-radius: 999px; background: var(--v2-blue-50, #eef0fb); overflow: hidden; }
@@ -43,14 +38,11 @@
 .ac-box .btn, .ac-sheet .btn { width: 100%; min-height: 2.9rem; }
 
 /* team */
-.ac-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
 .ac-stat { display: grid; gap: 0.1rem; padding: 0.8rem 0.9rem; border-radius: 1rem; background: #fff; border: 1px solid var(--v2-line, #e3e5f1); }
 .ac-stat b { font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; } .ac-stat span { color: var(--v2-soft, #5b5f82); font-size: 0.8125rem; }
-.ac-toolbar { display: grid; gap: 0.5rem; }
 .ac-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-radius: 1rem; background: #fffbe3; border: 1px solid #f3dd7a; font-weight: 700; }
 .ac-bulk[hidden] { display: none; }
-.ac-team { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
-.ac-member { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 0.4rem 0.7rem; align-items: start; padding: 0.9rem; border-radius: 1.1rem; background: #fff; border: 1px solid var(--v2-line, #e3e5f1); }
+.ac-member { padding: 0.9rem; border-radius: 1.1rem; background: #fff; border: 1px solid var(--v2-line, #e3e5f1);}
 .ac-member.is-off { opacity: 0.65; }
 .ac-member > .btn { grid-column: 1 / -1; }
 .ac-pick { display: grid; place-items: center; width: 1.5rem; min-height: 2.75rem; } .ac-pick input { width: 1.2rem; height: 1.2rem; accent-color: #2e3192; }
@@ -95,12 +87,8 @@ body.ac-lock { overflow: hidden; }
 .ac-ev.is-bad .ac-dot { background: #d9534f; }
 
 @media (min-width: 720px) {
-  .ac-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ac-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .ac-toolbar { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; }
   .ac-toolbar .ac-pills { grid-column: 1 / -1; }
   .ac-box .btn { width: auto; }
-  .ac-member { grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; }
   .ac-member > .btn { grid-column: auto; width: auto; }
   .ac-sheet { align-items: center; justify-items: center; }
   .ac-sheet-card { width: min(34rem, calc(100% - 2rem)); border-radius: 1.4rem; animation-name: acPop; }

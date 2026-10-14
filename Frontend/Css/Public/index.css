@@ -48,10 +48,8 @@ a { color: var(--navy); }
 
 /* ---- top bar ---- */
 .top { position: sticky; top: 0; z-index: 20; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-.top-inner { max-width: 70rem; margin-inline: auto; padding: 0.65rem 1.25rem; display: flex; align-items: center; gap: 1.2rem; }
 .brand { display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em; }
 .brand-mark { width: 2rem; height: 2rem; border-radius: 0.6rem; background: var(--soft); display: grid; place-items: center; flex: none; }
-.top-nav { display: flex; gap: 0.2rem; margin-left: auto; }
 .top-admin { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2.5rem; padding: 0 0.85rem; border-radius: 999px; border: 1.5px solid var(--line); color: var(--ink); font-weight: 700; font-size: 0.92rem; text-decoration: none; background: #fff; }
 .top-admin:hover { border-color: var(--navy); }
 .top-nav a { padding: 0.45rem 0.8rem; border-radius: 999px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 0.95rem; }
@@ -63,7 +61,6 @@ a { color: var(--navy); }
 .hero { position: relative; padding-block: 2.6rem 5.2rem; background:
   linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.8) 55%, rgba(255,255,255,0.55) 100%),
   var(--photo) center 55% / cover no-repeat; }
-.hero-grid { display: grid; gap: 2.4rem; align-items: center; }
 .locus { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.85rem; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--navy); box-shadow: 0 6px 16px -10px rgba(21, 23, 63, 0.4); }
 .locus-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 3px var(--t-cream2, #fff3b8); }
 .eyebrow { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); }
@@ -74,13 +71,12 @@ a { color: var(--navy); }
 .quick-field { box-shadow: 0 10px 26px -16px rgba(21, 23, 63, 0.45); display: flex; align-items: center; gap: 0.6rem; min-height: 3.4rem; padding: 0 1.1rem; border-radius: 1rem; border: 2px solid var(--line); background: #fff; color: var(--muted); transition: border-color 140ms, box-shadow 140ms; }
 .quick-field:focus-within { border-color: var(--navy); box-shadow: 0 0 0 4px rgba(35, 38, 122, 0.12); }
 .quick-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 1.05rem; color: var(--ink); }
-.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 2.6rem; }
+.chips { min-height: 2.6rem;}
 .chip { min-height: 2.6rem; padding: 0 1rem; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: border-color 140ms, background-color 140ms; }
 .chip:hover { border-color: var(--navy); }
 .chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
 .chip-none { font-size: 0.92rem; color: var(--muted); padding-block: 0.5rem; }
 .quick-hint { font-size: 0.88rem; color: var(--muted); }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 0.4rem; }
 .hero-actions .btn-primary { flex: 1 1 14rem; }
 .trust { margin-top: 1.6rem; font-weight: 500; display: grid; gap: 0.45rem; font-size: 0.92rem; color: var(--muted); }
 .trust li { display: flex; align-items: center; gap: 0.6rem; }
@@ -90,7 +86,6 @@ a { color: var(--navy); }
 
 /* ---- the three ways in: a signage strip that overlaps the bottom of the photo ---- */
 .ways-wrap { position: relative; z-index: 2; margin-top: -2.8rem; padding-inline: 0; }
-.ways { padding-inline: 1.25rem; display: grid; gap: 0.6rem; }
 .ways li { background: #fff; border: 1px solid var(--line); border-radius: 1.1rem; box-shadow: 0 18px 36px -22px rgba(21, 23, 63, 0.55); }
 .ways a { display: flex; align-items: center; gap: 0.9rem; padding: 0.95rem 1.1rem; min-height: 4rem; text-decoration: none; color: var(--ink); border-radius: 1.1rem; }
 .ways a:hover { background: #fffbe3; }
@@ -102,17 +97,15 @@ a { color: var(--navy); }
 .block { padding-block: 4.2rem; }
 .block.alt { background: var(--ground-alt); }
 .block h2, .closing h2 { margin-top: 0.6rem; max-width: 34rem; font-size: clamp(1.7rem, 4.6vw, 2.5rem); line-height: 1.12; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
-.steps { margin-top: 2.2rem; display: grid; gap: 1.1rem; counter-reset: s; }
+.steps { counter-reset: s;}
 .steps li { background: #fff; border: 1px solid var(--line); border-radius: 1.2rem; padding: 1.4rem 1.4rem 1.5rem; display: grid; gap: 0.5rem; align-content: start; }
 .step-n { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--yellow); color: var(--ink); display: grid; place-items: center; font-weight: 800; font-size: 1.1rem; }
 .steps h3 { font-size: 1.2rem; font-weight: 800; }
 .steps p { color: var(--muted); }
-.features { margin-top: 2.2rem; display: grid; gap: 1.6rem 1.4rem; }
 .features li { display: grid; gap: 0.45rem; align-content: start; }
 .ico { width: 3rem; height: 3rem; border-radius: 0.9rem; background: #fff; border: 1px solid var(--line); color: var(--navy); display: grid; place-items: center; }
 .features h3 { font-size: 1.1rem; font-weight: 800; }
 .features p { color: var(--muted); max-width: 22rem; }
-.bld-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; }
 .bld-grid { margin-top: 1.8rem; display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
 .bld-card { background: #fff; border: 1px solid var(--line); border-radius: 1.1rem; padding: 1.1rem 1.2rem; display: grid; gap: 0.2rem; align-content: start; min-width: 0; }
 .bld-card h3 { font-size: 1.08rem; font-weight: 800; overflow-wrap: anywhere; }
@@ -128,14 +121,11 @@ a { color: var(--navy); }
 
 /* ---- closing band and footer ---- */
 .closing { padding-block: 4.2rem; color: #fff; background: linear-gradient(180deg, rgba(21,23,63,0.9), rgba(21,23,63,0.94)), var(--photo) center 60% / cover no-repeat; }
-.closing-in { display: grid; gap: 1rem; justify-items: start; }
 .closing h2 { margin-top: 0; color: #fff; }
 .closing p { color: rgba(255, 255, 255, 0.78); font-size: 1.1rem; }
 .foot { padding-block: 2.4rem 2.8rem; background: var(--ground-alt); font-size: 0.92rem; color: var(--muted); }
-.foot-in { display: grid; gap: 1rem; }
 .foot-brand { display: inline-flex; align-items: center; gap: 0.55rem; font-weight: 800; color: var(--ink); font-size: 1.05rem; }
 .foot p { max-width: 36rem; }
-.foot-links { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; }
 .foot-links a { color: var(--navy); font-weight: 600; text-decoration: none; padding-block: 0.3rem; }
 .foot-links a:hover { text-decoration: underline; }
 
@@ -145,15 +135,9 @@ a { color: var(--navy); }
   .hero { background:
     linear-gradient(90deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 42%, rgba(255,255,255,0.3) 72%, rgba(255,255,255,0.05) 100%),
     var(--photo) center 55% / cover no-repeat; }
-  .hero-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 3rem; }
-  .ways { grid-template-columns: repeat(3, 1fr); gap: 0.9rem; }
-  .steps { grid-template-columns: repeat(3, 1fr); }
-  .features { grid-template-columns: repeat(3, 1fr); }
   .phone { width: 19rem; }
 }
 @media (max-width: 40rem) {
-  .top-nav { display: none; }
-  .top-inner { justify-content: space-between; gap: 0.5rem; }
   .top-admin { margin-left: auto; width: 2.5rem; padding: 0; justify-content: center; }
   .top-admin span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   .hero { padding-block: 1.8rem 4.4rem; }
@@ -246,7 +230,7 @@ a { color: var(--navy); }
 /* closing band: soft glow follows the pointer */
 .closing { position: relative; overflow: hidden; }
 .closing::before { content: ''; position: absolute; inset: 0; background: radial-gradient(26rem circle at var(--mx, 75%) var(--my, 30%), rgba(255, 209, 0, 0.16), transparent 60%); pointer-events: none; }
-.closing-in { position: relative; }
+.closing-in { position: relative;}
 .foot-links a { position: relative; text-decoration: none !important; }
 .foot-links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0.1rem; height: 2px; background: var(--yellow); transform: scaleX(0); transform-origin: 0 50%; transition: transform 240ms var(--ease-out); }
 

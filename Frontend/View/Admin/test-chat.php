@@ -37,7 +37,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
   <main class="admin-main" id="app">
     <div class="admin-container narrow">
 
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Try the chat</h1>
           <p>Ask a registered building exactly what a student would — before they do.</p>

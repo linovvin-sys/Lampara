@@ -360,13 +360,8 @@ a { color: inherit; }
 .admin-container.narrow { max-width: 56rem; }
 
 .page-head {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
+  margin-bottom: 1.5rem;}
 @media (min-width: 640px) {
-  .page-head { flex-direction: row; align-items: center; justify-content: space-between; }
 }
 
 .page-head h1 {
@@ -512,12 +507,8 @@ a { color: inherit; }
 
 /* ---- Stat cards (dashboard) ---- */
 .stat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.875rem;
-  margin-bottom: 1.75rem;
-}
-@media (min-width: 640px) { .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  margin-bottom: 1.75rem;}
+@media (min-width: 640px) { .stat-grid {} }
 
 .stat-card {
   background: #ffffff;
@@ -680,7 +671,6 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; transform: none; } }
 
 /* ---- Dashboard: page actions, linked stat tiles, setup health ---- */
-.page-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 a.stat-card { text-decoration: none; color: inherit; display: block; transition: transform 140ms ease-out, box-shadow 140ms ease-out; }
 a.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 a.stat-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }

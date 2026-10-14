@@ -37,12 +37,12 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/enrollment-steps.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container es">
 
-      <header class="page-head">
+      <header class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Enrollment steps</h1>
           <p>Build the route new students follow. Pick each office from the directory and the rest fills in for you. Drag stops to reorder, then save.</p>
         </div>
-        <div class="page-actions">
+        <div class="page-actions grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <button type="button" class="btn btn-secondary" id="esLink" hidden>Link my steps to the directory</button>
           <button type="button" class="btn btn-primary" id="esAdd"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Add stops</button>
         </div>

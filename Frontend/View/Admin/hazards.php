@@ -37,21 +37,21 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/hazards.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container hz">
 
-      <header class="page-head">
+      <header class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Reports from visitors</h1>
           <p>Closed buildings and blocked paths that people photographed on campus. A new report is only seen by admins until you approve it; then everyone using the app sees it.</p>
         </div>
       </header>
 
-      <div class="hz-tabs" role="tablist">
+      <div class="hz-tabs flex flex-nowrap gap-2 overflow-x-auto pb-1" role="tablist">
         <button type="button" role="tab" class="hz-tab is-on" data-status="pending">Waiting for approval <span id="hzPending"></span></button>
         <button type="button" role="tab" class="hz-tab" data-status="active">Showing to everyone <span id="hzCount"></span></button>
         <button type="button" role="tab" class="hz-tab" data-status="resolved">Cleared</button>
       </div>
 
       <p class="hz-empty" id="hzEmpty" hidden></p>
-      <div class="hz-list" id="hzList"></div>
+      <div class="hz-list grid grid-cols-1 gap-4 sm:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]" id="hzList"></div>
     </div>
   </main>
 </div>

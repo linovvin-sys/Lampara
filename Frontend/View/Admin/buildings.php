@@ -17,26 +17,26 @@ include __DIR__ . '/../Include/buildings-head.php';
   <main class="admin-main">
     <div class="admin-container">
      <div id="listView">
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Buildings</h1>
           <p>Every registered building, with its location on the campus map.</p>
         </div>
-        <div class="page-actions">
+        <div class="page-actions grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <a href="buildings.php?new=1" class="btn btn-primary" data-ws><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New building</a>
         </div>
       </div>
 
         <div class="bw-callout" id="bwCallout" hidden>Choose a building below, then open its <b>Rooms</b> tab to add or edit rooms.</div>
         <div id="list-app" v-cloak>
-          <div class="list-toolbar">
+          <div class="list-toolbar grid gap-2.5 min-[720px]:flex min-[720px]:flex-wrap min-[720px]:items-center min-[720px]:justify-between">
             <p class="list-count"><strong>{{ buildings.length }}</strong> buildings &middot; <strong>{{ buildings.reduce((s, b) => s + (b.room_count || 0), 0) }}</strong> rooms &middot; <strong>{{ buildings.filter(b => b.open_flags > 0).length }}</strong> flagged</p>
             <div class="search-box">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="var(--muted)" stroke-width="1.8"/><path d="M20 20l-4.5-4.5" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round"/></svg>
               <label for="buildingSearch" class="sr-only">Search buildings</label>
               <input id="buildingSearch" v-model="q" type="search" placeholder="Search buildings">
             </div>
-            <div class="sort-box">
+            <div class="sort-box flex items-center gap-2">
               <label for="buildingSort">Sort</label>
               <select id="buildingSort" v-model="sortBy">
                 <option value="attention">Needs attention first</option>
@@ -151,7 +151,7 @@ include __DIR__ . '/../Include/buildings-head.php';
            <h1 id="bwName">Building</h1>
            <div class="bw-chips" id="bwChips"></div>
          </div>
-         <div class="bw-actions"><button type="button" class="btn btn-secondary" id="bwLock">Close for maintenance</button>
+         <div class="bw-actions grid grid-cols-2 gap-2 min-[760px]:ml-auto min-[760px]:flex"><button type="button" class="btn btn-secondary" id="bwLock">Close for maintenance</button>
          <a class="btn btn-secondary" id="bwPreview" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a></div>
        </div>
        <div class="bw-next" id="bwNext" hidden></div>

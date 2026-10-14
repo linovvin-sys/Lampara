@@ -37,11 +37,11 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/account.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container ac">
 
-      <header class="ac-hero">
+      <header class="ac-hero flex items-center gap-3.5">
         <span class="ac-avatar" id="acAvatar" aria-hidden="true">?</span>
         <div class="ac-hero-text">
           <h1 id="acName">Your account</h1>
-          <p class="ac-chips" id="acChips"></p>
+          <p class="ac-chips m-0 flex flex-wrap gap-1.5" id="acChips"></p>
         </div>
       </header>
 
@@ -52,17 +52,17 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/account.js');
       </div>
 
       <!-- MY ACCOUNT -->
-      <div class="ac-pane" id="paneMe" role="tabpanel">
-        <div class="ac-two">
+      <div class="ac-pane grid gap-4" id="paneMe" role="tabpanel">
+        <div class="ac-two grid grid-cols-1 gap-4 min-[720px]:grid-cols-2">
           <section class="ac-box" aria-labelledby="pwH">
             <h2 id="pwH">Password</h2>
             <p class="ac-sub">Use at least 10 characters. A phrase of a few words is easy to remember and hard to guess.</p>
-            <form id="pwForm" autocomplete="off" class="ac-form">
-              <label class="ac-field" for="pwCur"><span>Current password</span><input id="pwCur" type="password" autocomplete="current-password" required></label>
-              <label class="ac-field" for="pwNew"><span>New password</span><input id="pwNew" type="password" autocomplete="new-password" minlength="10" required></label>
+            <form id="pwForm" autocomplete="off" class="ac-form grid gap-3">
+              <label class="ac-field grid gap-1.5" for="pwCur"><span>Current password</span><input id="pwCur" type="password" autocomplete="current-password" required></label>
+              <label class="ac-field grid gap-1.5" for="pwNew"><span>New password</span><input id="pwNew" type="password" autocomplete="new-password" minlength="10" required></label>
               <div class="ac-meter" aria-hidden="true"><span id="pwBar"></span></div>
               <p class="ac-small" id="pwHint">At least 10 characters.</p>
-              <label class="ac-field" for="pwNew2"><span>New password again</span><input id="pwNew2" type="password" autocomplete="new-password" minlength="10" required></label>
+              <label class="ac-field grid gap-1.5" for="pwNew2"><span>New password again</span><input id="pwNew2" type="password" autocomplete="new-password" minlength="10" required></label>
               <button type="submit" class="btn btn-primary">Change password</button>
               <p class="ac-msg" id="pwMsg" role="status"></p>
             </form>
@@ -82,10 +82,10 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/account.js');
               <li><b>Type the code it shows.</b>
                 <span class="ac-codeRow"><input id="tsCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="6 digits"><button type="button" class="btn btn-primary" id="tsConfirm">Turn it on</button></span></li>
             </ol>
-            <div id="tsOn" hidden class="ac-form">
+            <div id="tsOn" hidden class="ac-form grid gap-3">
               <p class="ac-sub">To switch it off, confirm with your password and a current code.</p>
-              <label class="ac-field" for="tsOffPw"><span>Password</span><input id="tsOffPw" type="password" autocomplete="current-password"></label>
-              <label class="ac-field" for="tsOffCode"><span>6-digit code</span><input id="tsOffCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+              <label class="ac-field grid gap-1.5" for="tsOffPw"><span>Password</span><input id="tsOffPw" type="password" autocomplete="current-password"></label>
+              <label class="ac-field grid gap-1.5" for="tsOffCode"><span>6-digit code</span><input id="tsOffCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
               <button type="button" class="btn btn-secondary" id="tsOffBtn">Switch it off</button>
             </div>
             <p class="ac-msg" id="tsMsg" role="status"></p>
@@ -95,21 +95,21 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/account.js');
       </div>
 
       <!-- TEAM (administrators) -->
-      <div class="ac-pane" id="paneTeam" role="tabpanel" hidden>
-        <div class="ac-stats" id="teamStats"></div>
-        <div class="ac-toolbar">
+      <div class="ac-pane grid gap-4" id="paneTeam" role="tabpanel" hidden>
+        <div class="ac-stats grid grid-cols-2 gap-2.5 min-[720px]:grid-cols-4" id="teamStats"></div>
+        <div class="ac-toolbar grid gap-2 min-[720px]:grid-cols-[minmax(0,1fr)_auto_auto] min-[720px]:items-center">
           <label class="ac-search"><span class="sr-only">Search the team</span><input id="teamQ" type="search" placeholder="Search by name" autocomplete="off"></label>
           <select id="teamFilter" aria-label="Show"><option value="">Everyone</option><option value="admin">Administrators</option><option value="psmo">PSMO staff</option><option value="off">Disabled</option></select>
           <button type="button" class="btn btn-primary" id="teamAdd">Add a team member</button>
         </div>
         <div class="ac-bulk" id="teamBulk" hidden><span id="teamBulkN"></span><button type="button" class="btn btn-secondary" id="teamBulkSet">Set what they can use</button><button type="button" class="btn-link" id="teamBulkClear">Clear</button></div>
-        <ul class="ac-team" id="teamList"></ul>
+        <ul class="ac-team m-0 grid list-none gap-2.5 p-0" id="teamList"></ul>
         <p class="ac-small ac-empty" id="teamEmpty" hidden>Nobody matches.</p>
       </div>
 
       <!-- ACTIVITY (administrators) -->
-      <div class="ac-pane" id="paneLog" role="tabpanel" hidden>
-        <div class="ac-toolbar"><div class="ac-pills" id="logFilter" role="group" aria-label="Filter the activity"></div></div>
+      <div class="ac-pane grid gap-4" id="paneLog" role="tabpanel" hidden>
+        <div class="ac-toolbar grid gap-2 min-[720px]:grid-cols-[minmax(0,1fr)_auto_auto] min-[720px]:items-center"><div class="ac-pills" id="logFilter" role="group" aria-label="Filter the activity"></div></div>
         <ul class="ac-log" id="logList"></ul>
         <p class="ac-small">The latest 100 events, kept for 180 days: sign-ins (good and bad), password and two-step changes, team changes, and what was done with visitor reports.</p>
       </div>

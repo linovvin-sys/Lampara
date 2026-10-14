@@ -37,12 +37,12 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
   <main class="admin-main" id="app">
     <div class="admin-container">
 
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Dashboard</h1>
           <p>The campus directory you maintain, and what needs you next.</p>
         </div>
-        <div class="page-actions">
+        <div class="page-actions grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <a href="buildings.php?new=1" class="btn btn-secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New building</a>
           <a href="buildings.php?tab=rooms" class="btn btn-secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New room</a>
         </div>
@@ -70,7 +70,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
         <p v-if="more > 0" class="nu-more">{{ more }} more to look at. <a href="#healthTitle" @click="collapsed.health = false">See the full list</a></p>
       </section>
 
-            <section class="stat-grid is-compact" aria-label="Directory totals">
+            <section class="stat-grid is-compact grid grid-cols-2 gap-3.5 sm:grid-cols-4" aria-label="Directory totals">
         <a href="#reports" class="stat-card stat-primary" :class="{ 'needs-attention': openFlags.length }" aria-label="Open reports: jump to the list">
           <div class="stat-icon" :class="openFlags.length ? 'is-alert' : 'is-ok'">
             <svg v-if="openFlags.length" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h13l-3 4 3 4H5"/></svg>
@@ -105,7 +105,7 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
 
       <section v-if="coverage" class="card cov-card" aria-labelledby="covTitle">
         <h2 class="section-title flush" id="covTitle">Directory coverage</h2>
-        <ul class="cov-list">
+        <ul class="cov-list m-0 mt-3 grid list-none gap-3.5 p-0">
           <li v-for="b in coverage.bars" :key="b.key">
             <div class="cov-row"><span>{{ b.label }}</span><b>{{ b.got }} of {{ b.total }}</b></div>
             <div class="cov-bar" role="progressbar" :aria-label="b.label" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="b.pct"><span :class="{ ok: b.pct >= 90, mid: b.pct >= 60 && b.pct < 90 }" :style="{ width: b.pct + '%' }"></span></div>

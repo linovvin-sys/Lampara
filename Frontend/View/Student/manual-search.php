@@ -18,6 +18,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/tw.css?v=<?= filemtime(__DIR__ . '/../../assets/css/tw.css') ?>">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
 <script src="../../../Backend/api/institution.php?format=js"></script>
@@ -37,24 +38,24 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <script>LamparaSkeleton.show('public')</script>
 
 <div class="ps ms-bg" id="msBg" aria-hidden="true"></div>
-<div id="app" v-cloak class="shell">
-  <header class="topbar">
-    <a href="../Public/guide-ar.php" class="back-btn" aria-label="Back">
+<div id="app" v-cloak class="shell mx-auto max-w-[40rem] min-h-dvh">
+  <header class="topbar sticky top-0 z-10 flex items-center gap-3 px-4 py-3">
+    <a href="../Public/guide-ar.php" class="back-btn inline-flex items-center justify-center size-10 shrink-0" aria-label="Back">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
     </a>
-    <div class="top-title">
+    <div class="top-title min-w-0">
       <h1>Find a room</h1>
-      <p class="top-sub" :class="{ 'is-offline': isOffline }" role="status">
+      <p class="top-sub flex items-center gap-1.5" :class="{ 'is-offline': isOffline }" role="status">
         <span class="dot" aria-hidden="true"></span>
         <template v-if="isOffline">Offline{{ cachedAt ? ' - directory from ' + cachedAt : '' }}</template>
         <template v-else-if="cachedAt">Directory synced {{ cachedAt }}</template>
         <template v-else>Loading directory&hellip;</template>
       </p>
     </div>
-    <button type="button" class="back-btn tour-btn" aria-label="Replay the tour" onclick="window.LamparaTutorial && LamparaTutorial.start(true)">?</button>
+    <button type="button" class="back-btn tour-btn inline-flex items-center justify-center size-10 shrink-0" aria-label="Replay the tour" onclick="window.LamparaTutorial && LamparaTutorial.start(true)">?</button>
   </header>
 
-  <main class="body">
+  <main class="body px-4 pt-4 pb-6">
     <div class="ms-buddy" v-html="hudBuddy"></div>
     <div class="ms-hud" v-html="hudStrip"></div>
     <div class="search-box">
@@ -67,7 +68,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
     <a class="enroll-banner" href="enrollment.php"><b>Enrolling?</b> <span>Follow the enrollment steps, office by office</span> <i aria-hidden="true">&rsaquo;</i></a>
 
-    <div class="filter-row" role="group" aria-label="Kind of room">
+    <div class="filter-row flex gap-2 py-3 overflow-x-auto" role="group" aria-label="Kind of room">
       <button v-for="k in kinds" :key="k[0]" type="button" @click="filterType = k[0]" class="filter-pill" :class="{ 'is-active': filterType === k[0] }" :aria-pressed="filterType === k[0] ? 'true' : 'false'">{{ k[1] }}</button>
     </div>
 
@@ -79,7 +80,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
     </div>
 
     <div class="here-card">
-      <div class="here-row">
+      <div class="here-row flex flex-wrap items-center justify-between gap-2.5">
         <span class="here-label">You are on</span>
         <button type="button" class="here-pick" @click="picking = !picking" :aria-expanded="picking ? 'true' : 'false'">
           <template v-if="me">{{ me.floor }} &middot; {{ me.building_name }}</template>
@@ -87,7 +88,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
       </div>
-      <div v-if="picking" class="here-list" role="listbox">
+      <div v-if="picking" class="here-list flex flex-col gap-1 max-h-56 overflow-y-auto" role="listbox">
         <button v-for="c in floorChoices" :key="c.key" type="button" role="option" class="here-opt" :class="{ on: c.key === meKey }" @click="chooseFloor(c)">
           <span>{{ c.floor }}</span><small>{{ c.building_name }}</small>
         </button>
@@ -96,8 +97,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       <p v-if="!me && !picking" class="here-hint">Optional: tell us your floor and each room shows whether to go up, down or stay. Scanning a sign sets it for you.</p>
     </div>
 
-    <div v-if="loading" class="empty-state">Loading&hellip;</div>
-    <div v-else-if="filtered.length === 0 && gateMatches.length === 0" class="empty-state">
+    <div v-if="loading" class="empty-state grid gap-1.5 justify-items-center text-center">Loading&hellip;</div>
+    <div v-else-if="filtered.length === 0 && gateMatches.length === 0" class="empty-state grid gap-1.5 justify-items-center text-center">
       <strong>No rooms match<template v-if="q"> &ldquo;{{ q }}&rdquo;</template></strong>
       <span>Try fewer words, a room number, a building name, or "gate" or "exit".</span>
       <button v-if="q || filterType !== 'all'" type="button" class="reset-btn" @click="q = ''; filterType = 'all'">Show all rooms</button>
@@ -107,10 +108,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
     <!-- campus gates: the ways in and out of the campus, for people on foot and for vehicles -->
     <template v-if="gateMatches.length">
-      <h2 class="group-head"><span>Entrances and exits</span><small class="count">{{ gateMatches.length }}</small></h2>
-      <ul class="room-list">
+      <h2 class="group-head flex items-center gap-2.5"><span>Entrances and exits</span><small class="count">{{ gateMatches.length }}</small></h2>
+      <ul class="room-list m-0 p-0 list-none flex flex-col gap-3">
         <li v-for="g in gateMatches" :key="g.nodeId" class="room-card gate-card">
-          <div class="room-top">
+          <div class="room-top flex items-center gap-3">
             <div class="room-icon kind-gate" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8M20 21V8M4 8l8-4 8 4M8 21v-7h8v7M8 14h8"/></svg>
             </div>
@@ -119,7 +120,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
               <div class="room-meta">Entrance and exit<template v-if="g.kind !== 'any'"> &middot; <span class="gate-kind" :class="'is-' + g.kind">{{ g.kindLabel }}</span></template></div>
             </div>
           </div>
-          <div class="room-actions">
+          <div class="room-actions flex gap-2 mt-3">
             <a :href="'../Public/guide-ar.php?gate=' + g.nodeId" class="act act-inside">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
               Walk to this gate
@@ -131,10 +132,10 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
     <!-- one card per room; a search shows a ranked list, browsing groups rooms by building -->
     <template v-for="g in sections" :key="g.id">
-      <h2 v-if="g.name" class="group-head"><span>{{ g.name }}</span><small v-if="g.here" class="here-tag">You are here</small><small v-if="!g.recent" class="count">{{ g.rooms.length }}</small></h2>
-      <ul class="room-list">
+      <h2 v-if="g.name" class="group-head flex items-center gap-2.5"><span>{{ g.name }}</span><small v-if="g.here" class="here-tag">You are here</small><small v-if="!g.recent" class="count">{{ g.rooms.length }}</small></h2>
+      <ul class="room-list m-0 p-0 list-none flex flex-col gap-3">
         <li v-for="r in g.rooms" :key="g.id + '-' + r.id" class="room-card">
-          <div class="room-top">
+          <div class="room-top flex items-center gap-3">
             <img v-if="r.photo_path" class="room-thumb" :src="'../../' + r.photo_path" alt="" loading="lazy" @error="$event.target.hidden = true">
             <div v-else class="room-icon" :class="'kind-' + (r.category || r.room_type)" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/></svg>
@@ -151,7 +152,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
               <span>{{ floorHint(r).text }}</span>
             </span>
           </div>
-          <div class="room-actions">
+          <div class="room-actions flex gap-2 mt-3">
 <span v-if="closedOf(r)" class="act act-closed" role="status">Closed: {{ closedOf(r) }}</span>
                         <a v-else :href="'scan.php?room=' + r.id" class="act act-inside" @click="remember(r)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
@@ -169,7 +170,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
   <p v-if="helpRoom" class="help-line">Still cannot find it? Ask at the <a :href="'scan.php?room=' + helpRoom.id">{{ helpRoom.room_name }}</a><template v-if="helpRoom.hours"> ({{ helpRoom.hours }})</template>.</p>
 
-  <div class="offline-note">
+  <div class="offline-note flex items-start gap-2.5">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5M12 8v.01"/></svg>
     <p>Signage scanning needs a connection — reconnect to use it. Browsing the directory and getting directions to a room you've visited here before both work offline once loaded at least once.</p>
   </div>

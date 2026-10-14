@@ -39,7 +39,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-map.js');
   <main class="admin-main" id="app">
     <div class="admin-container">
 
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Campus Map</h1>
           <p>The maps students see under Campus Map on the landing page. Pick 2D or 3D to manage it.</p>

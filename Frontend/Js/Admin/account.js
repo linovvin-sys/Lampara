@@ -105,13 +105,13 @@
     $('teamList').textContent = '';
     list.forEach((a) => {
       const sel = h('input', { type: 'checkbox', 'aria-label': 'Select ' + a.username, checked: picked.has(a.id), disabled: a.role === 'admin' || null, onchange: (e) => { e.target.checked ? picked.add(a.id) : picked.delete(a.id); drawBulk(); } });
-      $('teamList').append(h('li', { class: 'ac-member' + (a.disabled ? ' is-off' : '') },
+      $('teamList').append(h('li', { class: 'ac-member grid grid-cols-[auto_auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 min-[720px]:grid-cols-[auto_auto_minmax(0,1fr)_auto] min-[720px]:items-center' + (a.disabled ? ' is-off' : '') },
         a.role === 'psmo' ? h('label', { class: 'ac-pick' }, sel) : h('span', { class: 'ac-pick' }),
         h('span', { class: 'ac-avatar sm', 'aria-hidden': 'true' }, a.username.charAt(0).toUpperCase()),
         h('div', { class: 'ac-member-main' },
           h('div', { class: 'ac-member-name' }, a.username, a.you ? h('span', { class: 'chip' }, 'You') : null, a.disabled ? h('span', { class: 'chip chip-warn' }, 'Disabled') : null),
           h('div', { class: 'ac-member-meta' }, (a.role === 'admin' ? 'Administrator' : 'PSMO staff') + ' · ' + ago(a.last_login) + ' · ' + (a.two_step ? 'Two-step on' : 'No two-step')),
-          h('div', { class: 'ac-chips' }, accessChips(a))),
+          h('div', { class: 'ac-chips m-0 flex flex-wrap gap-1.5' }, accessChips(a))),
         h('button', { type: 'button', class: 'btn btn-secondary', onclick: () => openEditor(a) }, 'Manage')));
     });
     $('teamEmpty').hidden = list.length > 0; drawBulk();
@@ -148,8 +148,8 @@
         h('span', { class: 'ac-switch', 'aria-hidden': 'true' }), h('span', { class: 'ac-area-text' }, h('b', {}, v.label), h('small', {}, v.about)))));
       areaBox.append(h('p', { class: 'ac-small' }, 'School settings, data backup and the team are always administrator-only.'));
     }
-    if (isNew) body.append(h('label', { class: 'ac-field', for: 'edName' }, h('span', {}, 'Username'), nameIn));
-    if (roleSel) body.append(h('div', { class: 'ac-field' }, h('span', {}, 'Role'), roleSel));
+    if (isNew) body.append(h('label', { class: 'ac-field grid gap-1.5', for: 'edName' }, h('span', {}, 'Username'), nameIn));
+    if (roleSel) body.append(h('div', { class: 'ac-field grid gap-1.5' }, h('span', {}, 'Role'), roleSel));
     body.append(areaBox);
     draw();
     const foot = $('sheetFoot');

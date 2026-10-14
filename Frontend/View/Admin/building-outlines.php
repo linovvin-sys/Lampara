@@ -39,7 +39,7 @@ $v = fn($f) => filemtime(__DIR__ . '/../../' . $f);
   <main class="admin-main" id="adminMain">
     <div class="admin-container">
 
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Building Outlines</h1>
           <p id="summary">Loading outlines…</p>

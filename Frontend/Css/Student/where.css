@@ -1,21 +1,19 @@
 html, body { margin: 0; min-height: 100%; background: linear-gradient(160deg, var(--t-ink2, #161850), #2b2f8f); font-family: 'Outfit', system-ui, sans-serif; color: #fff; }
-.wh { max-width: 34rem; margin: 0 auto; padding: 1rem 1.25rem 2.5rem; min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; }
+.wh { box-sizing: border-box;}
 .wh-back { align-self: flex-start; color: rgba(255,255,255,0.85); text-decoration: none; font-weight: 600; font-size: 1.05rem; padding: 0.6rem 0; }
 .wh-head { text-align: center; margin: 1.2rem 0 1.6rem; }
 .wh-head img { background: #fff; border-radius: 12px; padding: 6px; }
 .wh-head h1 { font-size: clamp(1.8rem, 7vw, 2.3rem); margin: 0.8rem 0 0.4rem; letter-spacing: -0.02em; line-height: 1.15; }
 .wh-head p { margin: 0; font-size: 1.1rem; color: rgba(255,255,255,0.82); }
-.wh-opts { display: flex; flex-direction: column; gap: 1rem; }
-.wh-opt { display: flex; align-items: center; gap: 1rem; background: #fff; color: var(--t-ink2, #161850); text-decoration: none; border-radius: 1.2rem; padding: 1.2rem 1.1rem; min-height: 6.5rem; box-shadow: 0 10px 28px rgba(0,0,0,0.28); border: 3px solid transparent; transition: transform 0.15s, border-color 0.15s; }
+.wh-opt { background: #fff; color: var(--t-ink2, #161850); text-decoration: none; border-radius: 1.2rem; padding: 1.2rem 1.1rem; min-height: 6.5rem; box-shadow: 0 10px 28px rgba(0,0,0,0.28); border: 3px solid transparent; transition: transform 0.15s, border-color 0.15s;}
 .wh-opt:active { transform: scale(0.98); }
 .wh-opt:focus-visible, .wh-opt:hover { border-color: var(--t-accent, #ffd100); outline: none; }
 .wh-ico { flex: none; width: 4rem; height: 4rem; border-radius: 1rem; background: var(--t-accent, #ffd100); color: var(--t-ink2, #161850); display: grid; place-items: center; }
-.wh-txt { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
 .wh-txt b { font-size: 1.4rem; line-height: 1.15; }
 .wh-txt small { font-size: 1.02rem; color: #4b4f6a; line-height: 1.35; }
 .wh-go { font-size: 2.4rem; color: #8a8fb0; line-height: 1; }
 .wh-help { margin: 1.6rem 0 0; padding: 1rem 1.1rem; border-radius: 1rem; background: rgba(255,255,255,0.12); font-size: 1.05rem; line-height: 1.45; color: rgba(255,255,255,0.92); }
-.wh-resume { display: flex; flex-direction: column; gap: 0.4rem; background: var(--t-accent, #ffd100); color: var(--t-ink2, #161850); border-radius: 1.2rem; padding: 1rem 1.1rem; margin-bottom: 1.2rem; font-size: 1.1rem; }
+.wh-resume { background: var(--t-accent, #ffd100); color: var(--t-ink2, #161850); border-radius: 1.2rem; padding: 1rem 1.1rem; margin-bottom: 1.2rem; font-size: 1.1rem;}
 .wh-resume[hidden] { display: none; }
 .wh-resume b { font-size: 1.25rem; }
 .wh-resume-go { display: block; text-align: center; text-decoration: none; background: var(--t-ink2, #161850); color: #fff; font-weight: 800; font-size: 1.2rem; padding: 0.9rem; border-radius: 0.9rem; margin-top: 0.4rem; }
@@ -24,13 +22,13 @@ html, body { margin: 0; min-height: 100%; background: linear-gradient(160deg, va
 .wh-report a { color: #fff; font-weight: 700; font-size: 1.1rem; }
 
 /* game touches: a talking mascot, the player strip, pixel icons on the two choices */
-.wh-buddy { display: flex; justify-content: center; margin-bottom: 0.6rem; }
+.wh-buddy { margin-bottom: 0.6rem;}
 .wh-logo { display: none; }
 .wh-hud { margin: 0.2rem 0 1.1rem; }
 .wh-ico svg { image-rendering: pixelated; }
 
 /* music button */
-.wh { position: relative; }
+.wh { position: relative;}
 .wh-snd { position: absolute; top: 0.2rem; right: 0.6rem; width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 50%; background: rgba(255, 255, 255, 0.1); color: var(--t-accent, #ffd100); cursor: pointer; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 .wh-snd[hidden] { display: none; }
 .wh-snd:active { transform: scale(0.95); }
@@ -42,7 +40,7 @@ html, body { margin: 0; min-height: 100%; background: linear-gradient(160deg, va
 /* ---- the pixel night scene behind the page (shared: Css/pixel-scene.css) ---- */
 html, body { background: linear-gradient(180deg, var(--t-night, #0f1138) 0%, var(--t-sky2, #1b1f6e) 55%, var(--t-blue, #2e3192) 100%); background-attachment: fixed; }
 .wh-bg { position: fixed; inset: 0; z-index: 0; }
-.wh { position: relative; z-index: 1; }
+.wh { position: relative; z-index: 1;}
 .wh-head img.wh-logo, .wh-logo { display: none; }
 /* the help text sits on a dark pixel panel so the lit windows behind it never make it hard to read */
 .wh-help, .wh-report { position: relative; background: rgba(15, 17, 56, 0.92); padding: 0.85rem 1rem; clip-path: polygon(0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px)); }

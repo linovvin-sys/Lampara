@@ -11,6 +11,7 @@ lampara_session_start();
 // Embedded inside the Buildings workspace (?embed=1): no sidebar or header, just the page's own content.
 if (isset($_GET['embed'])) { ?>
 <script>document.documentElement.classList.add('is-embed')</script>
+<link rel="stylesheet" href="../../assets/css/tw.css?v=<?= filemtime(__DIR__ . '/../../assets/css/tw.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-mobile.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-mobile.css') ?>">
@@ -164,6 +165,7 @@ foreach ($navSections as $sectionName => $keys) {
     }
 }
 ?>
+<link rel="stylesheet" href="../../assets/css/tw.css?v=<?= filemtime(__DIR__ . '/../../assets/css/tw.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-ux.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-ux.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-v2.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-v2.css') ?>">
 <link rel="stylesheet" href="../../Css/Admin/admin-mobile.css?v=<?= filemtime(__DIR__ . '/../../Css/Admin/admin-mobile.css') ?>">

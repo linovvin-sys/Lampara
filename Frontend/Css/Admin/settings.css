@@ -7,7 +7,6 @@
   display: block; width: 100%; margin-top: 0.3rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line, #cfd1e3); border-radius: 0.6rem; font: inherit; font-weight: 400; background: #fff;
 }
 .st-card textarea { resize: vertical; line-height: 1.45; }
-.st-grid { display: grid; gap: 0.9rem 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
 .st-grid .wide { grid-column: 1 / -1; }
 .st-hint { margin: 0.5rem 0 0; font-size: 0.85rem; color: #5b5f7c; font-weight: 400; }
 .st-msg { padding: 0.7rem 1rem; border-radius: 0.8rem; background: #e6f4ea; color: #1e6b34; font-weight: 700; }

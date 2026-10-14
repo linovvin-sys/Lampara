@@ -61,7 +61,6 @@ html[data-admin-theme="dark"] .vf .btn-secondary { background: #0f1138; border-c
 html[data-admin-theme="dark"] .vf .btn-primary { background: #ffd100; color: #15173f; }
 
 /* use the whole width: export and import side by side, the spreadsheet below */
-.dp-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .dp-grid > .dp-card, .dp-csv { margin: 0; }
 .dp-csv { margin-top: 1rem; }
 .dp-inc { display: grid; gap: 0.9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0.2rem 0 0.9rem; }
@@ -75,4 +74,4 @@ html[data-admin-theme="dark"] .vf .btn-primary { background: #ffd100; color: #15
 .dp-table { font-size: 0.95rem; }
 .dp-csv .dp-table { max-width: 60rem; }
 @media (max-width: 719px) { .dp-card .btn, .dp-row .btn { width: 100%; } .dp-row input[type="text"] { width: 100%; } .dp-inc { grid-template-columns: 1fr; } }
-@media (min-width: 1000px) { .dp-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } .dp-card { padding: 1.4rem 1.6rem; } }
+@media (min-width: 1000px) { .dp-grid {} .dp-card { padding: 1.4rem 1.6rem; } }

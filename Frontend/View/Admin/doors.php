@@ -37,14 +37,14 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/doors.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container dr">
 
-      <header class="page-head">
+      <header class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Entrance and exit</h1>
           <p>Mark where people walk in and out of each building, right on its floor plan. Visitors are guided from the entrance when they arrive and to the exit when they leave.</p>
         </div>
       </header>
 
-      <div class="dr-layout">
+      <div class="dr-layout grid grid-cols-1 items-start gap-4 min-[1000px]:grid-cols-[17.5rem_minmax(0,1fr)]">
         <details class="dr-list dd-anim dr-dd" id="drDd" open>
           <summary class="dr-dd-sum"><span class="dr-dd-label">Building</span><strong id="drCurrent">Choose a building</strong><span class="dr-dd-prog"><span id="drDone2"></span></span></summary>
           <div class="dr-dd-body">

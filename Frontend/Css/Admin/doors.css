@@ -1,6 +1,5 @@
 /* Entrance and exit: building list on the left, the floor plan with tappable path points on the right. */
-.dr-layout { display: grid; gap: 1.1rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
-@media (min-width: 1000px) { .dr-layout { grid-template-columns: 17.5rem minmax(0, 1fr); } .dr-list { position: sticky; top: 4.6rem; } }
+@media (min-width: 1000px) { .dr-layout {} .dr-list { position: sticky; top: 4.6rem; } }
 
 /* --- buildings --- */
 .dr-list { background: #fff; border: 1px solid var(--v2-line, #e3e5f1); border-radius: 1.1rem; padding: 0.9rem; }

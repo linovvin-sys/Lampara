@@ -38,7 +38,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/data-pack.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container dp">
 
-      <header class="page-head">
+      <header class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Data</h1>
           <p>Move a whole school between installs, restore one, or load rooms from a spreadsheet.</p>
@@ -47,7 +47,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/data-pack.js');
 
       <p class="dp-msg" id="dpMsg" role="status" hidden></p>
 
-      <div class="dp-grid">
+      <div class="dp-grid grid grid-cols-1 items-start gap-4 min-[1000px]:grid-cols-[5fr_7fr]">
       <section class="dp-card dp-export" aria-labelledby="dpExpH">
         <h2 id="dpExpH">Export this school</h2>
         <p>One zip with the buildings, rooms, floor plans with their paths, doors, campus walkways, map pins, enrollment steps and school settings. It never contains staff accounts, passwords or visitor reports.</p>

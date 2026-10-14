@@ -62,7 +62,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
   <main class="admin-main" id="app">
     <div class="admin-container">
 
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Campus Paths</h1>
           <p>Draw the walkways the AR ground arrow follows outdoors. {{ nodes.length }} point(s), {{ edges.length }} connection(s).</p>
@@ -124,7 +124,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <button type="button" class="btn btn-secondary view-gap-btn" :disabled="locked" @click="connectGap">Connect</button></span></p>
           </div>
           <div ref="mapArea" class="paths-map" aria-label="Campus walkway map. Use the buttons below and the Selected point panel to edit without a mouse."></div>
-          <div v-if="multi" class="multi-bar" role="region" aria-label="Selected points">
+          <div v-if="multi" class="multi-bar flex flex-wrap gap-2" role="region" aria-label="Selected points">
             <span class="multi-count"><b>{{ pickedIds.length }}</b> selected. Tap points on the map to add or remove them.</span>
             <button type="button" class="btn btn-secondary" @click="pickInView">Select all in view</button>
             <button type="button" class="btn btn-secondary" :disabled="!pickedIds.length" @click="pickedIds = []; redraw()">Clear</button>
@@ -210,7 +210,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <p class="hint u-d93599">The route to that building ends at this point.</p>
               </div>
 
-              <div class="save-bar">
+              <div class="save-bar flex flex-wrap items-center gap-2">
                 <button type="button" class="btn btn-primary" :disabled="locked || !pointDirty || savingPoint" @click="savePoint">{{ savingPoint ? 'Saving…' : 'Save point' }}</button>
                 <button type="button" class="btn btn-secondary" :disabled="!pointDirty || savingPoint" @click="resetDrafts">Undo edits</button>
                 <span class="save-note" role="status">{{ savedNote || (pointDirty ? 'Unsaved changes' : '') }}</span>

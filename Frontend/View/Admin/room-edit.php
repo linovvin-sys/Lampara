@@ -33,7 +33,7 @@ include __DIR__ . '/../Include/buildings-head.php';
   <main class="admin-main wide">
     <div class="admin-container">
       <a class="back-link" href="buildings.php">&larr; All buildings</a>
-      <div class="page-head">
+      <div class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>Rooms</h1>
           <p>Add or change a room, set its hours, and place its marker on the floor plan.</p>

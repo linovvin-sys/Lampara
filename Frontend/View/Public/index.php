@@ -21,6 +21,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/tw.css?v=<?= filemtime(__DIR__ . '/../../assets/css/tw.css') ?>">
 <link rel="stylesheet" href="../../Css/theme.css?v=<?= $themeVer ?>">
 <link rel="stylesheet" href="../../Css/theme-vars.css?v=<?= filemtime(__DIR__ . '/../../Css/theme-vars.css') ?>">
 <script src="../../../Backend/api/institution.php?format=js"></script>
@@ -39,12 +40,12 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 <a class="skip" href="#main">Skip to content</a>
 
 <header class="top">
-  <div class="top-inner">
+  <div class="top-inner mx-auto flex max-w-[70rem] items-center gap-5 px-5 py-2.5 max-[40rem]:justify-between max-[40rem]:gap-2">
     <a href="#top" class="brand" aria-label="Lampara, back to the top">
       <span class="brand-mark"><img src="<?= inst_h('logo_path') ? '../../' . inst_h('logo_path') : '../../assets/logo.svg' ?>" alt="" width="20" height="20"></span>
       <span>Lampara</span>
     </a>
-    <nav class="top-nav" aria-label="Sections">
+    <nav class="top-nav ml-auto flex gap-1 max-[40rem]:hidden" aria-label="Sections">
       <a href="#how">How it works</a>
       <a href="#features">Features</a>
       <a href="#buildings">Buildings</a>
@@ -62,7 +63,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <!-- ===== Hero: get going ===== -->
   <section class="hero" id="top" aria-labelledby="hero-h">
     <div class="ps" id="heroScene" aria-hidden="true"></div>
-    <div class="wrap hero-grid">
+    <div class="wrap hero-grid grid items-center gap-10 min-[52rem]:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] min-[52rem]:gap-12">
       <div class="hero-copy">
         <p class="locus"><span class="locus-dot" aria-hidden="true"></span><?= inst_h('short_name') ?> Campus &middot; Live AR</p>
         <div class="hero-buddy" data-game-buddy data-lines="Hi! Where to today?|Pick a building and I will lead the way.|Earn points every time you arrive.|Tap me for another tip!"></div>
@@ -84,9 +85,9 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.9"/><path d="M20 20l-4.5-4.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
             <input id="q" type="search" placeholder="Search a building" aria-describedby="quick-hint">
           </div>
-          <ul class="chips" id="chips" aria-label="Buildings"></ul>
+          <ul class="chips flex flex-wrap gap-2" id="chips" aria-label="Buildings"></ul>
           <p class="quick-hint" id="quick-hint" role="status">Choose one to start straight to it, or start and search inside the guide.</p>
-          <div class="hero-actions">
+          <div class="hero-actions mt-1.5 flex flex-wrap gap-3">
             <a href="../Student/where.php" class="btn btn-primary btn-lg" id="go">Start navigating</a>
             <a href="map.php" class="btn btn-ghost btn-lg">Open the campus map</a>
             <a href="../Student/enrollment.php" class="btn btn-ghost btn-lg">Enrollment guide</a>
@@ -143,7 +144,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 
   <!-- ===== Three ways in, as a signage strip over the photo ===== -->
   <div class="ways-wrap">
-    <ul class="wrap ways" data-stagger aria-label="Ways to use Lampara">
+    <ul class="wrap ways grid gap-2.5 px-5 min-[52rem]:grid-cols-3 min-[52rem]:gap-3.5" data-stagger aria-label="Ways to use Lampara">
       <li><a href="guide-ar.php">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg>
         <span><b>Walking guide (outside)</b><small>Follow the path on your camera</small></span></a></li>
@@ -164,7 +165,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <div class="wrap">
       <p class="eyebrow" data-reveal>How it works</p>
       <h2 id="how-h" data-reveal style="--d:1">Three steps from where you stand to the door.</h2>
-      <ol class="steps" data-stagger>
+      <ol class="steps mt-9 grid gap-4 min-[52rem]:grid-cols-3" data-stagger>
         <li>
           <span class="step-n">1</span>
           <h3>Pick a place</h3>
@@ -189,7 +190,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
     <div class="wrap">
       <p class="eyebrow" data-reveal>What you get</p>
       <h2 id="feat-h" data-reveal>Everything for getting around, in one place.</h2>
-      <ul class="features" data-stagger>
+      <ul class="features mt-9 grid gap-x-5 gap-y-6 min-[52rem]:grid-cols-3" data-stagger>
         <li>
           <span class="ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg></span>
           <h3>Walking path (outside)</h3>
@@ -233,7 +234,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <section class="block" id="buildings" aria-labelledby="bld-h">
     <div class="wrap">
       <p class="eyebrow">Campus</p>
-      <div class="bld-head" data-reveal>
+      <div class="bld-head flex flex-wrap items-end justify-between gap-4" data-reveal>
         <h2 id="bld-h">Go straight to a building.</h2>
         <a href="map.php" class="btn btn-ghost">Open the campus map</a>
       </div>
@@ -254,7 +255,7 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
   <!-- ===== Closing ===== -->
   <section class="closing" aria-labelledby="end-h">
     <div class="ps" id="closeScene" aria-hidden="true"></div>
-    <div class="wrap closing-in" data-reveal>
+    <div class="wrap closing-in grid justify-items-start gap-4" data-reveal>
       <h2 id="end-h">Ready to find your way?</h2>
       <p>Open the guide on your phone, outside, with your location on.</p>
       <a href="../Student/where.php" class="btn btn-primary btn-lg">Start navigating</a>
@@ -264,10 +265,10 @@ $jsVer = filemtime(__DIR__ . '/../../Js/Public/index.js');
 </main>
 
 <footer class="foot">
-  <div class="wrap foot-in">
+  <div class="wrap foot-in grid gap-4">
     <div class="foot-brand"><span class="brand-mark"><img src="<?= inst_h('logo_path') ? '../../' . inst_h('logo_path') : '../../assets/logo.svg' ?>" alt="" width="18" height="18"></span><span>Lampara</span></div>
     <p>Find your way around the <?= inst_h('short_name') ?> campus. Directions come from the walkways and rooms the school has registered, kept up to date by its administrators.</p>
-    <nav class="foot-links" aria-label="Links">
+    <nav class="foot-links flex flex-wrap gap-x-5 gap-y-1" aria-label="Links">
       <a href="guide-ar.php">Walking guide</a>
       <a href="../Student/enrollment.php">Enrollment guide</a>
       <a href="ask.php">Ask Lampara</a>

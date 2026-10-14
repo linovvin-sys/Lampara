@@ -40,12 +40,12 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/settings.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container st">
 
-      <header class="page-head">
+      <header class="page-head flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h1>School settings</h1>
           <p>Everything that makes this install yours: name, look, assistant voice, campus area and which features students see.</p>
         </div>
-        <div class="page-actions">
+        <div class="page-actions grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <button type="button" class="btn btn-primary" id="stSave" disabled>Save settings</button>
         </div>
       </header>
@@ -54,7 +54,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/settings.js');
 
       <section class="st-card" aria-labelledby="stSchoolH">
         <h2 id="stSchoolH">School</h2>
-        <div class="st-grid">
+        <div class="st-grid grid grid-cols-1 gap-x-4 gap-y-3.5 min-[720px]:grid-cols-2">
           <label>School name<input id="f-name" type="text" maxlength="120" autocomplete="off"></label>
           <label>Short name <small>(shown on pages and used by the assistant)</small><input id="f-short_name" type="text" maxlength="30" autocomplete="off"></label>
           <label class="wide">Headline on the home page<input id="f-tagline" type="text" maxlength="160" autocomplete="off"></label>
@@ -96,7 +96,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/settings.js');
 
       <section class="st-card" aria-labelledby="stContactH">
         <h2 id="stContactH">Contact</h2>
-        <div class="st-grid">
+        <div class="st-grid grid grid-cols-1 gap-x-4 gap-y-3.5 min-[720px]:grid-cols-2">
           <label>Email<input id="f-contact_email" type="email" maxlength="120" autocomplete="off"></label>
           <label>Phone<input id="f-contact_phone" type="text" maxlength="40" autocomplete="off"></label>
         </div>
@@ -115,7 +115,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/settings.js');
       <section class="st-card" aria-labelledby="stProxH">
         <h2 id="stProxH">Proximity</h2>
         <p class="st-hint">How close counts as close, in metres. The defaults suit most campuses; change one only after testing on a phone.</p>
-        <div class="st-grid st-prox">
+        <div class="st-grid st-prox grid grid-cols-1 gap-x-4 gap-y-3.5 min-[720px]:grid-cols-2">
           <label>You have arrived within <small>(3 to 30)</small><input id="px-arrived_m" type="range" min="3" max="30" step="1"><output class="px-out" for="px-arrived_m"></output></label>
           <label>The turn is announced within <small>(15 to 100)</small><input id="px-turn_near_m" type="range" min="15" max="100" step="1"><output class="px-out" for="px-turn_near_m"></output></label>
           <label>"Now" is shown only within <small>(2 to 15)</small><input id="px-now_m" type="range" min="2" max="15" step="1"><output class="px-out" for="px-now_m"></output></label>

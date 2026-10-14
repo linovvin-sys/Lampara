@@ -77,6 +77,6 @@
 .paths-map { min-height: min(34rem, 62vh); }
 
 .cp-node.is-picked { box-shadow: 0 0 0 4px #d9534f, 0 0 0 6px rgba(255,255,255,.85); transform: scale(1.15); }
-.multi-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; padding: 0.7rem 0.8rem; border-radius: 0.9rem; background: #fdecea; border: 1px solid #f3b9b3; }
+.multi-bar { margin-top: 0.6rem; padding: 0.7rem 0.8rem; border-radius: 0.9rem; background: #fdecea; border: 1px solid #f3b9b3;}
 .multi-count { flex: 1 1 100%; font-size: 0.9rem; }
 .multi-bar .btn { flex: 1 1 8rem; }
