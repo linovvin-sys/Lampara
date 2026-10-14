@@ -3,6 +3,8 @@
 Evaluated 14 October 2026 by Claude (AI), for the Lampara thesis team.
 Builds on `system-review-2026-10-08.md` and `system-assessment.md`; where those are now out of date, this file says so.
 
+**Scope (revised at the team's request):** the system as shipped, **without** the `ar-lab/` and `indoor-lab/` experiment folders and **without** `tests/`. **Indoor AR is not part of the product**: the evaluation judges outdoor AR guidance, indoor floor-plan routing, the directory, the assistant and the admin tools. Indoor-AR code that is still in the repository is treated as leftover and listed in 2.4.
+
 ---
 
 ## 0. Scope, method, and what this evaluation cannot tell you
@@ -15,13 +17,13 @@ Builds on `system-review-2026-10-08.md` and `system-assessment.md`; where those 
 | Live probes | Black-box requests against the running site: file exposure, unauthenticated writes, headers, directory listing, payload sizes |
 | Student walk-through | All 14 public/student pages opened at phone size (390 px) with a simulated on-campus GPS and fake camera; screenshots, load weight, console errors |
 | Accessibility scan | axe-core 4.10 run on every one of those pages |
-| Existing tests | `tests/e2e/run.py` (78 checks) run against the local site |
 | Data audit | `Backend/scripts/setup-audit.php` and row counts on the live local database |
+| Excluded by request | `ar-lab/`, `indoor-lab/`, `tests/`, and indoor AR as a feature |
 | Admin side | Used and rebuilt the admin UI in this same session; two of its bugs were caused by me and are listed in 2.7 |
 
 **Not done, and it matters:**
 
-- **No real-phone AR trial.** Step counting, compass drift and camera tracking on an actual Android/iPhone were not tested. This is the product's biggest unknown (see 5.3).
+- **No real-phone AR trial.** Outdoor camera guidance (GPS, compass, path overlay) was not tested on an actual Android/iPhone. This is the product's biggest unknown (see 5.3).
 - **No user study.** Every "student / parent / professor" judgement below is an expert walk-through, not data from real people.
 - **No load or performance test**, no HTTPS deployment check, no live Gemini call.
 - **Not a full penetration test.** It is a black-box probe plus code review. No OWASP ZAP/Burp run, no authenticated fuzzing.
@@ -37,7 +39,7 @@ Treat the ratings as informed expert opinion. For the thesis, the missing pieces
 | Question | Answer |
 |---|---|
 | Worth submitting as a thesis? | **Yes.** It combines browser-based AR navigation, floor-plan indoor routing without beacons, an offline-first PWA and a record-grounded AI assistant, on real campus data, with an admin toolchain. That is more than most capstones. |
-| What could sink it at defense? | Unproven AR accuracy, only 1 of 13 floor plans calibrated for indoor AR, no measured user results, and a test suite that is not repeatable. All fixable. |
+| What could sink it at defense? | Unproven outdoor AR accuracy, no measured user results, and leftover indoor-AR code that contradicts the stated scope. All fixable. |
 | Sellable today? | **No.** It is single-campus by construction (section 7). It becomes sellable after a configuration layer and basic operations are added. |
 | Safe to pilot on campus? | **Yes, supervised, after the "Before pilot" list in section 8.** Security basics are in good shape; operations are not. |
 
@@ -51,11 +53,12 @@ Treat the ratings as informed expert opinion. For the thesis, the missing pieces
 | Frontend engineering | 3.0 | Works and is consistent, but global-script architecture and very large files |
 | Backend engineering | 3.5 | Safe SQL and sound auth; schema changes at runtime and no migrations |
 | Security | 3.5 | Most of the 8 Oct findings are fixed; new smaller ones found (2.6) |
-| Accessibility | 3.0 | Big improvement (zero axe violations on 5 of 13 pages); three AR pages block zoom |
-| Quality assurance | 2.5 | A real e2e suite exists, but it is not hermetic and 11 of 78 checks fail |
+| Accessibility | 3.0 | Big improvement (zero axe violations on 5 of 13 pages); the AR camera guide blocks zoom |
+| Quality assurance | 2.5 | Tests excluded from scope; manual checks found 9 data-setup problems and 2 admin regressions caused during this session |
 | Scalability | 2.5 | Fine for one campus; authoring effort and single-tenant design are the limits |
 | Flexibility / reuse | 2.5 | Many things are admin-editable, but ~30 hard-coded NCST references remain |
 | Data accuracy today | 3.0 | 9 setup problems, 11 rooms without numbers, 13 without plan markers |
+| Code hygiene | 2.5 | About 1,200 lines of indoor-AR code, an unused test page and calibration plumbing remain |
 | Educational value | 4.0 | Orientation, enrollment guide, accessibility potential; no inclusive routing yet |
 | Operations & delivery | 2.0 | 121 uncommitted changes, no CI, no migrations, no monitoring |
 
@@ -77,10 +80,11 @@ Treat the ratings as informed expert opinion. For the thesis, the missing pieces
 | F1 | **No module system.** Plain `<script>` tags and global names (`AdminOffline`, `BuildingDoors`, `LamparaEnroll`…). Load order bugs are easy to introduce; I hit one today when an embedded page lost `AdminOffline` because a shared include was skipped. | `Js/Include/*` | Medium |
 | F2 | **Very large files.** `guide-ar.js` 1,323 lines, `campus-paths.js` 988, `register-building.js` 906, `map.js` 845, `scan.js` 807. Hard to test or change safely. | `wc -l` | Medium |
 | F3 | **Inline styles and `!important`.** 167 `style="…"` attributes in views and 143 `!important` in CSS (mostly rebrand overrides). | grep | Low |
-| F4 | **Page weight is high on the entry pages.** Landing page: 168 requests, ~885 KB. Campus map: 118 requests, ~3.1 MB. Camera guide: ~1.7 MB. Indoor AR: ~2.3 MB. Matters on campus Wi-Fi and 4G. | Playwright response log | Medium |
+| F4 | **Page weight is high on the entry pages.** Landing page: 168 requests, ~885 KB. Campus map: 118 requests, ~3.1 MB. Outdoor camera guide: ~0.8 to 1.7 MB. Matters on campus Wi-Fi and 4G. | Playwright response log | Medium |
 | F5 | **Sign-reading OCR depends on a CDN.** On the scan page the Tesseract worker's `importScripts` from `cdn.jsdelivr.net` failed in my run, so sign scanning may fall back silently. | console error, e2e smoke | Medium |
 | F6 | **CSP allows `unsafe-inline` and `unsafe-eval`.** Needed today because of inline handlers/Vue templates, but it weakens the policy. | response header | Low |
 | F7 | **Two overlap bugs on student pages.** The floating "Enrollment" button covers list content on the landing page and room search. | screenshots | Low |
+| F9 | **Leftover indoor-AR code and a public test page.** See 2.4 for the list. `ar-test.php` is reachable by URL and is the only user of the 1.3 MB A-Frame library. | file search | Low-Medium |
 | F8 | **Documentation drift.** README still describes the "amber lamp glow" system and the old file layout. | `README.md` | Low |
 
 **Top fixes:** vendor the OCR worker and language data; lazy-load the 3D/AR libraries so the landing page stays under ~300 KB; move the biggest files into modules (even native ES modules, no build step needed).
@@ -106,7 +110,7 @@ Treat the ratings as informed expert opinion. For the thesis, the missing pieces
 | B7 | **Account management is command-line only.** There is no admin UI to create staff, reset a password, or disable a user. | `Backend/scripts/` | Medium for a real deployment |
 | B8 | **`die()` on database failure** returns a generic message (good) but gives nothing to monitor. No error logging, health endpoint or uptime signal. | `config.php` | Low |
 
-**Top fixes:** a numbered migration runner (one idempotent `migrate.php` is enough for a thesis), `ETag` on `rooms.php`/`buildings.php`, audit entries for door/path/calibration writes.
+**Top fixes:** a numbered migration runner (one idempotent `migrate.php` is enough for a thesis), `ETag` on `rooms.php`/`buildings.php`, audit entries for door and path writes.
 
 ### 2.3 UI and UX designer
 
@@ -133,8 +137,14 @@ Treat the ratings as informed expert opinion. For the thesis, the missing pieces
 
 **What limits it end to end**
 1. **The real bottleneck is data authoring, not code.** To make one building navigable an admin must pin it, upload each floor plan, trace walkable paths, link stairs, set doors, add rooms with numbers and place their markers, and (for indoor AR) calibrate each floor. The current database shows the cost: 13 floor plans needed 224 hand-placed path points and 225 connections. Multiply by a second campus.
-2. **Indoor AR cannot grow right now.** Only one floor (Amafel 1st) is calibrated. The admin page for calibrating the rest was removed today at your request, so the feature is frozen at one floor. Either restore a calibration tool or reduce the thesis claim to "indoor floor-plan routing; indoor AR demonstrated on one floor".
-3. **Experiments live in the same repository** (`ar-lab/`, `indoor-lab/`, three AR engines, a 83 MB `tailwindcss-cli` binary). Fine for research, but separate them before handing the code to anyone.
+2. **Indoor AR is out of the product but still in the code.** Because the feature was dropped, these are now dead weight that makes the system harder to read, test and explain at a defense:
+   - pages and scripts: `View/Student/indoor-ar.php`, `Js/Student/indoor-ar.js` (524 lines), `locar-indoor.js` (200), `Js/Include/indoor-nav.js` (156), `ar-ribbon.js` (151, not loaded by any page);
+   - a "Use my camera inside" button and its calibration gate in `scan.php` / `scan.js` (`arGuideUrl`), and a camera-route comment in `journey.js`;
+   - calibration plumbing: `floor-plans.php?action=calibrate`, the `calibration.set` sync operation in `admin-sync.php` and `admin-offline.js`, the `north_offset` and `meters_per_unit_*` columns, calibration lines in `setup-audit.php`;
+   - the test page `ar-test.php` (+ `ar-test.js`, `ar-test.css`) and the 1.3 MB `assets/vendor/aframe/` it alone needs;
+   - cache entries for `indoor-ar.php` in the service worker and `student-offline.js`.
+   About 1,200 lines of script and markup in total, plus the plumbing. Removing it is low risk and sharpens the thesis scope; see the roadmap.
+3. **The admin pipeline is the real cost of adding a building,** not rendering: see 1.
 4. **Repository hygiene:** the last commit was today at 12:25 and there are now **121 uncommitted paths** (75 modified, 41 new, 5 deleted), including the whole admin redesign. One bad day away from losing work.
 
 ### 2.5 User tester (expert walk-through)
@@ -144,7 +154,7 @@ Ranked usability issues, with the page they appear on:
 | Sev | Issue | Where |
 |---|---|---|
 | High | A visitor off campus hits a dead end with no way forward | AR guide gate |
-| High | Indoor AR is offered but works for one floor only; elsewhere the user gets a "needs calibrating" message | indoor flow |
+| Low | A dormant "Use my camera inside" button and "needs calibrating" messages remain in the code for a feature that is no longer part of the product | Find a room result |
 | Med | Three permission prompts in a row (location, camera, motion/compass) before anything useful happens | AR start |
 | Med | "Seven steps" vs "nine stops" | Enrollment guide |
 | Med | Points/streak/quests dominate the first screen | Home, guide |
@@ -158,7 +168,7 @@ Ranked usability issues, with the page they appear on:
 **Held up under test**
 - Unauthenticated writes to 13 admin endpoints (buildings, rooms, floor plans, graph, static maps, enrollment steps, fence, sync, doors, QR anchors, photos, changes) all returned 401.
 - Project internals are not downloadable: `Backend/config.php`, `secrets.php`, `db.php`, `schema.sql`, `Backend/scripts/*`, `backups/`, `tests/`, `tools/`, `.git/`, `docs/`, `README.md` all return 404; `.htaccess` returns 403.
-- Cross-site login and cross-site admin writes are refused (origin check); the e2e suite confirms it.
+- Cross-site login and cross-site admin writes are refused (origin check).
 - Session cookie is `HttpOnly` and `SameSite=Lax` (`Secure` on HTTPS). A script dropped into the photos folder does not execute.
 - CSP, `X-Frame-Options: SAMEORIGIN`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` are present. No open CORS header on API responses.
 - Login lockout after repeated failures; optional TOTP two-step sign-in exists. SQL injection: none found.
@@ -182,21 +192,18 @@ Not covered: full OWASP ZAP scan, authenticated IDOR testing across roles beyond
 
 ### 2.7 Quality assurance
 
-**State of testing**
-- A real browser suite exists (`tests/e2e/run.py`, 78 checks over fence, journey, outdoor guide, camera guide, map, reports, admin, security, smoke). That is genuinely valuable and unusual for a student project.
-- First full run on the local site: **67 passed, 11 failed.** Rerunning the admin and reports suites after clearing the login throttle: 7 passed, 4 failed.
+The `tests/` folder was excluded from this review at the team's request, so nothing below rates automated test coverage. What QA can say from the running system:
 
-**Why I do not trust it yet**
-1. **Not hermetic.** It runs against the live local database and its assumptions about it (specific rooms, calibrated floors, reports). The journey failures ("step 1 loads: walk to the exit - Preparing your route…") happen because the data no longer matches what the test expects.
-2. **Hard-coded environment.** It expects XAMPP at `http://localhost/Lampara/` and Microsoft Edge. I had to rewrite the URL and browser to run it at all.
-3. **Stale.** The smoke test still "passes" `floor-calibration.php` although that page was deleted today (a redirect counts as "opens"), and checks for old nav labels.
-4. **Unresolved failures.** Four failures (reports submission step, admin report listing/approval) I could not classify as product bug vs. test problem. A likely cause is the AI photo check rejecting the fake camera frame, but I did not prove it.
-5. **No unit tests** for the logic that most needs them: route pathfinding, room-number validation, the AR coordinate maths, the sync/conflict rules.
-6. **My own defects slipped through.** Today I introduced two regressions that no automated check caught and the user found: the door markers vanishing (a code comment swallowed the loading line) and a CSS rule that stopped the popover from closing. Both were admin-UI bugs the suite does not exercise.
+**Defects found by hand**
+- **Two admin regressions were introduced during this review session and were found by the owner, not by any check:** the door markers vanished (a code comment swallowed the line that loads saved doors) and a popover could not be closed (a CSS rule overrode the `hidden` attribute). Both were fixed. They show that admin-UI behaviour has no safety net outside the tests that were set aside.
+- The enrollment page says "Seven steps" while listing nine stops.
+- The scan page's OCR worker failed to load from its CDN.
 
-**Data quality (it is also QA):** setup audit currently reports 9 items to fix and 91 tips; 11 rooms have no room number, 13 have no plan marker, 58 have no path node, and one floor has two disconnected path pieces.
+**Data quality (it is also QA):** the setup audit currently reports 9 items to fix and 91 tips; 11 rooms have no room number, 13 have no plan marker, 58 have no path node, and one floor has two disconnected path pieces.
 
-**Top fixes:** a seeded test database and fixtures; run the suite in CI on every push; add 15-20 unit tests for pathfinding and room numbers; add admin-UI checks (doors, workspace tabs, enrollment builder); a manual device matrix for AR (below).
+**Accessibility:** axe-core found zero violations on 5 of 13 student pages, one critical issue (zoom blocked) on the outdoor camera guide, one serious issue (unnamed progress bar) on the enrollment page, and otherwise moderate landmark notes.
+
+**What a defense will expect (to be produced outside this review):** automated regression checks for the admin screens, unit tests for routing and room-number logic, and a manual device matrix (Android Chrome, iPhone Safari) for the outdoor AR guide.
 
 ### 2.8 User-flow tester
 
@@ -216,14 +223,14 @@ Not covered: full OWASP ZAP scan, authenticated IDOR testing across roles beyond
 
 | Persona | What they need | What works | What gets in the way | Top change |
 |---|---|---|---|---|
-| **Returning student** | Reach a room fast | Room search, offline directory, assistant | Game layer as noise; indoor AR only on one floor | Make points/streaks optional; keep search the first thing on screen |
+| **Returning student** | Reach a room fast | Room search, offline directory, assistant | Game layer as noise | Make points/streaks optional; keep search the first thing on screen |
 | **New student** | Complete enrollment | The enrollment guide is the standout; numbered steps, "You are here", progress | Copy says "seven steps" for nine stops; first-use permission prompts | Derive all counts from data; add a one-line "why we ask for location" before the prompt |
 | **Parent** | Know where to go, office hours, where to wait | Public map and directory stay open off campus | The guide gate is a dead end; no contact/hours/visitor-parking page; no Filipino/other-language option | Add "Browse the directory/map" to the gate; add a Visitors page |
 | **Staff (registrar, PSMO)** | Keep data current without a developer | PSMO role limited to buildings and rooms; setup progress; undo; offline edits | Account management is command-line only; no bulk import for rooms; floor-plan path drawing needs training; no audit of door/path edits | CSV import for rooms, a user-management screen, audit every write |
 | **Professor** | Find a classroom or lab quickly, on a laptop or phone | Search by number or name; works offline | Phone-first layout on desktop; no schedule link; "Houses of Hero" and quest language are student-culture, not faculty-neutral | Desktop room finder view; link a room to a class schedule feed if the school has one |
 | **Visitor** | Reach an office with no prior knowledge | No sign-up needed; plain-language directions; enrollment banner for applicants | Three permission prompts; location requirement blocks pre-visit planning; English only | Pre-visit mode (map and directory without location); a guest tour |
 
-**Overall user flow and UI:** the student journey is short and mostly obvious, and the visual identity is a real asset. The main risks are not layout polish but (1) dead ends for people who are not standing on campus, (2) a feature (indoor AR) that is advertised more widely than it works, and (3) copy that hard-codes facts the admin can change.
+**Overall user flow and UI:** the student journey is short and mostly obvious, and the visual identity is a real asset. The main risks are not layout polish but (1) dead ends for people who are not standing on campus, (2) leftover indoor-AR code and screens that no longer match the product's scope, and (3) copy that hard-codes facts the admin can change.
 
 ---
 
@@ -239,12 +246,12 @@ Not covered: full OWASP ZAP scan, authenticated IDOR testing across roles beyond
 Already admin-editable: enrollment steps, doors, open-type buildings, campus-only switch, colour themes, hazard approval. Hard to change without code: the campus boundary, the room-numbering rule, the AI persona text, brand, and anything in section 7's inventory.
 
 ### 4.3 Accuracy
-- **Navigation accuracy is unmeasured.** Phone compasses drift 10-30° near metal and floor-plan photos are skewed; nothing here has been run on a device.
+- **Outdoor navigation accuracy is unmeasured.** GPS error and phone compass drift (10-30° near metal) decide how well the camera arrow lines up; nothing here has been run on a device. Indoor floor-plan routing is a 2D drawing, so its accuracy depends on how carefully paths were traced, not on sensors.
 - **Data accuracy:** see the gaps in 2.7. The assistant is deliberately constrained to registered records, which turns data gaps into "I don't know" instead of invented answers; that is the right trade-off.
 - **Copy accuracy:** hard-coded "seven steps", "Amafel Building (Main), 1st Floor" in `enrollment.php:44`.
 
 ### 4.4 Consistency
-Strong within each app (student, admin). Inconsistencies: vocabulary (quest/step/stop), the two design languages, API status codes, and tests/docs that describe a system that has since changed.
+Strong within each app (student, admin). Inconsistencies: vocabulary (quest/step/stop), the two design languages, API status codes, and docs and code comments that still describe indoor AR and the amber design.
 
 ### 4.5 Educational use
 Good fit for: freshman orientation, enrollment week, event days, reducing office-hour interruptions, and as a campus-digital-twin teaching example (GIS, AR, offline web, applied AI).
@@ -261,17 +268,17 @@ Gaps for real educational deployment: accessibility routing (ramps, elevators, a
 
 | Panel question | Current answer | What closes the gap |
 |---|---|---|
-| "How accurate is the AR guidance?" | Unknown | Measure position error against surveyed markers on 2-3 devices; report mean and 95th percentile |
+| "How accurate is the AR guidance?" | Unknown | Measure outdoor arrow and route error against surveyed markers on 2-3 devices; report mean and 95th percentile |
 | "Is it better than a paper map or Google Maps?" | Untested | Task-completion time and error count, with and without Lampara, n >= 30 |
 | "Do users like it?" | Untested | SUS or UEQ questionnaire; separate new students from returning |
 | "Is the AI reliable and safe?" | Designed to refuse beyond records | Test set of 100 questions; report correct, refused, and wrong rates |
 | "Is it compliant?" | Privacy page exists | Short privacy impact assessment under RA 10173; consent wording; data retention |
-| "What is new?" | Combination, not any single technique | State the contribution plainly: low-cost, no-install, no-beacon indoor-outdoor guidance for schools |
+| "What is new?" | Combination, not any single technique | State the contribution plainly: low-cost, no-install outdoor AR guidance plus indoor floor-plan routing for schools, no beacons |
 | "Does it generalise?" | Single campus | Show the configuration layer in section 7 working for a second site (even a mock one) |
 
 **Recommended evaluation design:** ISO/IEC 25010 quality characteristics for the software; SUS (usability) with 30+ respondents across the six personas above; a controlled wayfinding task with a map-only control group; AR positional error in metres; WCAG 2.2 AA audit (you already have axe results to start from); cost per AI query; limitations section covering GPS/compass drift and the one-calibrated-floor reality.
 
-**Scope advice:** if indoor AR stays on one floor, say so honestly and present indoor routing on floor plans as the delivered indoor feature, with indoor AR as a demonstrated proof of concept.
+**Scope advice:** present the delivered system as outdoor AR guidance + indoor floor-plan routing + directory + grounded assistant + admin toolchain. Do not mention indoor AR except as future work, and remove its leftover code first so the repository matches what you claim.
 
 ### 5.2 As a product: not yet
 | Needed to sell | Today |
@@ -285,7 +292,7 @@ Gaps for real educational deployment: accessibility routing (ramps, elevators, a
 **Realistic product path:** pilot with 2-3 schools using the thesis system, then productise the configuration layer. As a thesis spin-off or open-source campus kit this is credible; as a standalone commercial SaaS it is a longer road.
 
 ### 5.3 The one unknown that decides everything
-The AR guidance has never run on a real device in any test I can see. Do a one-day field trial before the defense: two Android phones and one iPhone, five routes, record success/failure and error. Everything else in this report is secondary to that result.
+The outdoor AR guidance has never run on a real device in any test I can see. Do a one-day field trial before the defense: two Android phones and one iPhone, five outdoor routes, record success, failure and error. Everything else in this report is secondary to that result.
 
 ---
 
@@ -294,14 +301,14 @@ The AR guidance has never run on a real device in any test I can see. Do a one-d
 - [ ] Problem statement, objectives, scope and delimitations written
 - [ ] Related systems compared (Google/Apple indoor maps, Mappedin, campus apps, AR.js/WebXR research)
 - [ ] Architecture and data-model diagrams (use `schema.sql`)
-- [ ] Field-trial AR accuracy data (5.3)
+- [ ] Field-trial outdoor AR accuracy data (5.3)
 - [ ] SUS/UEQ results, n >= 30, across personas
 - [ ] Wayfinding task comparison with a control group
 - [ ] AI question-set results (correct / refused / wrong)
 - [ ] Accessibility audit result (axe baseline in 2.1, plus manual screen-reader pass)
 - [ ] Security assessment summary (section 2.6 is a starting point)
 - [ ] Privacy impact assessment and consent text (RA 10173)
-- [ ] Test report from a repeatable, seeded test run in CI
+- [ ] Software testing evidence (unit and end-to-end) with a repeatable run
 - [ ] Limitations and future work (section 8, long term)
 
 ---
@@ -350,18 +357,18 @@ Editable enrollment steps, doors, themes, campus-only switch, open-type building
 4. Fix the enrollment copy so counts come from the data.
 
 **Before a supervised pilot**
-5. Field-test AR on real phones (5.3).
+5. Field-test the outdoor AR guide on real phones (5.3).
 6. HTTPS, `display_errors=Off`, non-root DB user, hide `X-Powered-By`.
 7. Gate dead end: add "Browse the map and directory" to the off-campus screen.
 8. Vendor the OCR worker; trim landing-page weight; fix the Enrollment button overlap.
-9. Audit door/path/calibration writes; pick a position on restoring calibration (indoor AR depends on it).
+9. Audit door and path writes; remove the leftover indoor-AR code and the `ar-test` page (see 2.4).
 10. Rate limits keyed on trusted IP + username; message length cap on chat.
 
 **Before the thesis defense**
-11. Seeded, repeatable test database; run `e2e` in CI; add pathfinding and room-number unit tests; update the stale checks.
+11. Add repeatable automated checks (admin screens, pathfinding, room-number rules) and run them on every push.
 12. Execute the evaluation plan in 5.1 and write results.
 13. Privacy impact assessment and consent wording.
-14. Permit zoom on AR pages (remove `user-scalable=no` where the camera is not the main view) and name the enrollment progress bar for screen readers.
+14. Allow pinch-zoom outside the camera view and name the enrollment progress bar for screen readers.
 
 **Toward a product**
 15. Phase 1 configuration layer (7.3), migrations, user-management screen, CSV import.
@@ -381,11 +388,10 @@ Editable enrollment steps, doors, themes, campus-only switch, open-type building
 | Staff accounts | 2 (1 admin, 1 PSMO) |
 | Rooms without number / without plan marker / without path node | 11 / 13 / 58 |
 | Setup audit | 9 to fix, 91 tips |
-| Floors calibrated for indoor AR | 1 of 13 plans |
+| Indoor-AR leftovers | About 1,200 lines (`indoor-ar.php`, `indoor-ar.js`, `locar-indoor.js`, `indoor-nav.js`, `ar-ribbon.js`) plus calibration plumbing and the `ar-test` page |
 | `rooms.php` | 53,221 bytes, ~9 ms |
-| e2e result | 67 of 78 passed (first full run) |
-| axe violations | 0 on map, find-room, report, privacy, terms; 1 critical (viewport zoom) on 3 AR pages; 1 serious (unnamed progress bar) on enrollment; remaining are moderate landmark notes |
-| Page weight (phone, first load) | Home ~885 KB / 168 requests; Map ~3.1 MB / 118; Camera guide ~1.7 MB; Indoor AR ~2.3 MB; Ask ~212 KB; Find a room ~171 KB |
+| axe violations | 0 on map, find-room, report, privacy, terms; 1 critical (viewport zoom) on the outdoor camera guide; 1 serious (unnamed progress bar) on enrollment; remaining are moderate landmark notes |
+| Page weight (phone, first load) | Home ~885 KB / 168 requests; Map ~3.1 MB / 118; Outdoor camera guide ~0.8 to 1.7 MB; Ask ~212 KB; Find a room ~171 KB |
 | Repository | 54 commits; 121 uncommitted paths on 14 Oct |
 
 ## Appendix B: status of the 8 October findings
@@ -398,7 +404,6 @@ Editable enrollment steps, doors, themes, campus-only switch, open-type building
 | S4 chat input bounds | History capped; newest message cap unverified |
 | S5 cookie hardening and CSRF | Fixed: HttpOnly, SameSite=Lax, origin check |
 | Test/debug UI public on the AR page | Not re-checked in depth; page title and gate still say "AR guide" |
-| Accessibility gaps | Much improved (359 ARIA attributes in student views); three AR pages still block zoom |
+| Accessibility gaps | Much improved (359 ARIA attributes in student views); the outdoor camera guide still blocks zoom |
 | CDN runtime dependencies | Mostly vendored; OCR worker still uses a CDN |
 | Nothing committed | Worse in volume: 121 uncommitted paths |
-| No tests in repo | Fixed: `tests/e2e/run.py` exists (but see 2.7) |
