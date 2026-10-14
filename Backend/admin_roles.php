@@ -3,6 +3,7 @@
 // Extra account columns, added the first time they are needed (safe to call every time):
 //   role         'admin' (everything) or 'psmo' (manages buildings and rooms)
 //   disabled     1 = this account cannot sign in
+//   permissions  for a psmo account: the areas it may use, comma separated (see lampara_access_areas); empty = buildings and rooms
 //   totp_secret  set = signing in also needs a 6-digit code from an authenticator app (two-step login)
 function ensure_admin_role_column($conn): bool
 {
@@ -15,6 +16,7 @@ function ensure_admin_role_column($conn): bool
         'role' => "VARCHAR(10) NOT NULL DEFAULT 'admin'",
         'disabled' => 'TINYINT(1) NOT NULL DEFAULT 0',
         'totp_secret' => 'VARCHAR(64) NULL',
+        'permissions' => 'VARCHAR(120) NULL',
     ];
     $ok = true;
     foreach ($want as $col => $def) {

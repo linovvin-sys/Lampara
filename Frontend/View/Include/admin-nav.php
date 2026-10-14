@@ -134,16 +134,21 @@ require_once __DIR__ . '/../../../Backend/institution.php';
 $off = array_filter(['hazards' => !inst_feature('hazards'), 'enrollment-steps' => !inst_feature('enrollment'), 'test-chat' => !inst_feature('chat')]);
 foreach ($navSections as $sn => $ks) $navSections[$sn] = array_values(array_diff($ks, array_keys($off)));
 $navSections = array_filter($navSections);   // a section with nothing left disappears
-// A PSMO account sees only the building and room pages.
+// A PSMO account sees only the areas an administrator gave it (Account > Team).
 $isPsmo = lampara_admin_role() === 'psmo';
-if ($isPsmo) $navSections = ['Buildings' => ['manage-buildings'], 'Your school' => ['account']]; // buildings and their rooms; doors are a tab inside a building
+if ($isPsmo) {
+    $byArea = ['buildings' => ['manage-buildings'], 'campus' => ['campus-paths', 'building-outlines', 'campus-map'], 'reports' => ['hazards'], 'enrollment' => ['enrollment-steps'], 'assistant' => ['test-chat']];
+    $mine = [];
+    foreach ($byArea as $area => $keys) if (lampara_admin_can($area)) foreach ($keys as $k) if (!isset($off[$k])) $mine[] = $k;
+    $navSections = array_filter(['Your work' => $mine, 'Your school' => ['account']]);
+}
 // The three tabs along the bottom of a phone, and which pages count as "inside" each one.
 $tabs = [
     ['label' => 'Home',      'href' => 'dashboard.php',      'icon' => $leaf['dashboard']['icon'],        'match' => ['dashboard']],
     ['label' => 'Buildings', 'href' => 'buildings.php',      'icon' => $leaf['manage-buildings']['icon'], 'match' => ['manage-buildings', 'doors', 'test-chat']],
     ['label' => 'Campus',    'href' => 'campus-paths.php',   'icon' => $leaf['campus-paths']['icon'],     'match' => ['campus-paths', 'building-outlines', 'campus-map']],
 ];
-if ($isPsmo) $tabs = [$tabs[1]];
+if ($isPsmo) $tabs = array_values(array_filter($tabs, function ($t) { return in_array($t['href'], [lampara_psmo_home(), 'buildings.php'], true) && ($t['href'] !== 'buildings.php' || lampara_admin_can('buildings')); })) ?: [$tabs[1]];
 
 // Pages reached from another page (the chat preview opens from the Buildings list menu) light that page's entry.
 $parentOf = ['test-chat' => 'manage-buildings'];
@@ -259,7 +264,7 @@ foreach ($navSections as $sectionName => $keys) {
       <div class="profile-avatar"><?= htmlspecialchars($initial) ?></div>
       <div class="profile-text" style="min-width:0;">
         <div class="profile-name"><?= htmlspecialchars($adminUsername) ?></div>
-        <div class="profile-role"><?= $isPsmo ? 'PSMO' : 'Administrator' ?></div>
+        <div class="profile-role"><?= $isPsmo ? 'PSMO staff' : 'Administrator' ?></div>
       </div>
     </div>
     <a href="logout.php" class="admin-logout"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="logout-label">Logout</span></a>

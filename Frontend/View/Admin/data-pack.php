@@ -47,9 +47,12 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/data-pack.js');
 
       <p class="dp-msg" id="dpMsg" role="status" hidden></p>
 
-      <section class="dp-card" aria-labelledby="dpExpH">
+      <div class="dp-grid">
+      <section class="dp-card dp-export" aria-labelledby="dpExpH">
         <h2 id="dpExpH">Export this school</h2>
         <p>One zip with the buildings, rooms, floor plans with their paths, doors, campus walkways, map pins, enrollment steps and school settings. It never contains staff accounts, passwords or visitor reports.</p>
+        <div class="dp-inc"><div><h3>Included</h3><ul><li>Buildings and rooms</li><li>Floor plans and indoor paths</li><li>Doors and entrances</li><li>Campus walkways and map pins</li><li>Enrollment steps</li><li>School settings</li></ul></div><div><h3>Never included</h3><ul class="no"><li>Staff accounts and passwords</li><li>Visitor reports</li><li>Photos</li></ul></div></div>
+        <p class="dp-note">You will be asked for your password again before each download.</p>
         <a class="btn btn-primary" id="dpExport" href="../../../Backend/api/data-pack.php?action=export">Download the data pack</a>
       </section>
 
@@ -77,7 +80,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/data-pack.js');
         </div>
       </section>
 
-      <section class="dp-card" aria-labelledby="dpCsvH">
+      </div>
+
+      <section class="dp-card dp-csv" aria-labelledby="dpCsvH">
         <h2 id="dpCsvH">Add rooms from a spreadsheet</h2>
         <p>A CSV file with the columns <code>building_name, floor, room_number, room_name, category, hours, notes</code>. Buildings must already exist and are matched by name. Category is office, classroom, cr or canteen. Rooms already there are never changed; rows with a problem are skipped. <a href="../../assets/templates/rooms-template.csv" download>Download a template</a>.</p>
         <div class="dp-row">

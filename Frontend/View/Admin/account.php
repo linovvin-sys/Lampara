@@ -37,64 +37,93 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/account.js');
   <main class="admin-main" id="adminMain">
     <div class="admin-container ac">
 
-      <header class="page-head">
-        <div>
-          <h1>Your account</h1>
-          <p id="acWho">Loading&hellip;</p>
+      <header class="ac-hero">
+        <span class="ac-avatar" id="acAvatar" aria-hidden="true">?</span>
+        <div class="ac-hero-text">
+          <h1 id="acName">Your account</h1>
+          <p class="ac-chips" id="acChips"></p>
         </div>
       </header>
 
-      <section class="ac-card" aria-labelledby="pwH">
-        <h2 id="pwH">Change your password</h2>
-        <form id="pwForm" autocomplete="off">
-          <label for="pwCur">Current password</label>
-          <input id="pwCur" type="password" autocomplete="current-password" required>
-          <label for="pwNew">New password <small>(at least 10 characters)</small></label>
-          <input id="pwNew" type="password" autocomplete="new-password" minlength="10" required>
-          <label for="pwNew2">New password again</label>
-          <input id="pwNew2" type="password" autocomplete="new-password" minlength="10" required>
-          <button type="submit" class="btn btn-primary">Change password</button>
-          <p class="ac-msg" id="pwMsg" role="status"></p>
-        </form>
-      </section>
+      <div class="ac-tabs" role="tablist" aria-label="Account sections" id="acTabs">
+        <button type="button" role="tab" class="ac-tab is-on" data-tab="me" aria-selected="true">My account</button>
+        <button type="button" role="tab" class="ac-tab" data-tab="team" aria-selected="false" hidden>Team</button>
+        <button type="button" role="tab" class="ac-tab" data-tab="log" aria-selected="false" hidden>Activity</button>
+      </div>
 
-      <section class="ac-card" aria-labelledby="tsH">
-        <h2 id="tsH">Two-step sign-in</h2>
-        <p id="tsState"></p>
-        <div id="tsOff" hidden>
-          <p>Sign-in will also ask for a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy). Someone who learns your password still cannot get in.</p>
-          <button type="button" class="btn btn-primary" id="tsBegin">Set it up</button>
-        </div>
-        <div id="tsSetup" hidden>
-          <p>In your authenticator app choose <b>Add account</b>, then <b>Enter a setup key</b>, and type this key (spaces do not matter):</p>
-          <p class="ac-key" id="tsKey"></p>
-          <p class="ac-small">Or open this link on the phone that has the app: <a id="tsLink" href="#">Add to my authenticator</a></p>
-          <label for="tsCode">Then type the 6-digit code the app shows</label>
-          <input id="tsCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-          <button type="button" class="btn btn-primary" id="tsConfirm">Turn it on</button>
-        </div>
-        <div id="tsOn" hidden>
-          <label for="tsOffPw">To switch it off, type your password</label>
-          <input id="tsOffPw" type="password" autocomplete="current-password">
-          <label for="tsOffCode">and a current 6-digit code</label>
-          <input id="tsOffCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-          <button type="button" class="btn btn-secondary" id="tsOffBtn">Switch it off</button>
-        </div>
-        <p class="ac-msg" id="tsMsg" role="status"></p>
-        <p class="ac-small">Lost your phone? An administrator can reset it on the server with <code>manage-admins.php reset-2fa</code>.</p>
-      </section>
+      <!-- MY ACCOUNT -->
+      <div class="ac-pane" id="paneMe" role="tabpanel">
+        <div class="ac-two">
+          <section class="ac-box" aria-labelledby="pwH">
+            <h2 id="pwH">Password</h2>
+            <p class="ac-sub">Use at least 10 characters. A phrase of a few words is easy to remember and hard to guess.</p>
+            <form id="pwForm" autocomplete="off" class="ac-form">
+              <label class="ac-field" for="pwCur"><span>Current password</span><input id="pwCur" type="password" autocomplete="current-password" required></label>
+              <label class="ac-field" for="pwNew"><span>New password</span><input id="pwNew" type="password" autocomplete="new-password" minlength="10" required></label>
+              <div class="ac-meter" aria-hidden="true"><span id="pwBar"></span></div>
+              <p class="ac-small" id="pwHint">At least 10 characters.</p>
+              <label class="ac-field" for="pwNew2"><span>New password again</span><input id="pwNew2" type="password" autocomplete="new-password" minlength="10" required></label>
+              <button type="submit" class="btn btn-primary">Change password</button>
+              <p class="ac-msg" id="pwMsg" role="status"></p>
+            </form>
+          </section>
 
-      <section class="ac-card" id="acAccounts" hidden aria-labelledby="acH">
-        <h2 id="acH">All accounts</h2>
-        <p class="ac-small">Accounts are created, disabled and given roles on the server with <code>Backend/scripts/create-admin.php</code> and <code>manage-admins.php</code>.</p>
-        <div class="ac-table"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Two-step</th><th>Created</th></tr></thead><tbody id="acRows"></tbody></table></div>
-      </section>
+          <section class="ac-box" aria-labelledby="tsH">
+            <h2 id="tsH">Two-step sign-in</h2>
+            <p class="ac-state" id="tsState"></p>
+            <div id="tsOff" hidden>
+              <p class="ac-sub">Sign-in also asks for a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator or Authy). Someone who learns your password still cannot get in.</p>
+              <button type="button" class="btn btn-primary" id="tsBegin">Set it up</button>
+            </div>
+            <ol class="ac-steps" id="tsSetup" hidden>
+              <li><b>Add the key to your app.</b> Choose <i>Add account</i>, then <i>Enter a setup key</i>, and type this key (spaces do not matter).
+                <span class="ac-key" id="tsKey"></span>
+                <span class="ac-small">On the phone with the app? <a id="tsLink" href="#">Add it with one tap</a>.</span></li>
+              <li><b>Type the code it shows.</b>
+                <span class="ac-codeRow"><input id="tsCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="6-digit code" placeholder="6 digits"><button type="button" class="btn btn-primary" id="tsConfirm">Turn it on</button></span></li>
+            </ol>
+            <div id="tsOn" hidden class="ac-form">
+              <p class="ac-sub">To switch it off, confirm with your password and a current code.</p>
+              <label class="ac-field" for="tsOffPw"><span>Password</span><input id="tsOffPw" type="password" autocomplete="current-password"></label>
+              <label class="ac-field" for="tsOffCode"><span>6-digit code</span><input id="tsOffCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+              <button type="button" class="btn btn-secondary" id="tsOffBtn">Switch it off</button>
+            </div>
+            <p class="ac-msg" id="tsMsg" role="status"></p>
+            <p class="ac-small">Lost your phone? Ask an administrator to reset your password; that also switches two-step off so you can set it up again.</p>
+          </section>
+        </div>
+      </div>
 
-      <section class="ac-card" id="acAudit" hidden aria-labelledby="auH">
-        <h2 id="auH">Security activity</h2>
-        <p class="ac-small">The latest 100 events: sign-ins (good and bad), sign-outs, password and two-step changes, and what was done with visitor reports. Kept for 180 days.</p>
-        <div class="ac-table"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Details</th><th>From</th></tr></thead><tbody id="auRows"></tbody></table></div>
-      </section>
+      <!-- TEAM (administrators) -->
+      <div class="ac-pane" id="paneTeam" role="tabpanel" hidden>
+        <div class="ac-stats" id="teamStats"></div>
+        <div class="ac-toolbar">
+          <label class="ac-search"><span class="sr-only">Search the team</span><input id="teamQ" type="search" placeholder="Search by name" autocomplete="off"></label>
+          <select id="teamFilter" aria-label="Show"><option value="">Everyone</option><option value="admin">Administrators</option><option value="psmo">PSMO staff</option><option value="off">Disabled</option></select>
+          <button type="button" class="btn btn-primary" id="teamAdd">Add a team member</button>
+        </div>
+        <div class="ac-bulk" id="teamBulk" hidden><span id="teamBulkN"></span><button type="button" class="btn btn-secondary" id="teamBulkSet">Set what they can use</button><button type="button" class="btn-link" id="teamBulkClear">Clear</button></div>
+        <ul class="ac-team" id="teamList"></ul>
+        <p class="ac-small ac-empty" id="teamEmpty" hidden>Nobody matches.</p>
+      </div>
+
+      <!-- ACTIVITY (administrators) -->
+      <div class="ac-pane" id="paneLog" role="tabpanel" hidden>
+        <div class="ac-toolbar"><div class="ac-pills" id="logFilter" role="group" aria-label="Filter the activity"></div></div>
+        <ul class="ac-log" id="logList"></ul>
+        <p class="ac-small">The latest 100 events, kept for 180 days: sign-ins (good and bad), password and two-step changes, team changes, and what was done with visitor reports.</p>
+      </div>
+
+      <!-- editor sheet and one-time password sheet -->
+      <div class="ac-sheet" id="sheet" hidden>
+        <div class="ac-sheet-back" data-close></div>
+        <div class="ac-sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+          <div class="ac-sheet-head"><h2 id="sheetTitle"></h2><button type="button" class="ac-x" data-close aria-label="Close">&times;</button></div>
+          <div class="ac-sheet-body" id="sheetBody"></div>
+          <p class="ac-msg" id="sheetMsg" role="alert"></p>
+          <div class="ac-sheet-foot" id="sheetFoot"></div>
+        </div>
+      </div>
     </div>
   </main>
 </div>

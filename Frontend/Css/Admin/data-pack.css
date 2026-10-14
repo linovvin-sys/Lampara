@@ -1,4 +1,4 @@
-.dp { max-width: 52rem; }
+.dp { max-width: none; }
 .dp-card { background: #fff; border: 1px solid var(--line, #dcdde8); border-radius: 1rem; padding: 1.1rem 1.25rem; margin: 0 0 1rem; }
 .dp-card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .dp-card p { margin: 0 0 0.8rem; color: #3b3f66; line-height: 1.5; }
@@ -59,3 +59,20 @@ html[data-admin-theme="dark"] .vf-err { background: #3b1a1a; color: #ffb4ab; }
 html[data-admin-theme="dark"] .vf .btn { filter: none; }
 html[data-admin-theme="dark"] .vf .btn-secondary { background: #0f1138; border-color: #3a3f8c; color: #eceefc; }
 html[data-admin-theme="dark"] .vf .btn-primary { background: #ffd100; color: #15173f; }
+
+/* use the whole width: export and import side by side, the spreadsheet below */
+.dp-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.dp-grid > .dp-card, .dp-csv { margin: 0; }
+.dp-csv { margin-top: 1rem; }
+.dp-inc { display: grid; gap: 0.9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0.2rem 0 0.9rem; }
+.dp-inc h3 { margin: 0 0 0.35rem; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: #5b5f7c; }
+.dp-inc ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; font-size: 0.9rem; }
+.dp-inc li::before { content: '\2713'; color: #1f9d55; font-weight: 800; margin-right: 0.45rem; }
+.dp-inc ul.no li::before { content: '\2715'; color: #b3261e; }
+.dp-note { font-size: 0.85rem; }
+.dp-card .btn { min-height: 2.9rem; }
+.dp-row input[type="file"] { min-height: 3rem; }
+.dp-table { font-size: 0.95rem; }
+.dp-csv .dp-table { max-width: 60rem; }
+@media (max-width: 719px) { .dp-card .btn, .dp-row .btn { width: 100%; } .dp-row input[type="text"] { width: 100%; } .dp-inc { grid-template-columns: 1fr; } }
+@media (min-width: 1000px) { .dp-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } .dp-card { padding: 1.4rem 1.6rem; } }

@@ -137,7 +137,7 @@ function syncExtras($conn, $table, $id, array $p) {
 
 function applyOp($conn, $type, array $p, $force, array &$tempMap) {
     // A PSMO account may change buildings, and rooms, not the outdoor walkways (node., edge., entrance.).
-    if (lampara_admin_role() === 'psmo' && !preg_match('/^(building|room)\\./', (string) $type)) return failure('This account can only change buildings and rooms.');
+    if (lampara_admin_role() === 'psmo' && !(lampara_admin_can('buildings') && preg_match('/^(building|room)\\./', (string) $type)) && !(lampara_admin_can('campus') && preg_match('/^(node|edge|entrance)\\./', (string) $type))) return failure('This account does not have access to that.');
     switch ($type) {
 
         case 'building.create': {

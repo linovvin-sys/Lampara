@@ -8,7 +8,13 @@
 // POST /api/account.php?action=2fa_begin                              start two-step sign-in: returns { secret, uri } to add to an authenticator app
 // POST /api/account.php?action=2fa_confirm body { code }              finish it with a code from the app
 // POST /api/account.php?action=2fa_off     body { password, code? }   switch it off (needs your password, and a code when it is on)
-// Creating accounts, disabling them and changing roles is done on the server with Backend/scripts/manage-admins.php, never here.
+// Team (administrators only):
+// GET  /api/account.php?team=1                        -> { accounts: [{ id, username, role, permissions, disabled, two_step, last_login, created_at, you }], areas: { key: { label, about } } }
+// POST /api/account.php?action=team_create  body { username, role, permissions[] }   -> { username, password }  (a temporary password, shown once)
+// POST /api/account.php?action=team_update  body { id, role?, permissions?[], disabled? }
+// POST /api/account.php?action=team_reset   body { id }  -> { password }  (a new temporary password; two-step is switched off for them)
+// POST /api/account.php?action=team_delete  body { id }
+// Rules: you cannot lock yourself out (no demoting, disabling or deleting your own account), and one active administrator always remains.
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
@@ -30,6 +36,22 @@ if (!$me) { http_response_code(401); echo json_encode(['success' => false, 'erro
 function acc_fail(int $code, string $msg): void { http_response_code($code); echo json_encode(['success' => false, 'error' => $msg]); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (isset($_GET['team'])) {
+        if (lampara_admin_role() !== 'admin') acc_fail(403, 'Only an administrator can see this');
+        $seen = [];
+        $lr = $conn->query("SELECT actor, MAX(at) AS t FROM audit_log WHERE action = 'login_ok' GROUP BY actor");
+        if ($lr) while ($x = $lr->fetch_assoc()) $seen[$x['actor']] = $x['t'];
+        $rows = [];
+        $r = $conn->query('SELECT id, username, role, permissions, disabled, totp_secret IS NOT NULL AS two_step, created_at FROM admins ORDER BY role = "admin" DESC, username');
+        while ($x = $r->fetch_assoc()) {
+            $perms = $x['role'] === 'admin' ? array_keys(lampara_access_areas()) : ($x['permissions'] === null || $x['permissions'] === '' ? ['buildings'] : array_values(array_intersect(explode(',', $x['permissions']), array_keys(lampara_access_areas()))));
+            $rows[] = ['id' => (int) $x['id'], 'username' => $x['username'], 'role' => $x['role'], 'permissions' => $perms, 'disabled' => (int) $x['disabled'] === 1,
+                'two_step' => (int) $x['two_step'] === 1, 'last_login' => $seen[$x['username']] ?? null, 'created_at' => $x['created_at'], 'you' => (int) $x['id'] === $id];
+        }
+        $areas = []; foreach (lampara_access_areas() as $k => $a) $areas[$k] = ['label' => $a['label'], 'about' => $a['about']];
+        echo json_encode(['success' => true, 'accounts' => $rows, 'areas' => $areas]);
+        exit;
+    }
     if (isset($_GET['list']) || isset($_GET['audit'])) {
         if (lampara_admin_role() !== 'admin') acc_fail(403, 'Only an administrator can see this');
         if (isset($_GET['list'])) {
@@ -95,5 +117,61 @@ if ($action === '2fa_off') {
     audit_log($conn, 'two_step_off', $me['username']);
     echo json_encode(['success' => true]);
     exit;
+}
+if (strpos($action, 'team_') === 0) {
+    if (lampara_admin_role() !== 'admin') acc_fail(403, 'Only an administrator can manage the team');
+    $valid = array_keys(lampara_access_areas());
+    $cleanPerms = function ($p) use ($valid) { return array_values(array_intersect($valid, is_array($p) ? $p : [])); };
+    $tempPassword = function () { $c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'; $o = ''; for ($i = 0; $i < 12; $i++) $o .= $c[random_int(0, strlen($c) - 1)]; return $o; };
+    $activeAdmins = function () use ($conn) { return (int) $conn->query("SELECT COUNT(*) FROM admins WHERE role = 'admin' AND disabled = 0")->fetch_row()[0]; };
+    $target = null;
+    if ($action !== 'team_create') {
+        $tid = (int) ($in['id'] ?? 0);
+        $st = $conn->prepare('SELECT id, username, role, disabled FROM admins WHERE id = ?'); $st->bind_param('i', $tid); $st->execute();
+        $target = $st->get_result()->fetch_assoc(); $st->close();
+        if (!$target) acc_fail(404, 'That account no longer exists');
+    }
+    if ($action === 'team_create') {
+        $u = trim((string) ($in['username'] ?? ''));
+        if (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $u)) acc_fail(400, 'Use 3 to 30 letters, numbers, dots, dashes or underscores for the username');
+        $role = ($in['role'] ?? 'psmo') === 'admin' ? 'admin' : 'psmo';
+        $perms = $role === 'psmo' ? implode(',', $cleanPerms($in['permissions'] ?? ['buildings'])) : null;
+        if ($role === 'psmo' && $perms === '') acc_fail(400, 'Give this account at least one area to work in');
+        $ex = $conn->prepare('SELECT 1 FROM admins WHERE username = ?'); $ex->bind_param('s', $u); $ex->execute();
+        if ($ex->get_result()->fetch_row()) acc_fail(409, 'That username is already taken');
+        $pw = $tempPassword(); $hash = password_hash($pw, PASSWORD_DEFAULT);
+        $ins = $conn->prepare('INSERT INTO admins (username, password_hash, role, permissions) VALUES (?, ?, ?, ?)'); $ins->bind_param('ssss', $u, $hash, $role, $perms); $ins->execute();
+        audit_log($conn, 'team_created', $u, $role . ($perms ? ': ' . $perms : ''));
+        echo json_encode(['success' => true, 'username' => $u, 'password' => $pw]);
+        exit;
+    }
+    $isMe = (int) $target['id'] === $id;
+    if ($action === 'team_update') {
+        $role = isset($in['role']) ? ($in['role'] === 'admin' ? 'admin' : 'psmo') : $target['role'];
+        $disabled = isset($in['disabled']) ? ($in['disabled'] ? 1 : 0) : (int) $target['disabled'];
+        if ($isMe && ($role !== 'admin' || $disabled)) acc_fail(400, 'You cannot lock yourself out. Ask another administrator to change your own account.');
+        if ($target['role'] === 'admin' && ((int) $target['disabled'] === 0) && ($role !== 'admin' || $disabled) && $activeAdmins() <= 1) acc_fail(400, 'There must always be one active administrator');
+        $perms = null;
+        if ($role === 'psmo') { $perms = implode(',', $cleanPerms($in['permissions'] ?? [])); if ($perms === '') acc_fail(400, 'Give this account at least one area to work in'); }
+        $up = $conn->prepare('UPDATE admins SET role = ?, permissions = ?, disabled = ? WHERE id = ?'); $up->bind_param('ssii', $role, $perms, $disabled, $target['id']); $up->execute();
+        audit_log($conn, 'team_updated', $target['username'], $role . ($perms ? ': ' . $perms : '') . ($disabled ? ' (disabled)' : ''));
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    if ($action === 'team_reset') {
+        $pw = $tempPassword(); $hash = password_hash($pw, PASSWORD_DEFAULT);
+        $up = $conn->prepare('UPDATE admins SET password_hash = ?, totp_secret = NULL WHERE id = ?'); $up->bind_param('si', $hash, $target['id']); $up->execute();
+        audit_log($conn, 'team_password_reset', $target['username']);
+        echo json_encode(['success' => true, 'password' => $pw]);
+        exit;
+    }
+    if ($action === 'team_delete') {
+        if ($isMe) acc_fail(400, 'You cannot delete your own account');
+        if ($target['role'] === 'admin' && (int) $target['disabled'] === 0 && $activeAdmins() <= 1) acc_fail(400, 'There must always be one active administrator');
+        $conn->query('DELETE FROM admins WHERE id = ' . (int) $target['id']);
+        audit_log($conn, 'team_deleted', $target['username']);
+        echo json_encode(['success' => true]);
+        exit;
+    }
 }
 acc_fail(400, 'Unknown action');

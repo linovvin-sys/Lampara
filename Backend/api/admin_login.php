@@ -102,6 +102,7 @@ $_SESSION['admin_id'] = $admin['id'];
 $_SESSION['admin_username'] = $username;
 $_SESSION['admin_role'] = $admin['role'] === 'psmo' ? 'psmo' : 'admin';
 $_SESSION['admin_seen'] = time();
+unset($_SESSION['admin_perms_at']);   // read this account's areas fresh
 audit_log($conn, 'login_ok', $username, !empty($admin['totp_secret']) ? 'with two-step code' : '');
 
 echo json_encode(['success' => true, 'role' => $_SESSION['admin_role']]);
