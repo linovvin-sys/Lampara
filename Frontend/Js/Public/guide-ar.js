@@ -882,7 +882,7 @@ window.LamparaGuide = createApp({
         this.routeInfo = { status: 'far', remaining: Math.round(crow) };
         return;
       }
-      const entrance = this.target.entrance_node_id;
+      const entrance = this.pickEntrance(me);
       // Crossing the campus edge (see crossPlan): out through an exit gate to an outside building, or in through the main entrance.
       const cross = this.crossPlan(me, goal, entrance);
       if (cross) {
@@ -1211,6 +1211,24 @@ window.LamparaGuide = createApp({
       this.pickFromList(b);
     },
     // A building closed for maintenance cannot be walked to: say so instead of drawing a path.
+    // A building with more than one entrance (say one on the street and one inside the campus): walk to whichever is closer along the paths.
+    // The first choice sticks unless the other is clearly closer (15 m), so the arrow does not flip while you stand between two doors.
+    pickEntrance(me) {
+      const t = this.target, main = t.entrance_node_id;
+      const extra = (t.extra_entrances || []).map((e) => e.node_id);
+      if (!extra.length || !this.campusGraph.edges.length) return main;
+      const lens = [];
+      [main, ...extra].filter((x) => x !== null && x !== undefined).forEach((id) => {
+        const r = CampusRoute.findRoute(this.campusGraph, me, id);
+        if (r) lens.push({ id, len: r.length + (r.snapDist || 0) });
+      });
+      if (!lens.length) return main;
+      lens.sort((a, b) => a.len - b.len);
+      const keep = this._entPick && this._entPick.t === t.id ? lens.find((x) => x.id === this._entPick.id) : null;
+      const pick = keep && keep.len - lens[0].len < 15 ? keep : lens[0];
+      this._entPick = { t: t.id, id: pick.id };
+      return pick.id;
+    },
     selectBuilding(building) {
       if (building && building.closed_note) { this.closedNotice = building.name + ' is closed: ' + building.closed_note; return; }
       this.closedNotice = ''; this.setTarget(building);

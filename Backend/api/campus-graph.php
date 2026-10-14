@@ -16,6 +16,8 @@
 // DELETE /api/campus-graph.php?ids=1,2,3               -> remove several nodes at once (same cascade); the reply carries one `snapshot` for all of them, for Undo
 // POST   /api/campus-graph.php?action=restore          -> put a snapshot back (same ids, names, connections and entrances)
 //        body (JSON): the `snapshot` returned by either delete above
+// POST   /api/campus-graph.php?action=extra_entrance   -> add another entrance to a building   body { building_id, node_id, label? }
+// DELETE /api/campus-graph.php?extra_entrance=1&building_id=1&node_id=2 -> remove one
 // POST   /api/campus-graph.php?action=edge             -> connect two nodes
 //        body (JSON): { node_a_id, node_b_id }
 // DELETE /api/campus-graph.php?edge_id=1               -> remove one connection
@@ -91,6 +93,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
     $action = $_GET['action'] ?? '';
+
+    if ($action === 'extra_entrance') {
+        require_once __DIR__ . '/../building_entrances.php';
+        $bid = (int) ($input['building_id'] ?? 0); $nid = (int) ($input['node_id'] ?? 0);
+        $label = trim(preg_replace('/\s+/', ' ', (string) ($input['label'] ?? ''))); if (mb_strlen($label) > 40) $label = mb_substr($label, 0, 40);
+        if (!$bid || !$nid) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'Choose a building and a point']); exit; }
+        $own = $conn->prepare('SELECT 1 FROM buildings WHERE id = ? AND entrance_node_id = ?'); $own->bind_param('ii', $bid, $nid); $own->execute();
+        if ($own->get_result()->fetch_row()) { echo json_encode(['success' => false, 'error' => 'That point is already this building\'s main entrance']); exit; }
+        if (!ensure_extra_entrances_table($conn)) { http_response_code(500); echo json_encode(['success' => false, 'error' => 'Could not prepare the database for a second entrance']); exit; }
+        $st = $conn->prepare('INSERT INTO building_entrances (building_id, node_id, label) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE label = VALUES(label)');
+        $st->bind_param('iis', $bid, $nid, $label);
+        try { $st->execute(); echo json_encode(['success' => true]); }
+        catch (mysqli_sql_exception $e) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'That building or point does not exist']); }
+        exit;
+    }
 
     if ($action === 'edge') {
         $nodeA = (int) ($input['node_a_id'] ?? 0);
@@ -239,6 +256,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    if (!empty($_GET['extra_entrance'])) {
+        require_once __DIR__ . '/../building_entrances.php';
+        $bid = (int) ($_GET['building_id'] ?? 0); $nid = (int) ($_GET['node_id'] ?? 0);
+        if (ensure_extra_entrances_table($conn)) { $st = $conn->prepare('DELETE FROM building_entrances WHERE building_id = ? AND node_id = ?'); $st->bind_param('ii', $bid, $nid); $st->execute(); }
+        echo json_encode(['success' => true]);
+        exit;
+    }
     if (!empty($_GET['edge_id'])) {
         $id = (int) $_GET['edge_id'];
         $stmt = $conn->prepare("DELETE FROM campus_edges WHERE id = ?");

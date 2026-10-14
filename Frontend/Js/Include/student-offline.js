@@ -86,7 +86,7 @@ const StudentOffline = (() => {
       LamparaCache.setCampusGraph({ nodes: c.nodes, edges: c.edges });
 
       const parts = [
-        b.buildings.map((x) => [x.id, x.updated_at, x.entrance_node_id, x.lat, x.lng].join(':')).join(','),
+        b.buildings.map((x) => [x.id, x.updated_at, x.entrance_node_id, x.lat, x.lng, (x.extra_entrances || []).map((e) => e.node_id + e.label).join('+'), x.closed_note || ''].join(':')).join(','),
         r.rooms.map((x) => [x.id, x.updated_at].join(':')).join(','),
         c.nodes.map((x) => [x.id, x.lat, x.lng].join(':')).join(','), c.edges.length
       ];

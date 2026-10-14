@@ -215,6 +215,17 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <button type="button" class="btn btn-secondary" :disabled="!pointDirty || savingPoint" @click="resetDrafts">Undo edits</button>
                 <span class="save-note" role="status">{{ savedNote || (pointDirty ? 'Unsaved changes' : '') }}</span>
               </div>
+              <div class="field extra-ent">
+                <label for="extra-building">Also an entrance of <small>(a second door)</small></label>
+                <ul v-if="extrasHere.length" class="extra-list">
+                  <li v-for="x in extrasHere" :key="x.building.id + '-' + x.label"><span><b>{{ x.building.name }}</b><small v-if="x.label"> · {{ x.label }}</small></span><button type="button" class="btn-link danger" :disabled="locked" @click="removeExtra(x)">Remove</button></li>
+                </ul>
+                <select id="extra-building" v-model="extraBuilding" :disabled="locked"><option value="">Choose a building…</option><option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option></select>
+                <input v-model="extraLabel" type="text" maxlength="40" placeholder="Label, e.g. Street side or Campus side" aria-label="Label for this entrance" :disabled="locked">
+                <button type="button" class="btn btn-secondary" :disabled="locked || !extraBuilding" @click="addExtra">Add this entrance</button>
+                <p class="hint u-d93599">A building keeps its main entrance above. Add a second point here, for example one door on the street and one inside the campus. The guide walks to the closer one.</p>
+              </div>
+
               <div class="side-actions">
                 <button type="button" class="btn btn-secondary" @click="select(null)">Deselect</button>
                 <button type="button" class="btn-link danger" :disabled="locked" @click="deleteSelected">Delete point</button>

@@ -56,8 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
          FROM buildings b
          ORDER BY b.name ASC"
     );
+    require_once __DIR__ . '/../building_entrances.php';
+    $extra = extra_entrances_by_building($conn);
     $buildings = [];
     while ($row = $result->fetch_assoc()) {
+        $row['extra_entrances'] = $extra[(int) $row['id']] ?? [];
         $row['is_open'] = (bool) $row['is_open'];
         $row['lat'] = (float) $row['lat'];
         $row['lng'] = (float) $row['lng'];

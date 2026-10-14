@@ -80,3 +80,8 @@
 .multi-bar { margin-top: 0.6rem; padding: 0.7rem 0.8rem; border-radius: 0.9rem; background: #fdecea; border: 1px solid #f3b9b3;}
 .multi-count { flex: 1 1 100%; font-size: 0.9rem; }
 .multi-bar .btn { flex: 1 1 8rem; }
+
+.extra-ent { display: grid; gap: 0.5rem; }
+.extra-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.extra-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.45rem 0.7rem; border-radius: 0.7rem; background: #fff3d6; font-size: 0.875rem; }
+.extra-list small { color: #6b4600; }

@@ -67,7 +67,7 @@ createApp({
       liveMsg: '',            // what the last delete removed: { label, snapshot }, for the Undo button
       locked: EditorLock.get('campus-paths'),
       lockIcon: EditorLock.icon,
-      multi: false, pickedIds: [], deletingMany: false,
+      extraBuilding: '', extraLabel: '', multi: false, pickedIds: [], deletingMany: false,
       nameDraft: '', typeDraft: 'junction', entranceDraft: '', savingPoint: false, savedNote: '', smoothing: false,
       pathsOnly: viewPref('pathsonly', '0') === '1',
       nameError: '',
@@ -110,6 +110,13 @@ createApp({
     }
   },
   computed: {
+    // Second doors recorded on the selected point: [{ building, label }].
+    extrasHere() {
+      if (this.selectedId === null) return [];
+      const out = [];
+      this.buildings.forEach((b) => (b.extra_entrances || []).forEach((e) => { if (String(e.node_id) === String(this.selectedId)) out.push({ building: b, label: e.label || '' }); }));
+      return out;
+    },
     // True when the Name, Type or Entrance fields differ from what is saved for the selected point.
     pointDirty() {
       const n = this.selected; if (!n) return false;
@@ -497,6 +504,7 @@ createApp({
           .addTo(this.layer);
         const ent = b.entrance_node_id !== null && b.entrance_node_id !== undefined ? byId.get(String(b.entrance_node_id)) : null;
         if (ent) L.polyline([[b.lat, b.lng], [ent.lat, ent.lng]], { color: '#7c3aed', weight: 2, dashArray: '4 6' }).addTo(this.layer);
+        (b.extra_entrances || []).forEach((x) => { const en = byId.get(String(x.node_id)); if (en) L.polyline([[b.lat, b.lng], [en.lat, en.lng]], { color: '#d97706', weight: 2, dashArray: '2 6' }).bindTooltip(x.label || 'Second entrance', { sticky: true }).addTo(this.layer); });
       });
 
       // Names of points that would sit on top of each other are left off (they still show on hover or when selected),
@@ -658,6 +666,20 @@ createApp({
       } catch (e) {
         Swal.fire({ icon: 'error', title: 'Could not delete', text: e.message || 'Try again.' });
       } finally { this.deletingMany = false; }
+    },
+
+    // ---- second entrances ----
+    async addExtra() {
+      const n = this.selected; if (!n || !this.extraBuilding || this.lockedNow('add an entrance')) return;
+      if (!(await AdminOffline.guardOnline('Adding a second entrance'))) return;
+      try { await this.request(API + '?action=extra_entrance', 'POST', { building_id: this.extraBuilding, node_id: n.id, label: this.extraLabel });
+        this.extraBuilding = ''; this.extraLabel = ''; await this.loadAll(); AdminOffline.toast('Entrance added'); }
+      catch (e) { Swal.fire({ icon: 'error', title: 'Could not add it', text: e.message }); }
+    },
+    async removeExtra(x) {
+      if (this.lockedNow('remove an entrance') || !(await AdminOffline.guardOnline('Removing an entrance'))) return;
+      try { await this.request(API + '?extra_entrance=1&building_id=' + x.building.id + '&node_id=' + this.selectedId, 'DELETE'); await this.loadAll(); AdminOffline.toast('Entrance removed'); }
+      catch (e) { Swal.fire({ icon: 'error', title: 'Could not remove it', text: e.message }); }
     },
 
     // ---- naming ----
