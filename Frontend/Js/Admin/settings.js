@@ -22,8 +22,36 @@
 
   function showArea() {
     $('stAreaText').textContent = 'South-west ' + fmt(bounds[0][0]) + ', ' + fmt(bounds[0][1]) + '  ·  north-east ' + fmt(bounds[1][0]) + ', ' + fmt(bounds[1][1]);
-    if (rect) rect.setBounds(bounds); else if (map) rect = L.rectangle(bounds, { color: '#2e3192', weight: 2, fillOpacity: 0.08 }).addTo(map);
+    if (rect) rect.setBounds(bounds); else if (map) rect = L.rectangle(bounds, { color: '#2e3192', weight: 2, fillOpacity: 0.08, interactive: false }).addTo(map);
+    placeHandles();
   }
+  // Four draggable corners cover the campus: drag any one and the box follows. Each corner keeps the opposite one fixed.
+  const handles = {};
+  function placeHandles() {
+    if (!map) return;
+    const [[s, w], [n, e]] = bounds;
+    const spots = { sw: [s, w], nw: [n, w], ne: [n, e], se: [s, e] };
+    Object.keys(spots).forEach((k) => {
+      if (handles[k]) { handles[k].setLatLng(spots[k]); return; }
+      const m = L.marker(spots[k], { draggable: true, keyboard: true, title: 'Drag to resize the campus area',
+        icon: L.divIcon({ className: '', html: '<span class="st-handle" aria-hidden="true"></span>', iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(map);
+      m.on('drag', () => {
+        const p = m.getLatLng();
+        let [[S, W], [N, E]] = bounds;
+        if (k[0] === 's') S = p.lat; else N = p.lat;
+        if (k[1] === 'w') W = p.lng; else E = p.lng;
+        if (N - S < 0.0002 || E - W < 0.0002) return;            // keep a sensible minimum size
+        bounds = [[S, W], [N, E]]; center = [(S + N) / 2, (W + E) / 2];
+        rect.setBounds(bounds);
+        Object.keys(spots).forEach((q) => { if (q !== k && handles[q]) handles[q].setLatLng({ sw: [S, W], nw: [N, W], ne: [N, E], se: [S, E] }[q]); });
+        $('stAreaText').textContent = 'South-west ' + fmt(S) + ', ' + fmt(W) + '  ·  north-east ' + fmt(N) + ', ' + fmt(E);
+        refresh();
+      });
+      handles[k] = m;
+    });
+  }
+  // The distance sliders show their number next to them.
+  function showPx() { PROX.forEach((k) => { const o = document.querySelector('output[for="px-' + k + '"]'); if (o) o.textContent = $('px-' + k).value + ' m'; }); }
   function showLogo(path) {
     const img = $('stLogoImg');
     img.src = path ? '../../' + path : '../../assets/logo.svg';
@@ -38,7 +66,7 @@
     bounds = i.bounds; center = [i.center_lat, i.center_lng];
     showLogo(i.logo_path);
     saved = read();
-    initMap(); showArea(); refresh();
+    initMap(); showArea(); showPx(); refresh();
   }
 
   function initMap() {
@@ -62,7 +90,7 @@
     bounds = [[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]]; center = [c.lat, c.lng];
     showArea(); refresh();
   });
-  document.querySelectorAll('.st input, .st select, .st textarea').forEach((el) => { el.addEventListener('input', refresh); el.addEventListener('change', refresh); });
+  document.querySelectorAll('.st input, .st select, .st textarea').forEach((el) => { el.addEventListener('input', () => { showPx(); refresh(); }); el.addEventListener('change', refresh); });
 
   $('stSave').addEventListener('click', async () => {
     $('stSave').disabled = true;

@@ -97,6 +97,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                         <img v-if="r.photo_path" class="rooms-thumb" :src="'../../' + r.photo_path" alt="">
                         <span class="rooms-num">{{ r.room_number || '—' }}</span>
                         <span class="rooms-name">{{ r.room_name || 'Unnamed' }}<small v-if="!isOpen">{{ r.floor }}</small></span>
+                        <span v-if="r.closed_note" class="rooms-flag is-closed" :title="r.closed_note">Closed</span>
                         <span v-if="editingId === r.id" class="rooms-flag">Editing</span>
                       </button>
                     </li>
@@ -141,10 +142,12 @@ include __DIR__ . '/../Include/buildings-head.php';
                   <div class="edit-banner-text">
                     <strong>{{ editingId !== null ? 'Editing ' + (editingRoom && editingRoom.room_number ? 'Room ' + editingRoom.room_number : (editingRoom ? editingRoom.room_name : 'room')) : 'Adding a new room' }}</strong>
                     <span>in {{ selectedBuilding ? selectedBuilding.name : 'this building' }}</span>
+                    <span v-if="editingRoom && editingRoom.closed_note" class="closed-note">Closed: {{ editingRoom.closed_note }}</span>
                   </div>
                   <div v-if="editingId !== null" class="edit-banner-actions">
                     <a :href="'../Student/scan.php?room=' + editingId" class="btn btn-secondary" target="_blank" rel="noopener">Preview as student</a>
                     <button type="button" class="btn btn-secondary" @click="tryCancel">Cancel edit</button>
+                    <button v-if="editingRoom && !editingRoom._pending" type="button" class="btn btn-secondary" :class="{ 'is-closed-btn': editingRoom.closed_note }" @click="toggleClosed(editingRoom)">{{ editingRoom.closed_note ? 'Reopen room' : 'Close room' }}</button>
                     <button v-if="editingRoom && !editingRoom._pending" type="button" class="btn btn-secondary room-picker-delete" @click="deleteRoom(editingRoom)">Delete room</button>
                   </div>
                 </div>
@@ -418,6 +421,7 @@ include __DIR__ . '/../Include/buildings-head.php';
 <script src="../../Js/Include/editor-lock.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/editor-lock.js') ?>"></script>
 <script src="../../Js/Include/room-number.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/room-number.js') ?>"></script>
 <script src="../../Js/Include/photo-upload.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/photo-upload.js') ?>"></script>
+<script src="../../Js/Include/lockdown.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/lockdown.js') ?>"></script>
 <script src="../../Js/Admin/register-room.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/register-room.js') ?>"></script>
 <script src="../../Js/Admin/buildings-modals.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/buildings-modals.js') ?>"></script>
 </body>

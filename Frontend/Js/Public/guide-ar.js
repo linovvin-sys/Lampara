@@ -217,7 +217,7 @@ window.LamparaGuide = createApp({
       guidance: null,         // what to do right now: { icon, title, dist, detail, badge, facing, totalM, etaMin, step }
       stepList: [],           // every instruction on the way, for the Directions list
       directionsOpen: false,
-      menuOpen: false,        // the "more" menu at the top
+      menuOpen: false, closedNotice: '',        // the "more" menu at the top
       miniMapOn: (() => { try { return localStorage.getItem('lampara_ar_minimap') !== '0'; } catch (e) { return true; } })(),
       voiceOn: (() => { try { return localStorage.getItem('lampara_ar_voice') === '1'; } catch (e) { return false; } })(),
       // start screen
@@ -1210,7 +1210,11 @@ window.LamparaGuide = createApp({
       this.pendingRoom = r;
       this.pickFromList(b);
     },
-    selectBuilding(building) { this.setTarget(building); },
+    // A building closed for maintenance cannot be walked to: say so instead of drawing a path.
+    selectBuilding(building) {
+      if (building && building.closed_note) { this.closedNotice = building.name + ' is closed: ' + building.closed_note; return; }
+      this.closedNotice = ''; this.setTarget(building);
+    },
     // Choosing a building from the list: switches the destination (even while another one is still active) and closes the list.
     pickFromList(b) {
       if (this.pendingRoom && String(this.pendingRoom.building_id) !== String(b.id)) this.pendingRoom = null;

@@ -118,13 +118,13 @@ foreach ($navItems as $k => $it) {
 }
 // Five places for everyday work; the expert tools wait under "More tools" until you open it.
 $navSections = [
-    'Home'       => ['dashboard', 'manage-buildings', 'hazards'],
+    'Home'        => ['dashboard', 'manage-buildings', 'hazards'],
+    'Campus map'  => ['campus-paths', 'building-outlines', 'campus-map'],
     'Your school' => ['settings', 'account'],
-    'More tools' => ['enrollment-steps', 'doors', 'campus-paths', 'building-outlines', 'campus-map', 'test-chat', 'data-pack'],
+    'More tools'  => ['enrollment-steps', 'doors', 'test-chat', 'data-pack'],
 ];
 // The expert pages, grouped by what they are for.
 $moreGroups = [
-    'Campus map'          => ['campus-paths', 'building-outlines', 'campus-map'],
     'Building setup'      => ['doors', 'enrollment-steps'],
     'Assistant and data'  => ['test-chat', 'data-pack'],
 ];
@@ -287,5 +287,6 @@ foreach ($navSections as $sectionName => $keys) {
 <script src="../../Js/Include/dropzone.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/dropzone.js') ?>"></script>
 <script src="../../Js/Include/admin-nav.js"></script>
 <script src="../../Js/Include/admin-theme.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-theme.js') ?>"></script>
+<script src="../../Js/Include/admin-dropdown.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-dropdown.js') ?>"></script>
 <script src="../../Js/Include/read-more.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/read-more.js') ?>"></script>
 <script src="../../Js/Include/hazard-feed.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/hazard-feed.js') ?>" data-admin="1"></script>

@@ -51,7 +51,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                       <td>
                         <div class="bt-name"><img v-if="b.photo_path" class="bt-thumb" :src="'../../' + b.photo_path" :alt="'Photo of ' + b.name">
                         <span v-else class="avatar" :style="{ background: colorFor(b.id) }" aria-hidden="true">{{ b.name.charAt(0) }}</span>
-                        <span class="bt-text"><strong>{{ b.name }}</strong><small>{{ b.lat }}, {{ b.lng }}</small></span></div>
+                        <span class="bt-text"><strong>{{ b.name }}</strong><small v-if="b.closed_note" class="closed-note">Closed: {{ b.closed_note }}</small><small v-else>{{ b.lat }}, {{ b.lng }}</small></span></div>
                       </td>
                       <td data-label="Floors">{{ b.is_open ? 'Open' : b.floor_count }}</td>
                       <td data-label="Rooms">{{ b.room_count }}<span v-if="b.open_flags > 0" class="badge badge-amber" :title="b.open_flags + ' open report(s)'">{{ b.open_flags }} flagged</span></td>
@@ -74,6 +74,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                           <div v-if="menuFor === b.id" class="row-pop" role="menu" @click.stop>
                             <a role="menuitem" :href="'buildings.php?b=' + b.id + '&tab=doors'" data-ws>Set entrance and exit</a>
                             <a role="menuitem" :href="'test-chat.php?building=' + b.id">Preview the chat as a student</a>
+                            <button type="button" role="menuitem" @click="menuFor = null; toggleClosed(b)">{{ b.closed_note ? 'Reopen this building' : 'Close for maintenance' }}</button>
                             <button type="button" role="menuitem" class="danger" @click="menuFor = null; deleteBuilding(b)">Delete {{ b.name }}&hellip;</button>
                           </div>
                         </span>
@@ -141,6 +142,7 @@ include __DIR__ . '/../Include/buildings-head.php';
            <h1 id="bwName">Building</h1>
            <div class="bw-chips" id="bwChips"></div>
          </div>
+         <button type="button" class="btn btn-secondary" id="bwLock">Close for maintenance</button>
          <a class="btn btn-secondary" id="bwPreview" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a>
        </div>
        <div class="bw-tabs" role="tablist" aria-label="Building sections" id="bwTabs"></div>
@@ -154,7 +156,9 @@ include __DIR__ . '/../Include/buildings-head.php';
 </div>
 
 <script src="../../Js/Include/photo-upload.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/photo-upload.js') ?>"></script>
+<script src="../../Js/Include/lockdown.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/lockdown.js') ?>"></script>
 <script src="../../Js/Admin/building-workspace.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/building-workspace.js') ?>"></script>
+<script src="../../Js/Include/topo-base.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/topo-base.js') ?>"></script>
 <script src="../../Js/Admin/manage-buildings.js?v=<?= filemtime(__DIR__ . '/../../Js/Admin/manage-buildings.js') ?>"></script>
 </body>
 </html>

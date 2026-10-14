@@ -67,7 +67,8 @@ createApp({
       liveMsg: '',            // what the last delete removed: { label, snapshot }, for the Undo button
       locked: EditorLock.get('campus-paths'),
       lockIcon: EditorLock.icon,
-      nameDraft: '',
+      nameDraft: '', typeDraft: 'junction', entranceDraft: '', savingPoint: false, savedNote: '', smoothing: false,
+      pathsOnly: viewPref('pathsonly', '0') === '1',
       nameError: '',
       // View controls (display only: nothing here changes the saved paths).
       showNames: viewPref('names', '1') === '1',   // point names on the map (building names still follow the zoom)
@@ -86,14 +87,15 @@ createApp({
     };
   },
   watch: {
+    pathsOnly(v) { setViewPref('pathsonly', v ? '1' : '0'); if (this.map) this.redraw(); },
     showNames(v) { setViewPref('names', v ? '1' : '0'); if (this.map) this.redraw(); },
     viewFrom() { this.viewChanged(); },
     viewTo() { this.viewChanged(); },
     // The Name field follows whichever point is selected.
     selectedId() {
       const n = this.selected;
-      this.nameDraft = n ? this.labelOf(n) : '';
-      this.nameError = '';
+      this.savedNote = '';
+      this.resetDrafts();
     },
     // Draws the actual QR image once the print dialog's canvas exists.
     async showingQrFor(anchorId) {
@@ -107,6 +109,11 @@ createApp({
     }
   },
   computed: {
+    // True when the Name, Type or Entrance fields differ from what is saved for the selected point.
+    pointDirty() {
+      const n = this.selected; if (!n) return false;
+      return this.nameDraft.trim() !== this.labelOf(n) || this.typeDraft !== n.node_type || String(this.entranceDraft) !== String(this.entranceBuildingId);
+    },
     selected() { return this.nodes.find((n) => String(n.id) === String(this.selectedId)) || null; },
     showingCampusQr: {
       get() { return this.showingQrFor !== null; },
@@ -480,6 +487,7 @@ createApp({
       // or wrong link is visible at a glance.
       const showLabels = this.showNames && this.map.getZoom() >= LABEL_MIN_ZOOM;
       this.buildings.forEach((b) => {
+        if (this.pathsOnly) return;
         if (rv && b.id !== rv.a.building && b.id !== rv.b.building) return;
         const icon = L.divIcon({ className: '', html: '<div class="cp-building"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
         L.marker([b.lat, b.lng], { icon, interactive: true, zIndexOffset: -500 })
@@ -493,7 +501,7 @@ createApp({
       // so a crowded spot such as the main entrance stays readable. Zooming in makes room for more.
       const placed = [];
       this.nodes.forEach((n) => {
-        if (!showNode(n)) return;
+        if (!showNode(n) || (this.pathsOnly && String(n.id) !== String(this.selectedId))) return;
         const cls = ['cp-node', n.node_type, String(n.id) === String(this.selectedId) ? 'is-selected' : '', n._pending ? 'is-pending' : ''].join(' ');
         const icon = L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
         const m = L.marker([n.lat, n.lng], { icon, draggable: !this.locked, zIndexOffset: 500 });
@@ -528,6 +536,83 @@ createApp({
       if (!this.locked) return false;
       AdminOffline.toast(`The map is locked. Unlock it to ${what}.`, 'info');
       return true;
+    },
+
+    // ---- one Save for everything in the Selected point panel ----
+    resetDrafts() {
+      const n = this.selected;
+      this.nameDraft = n ? this.labelOf(n) : ''; this.typeDraft = n ? n.node_type : 'junction';
+      this.entranceDraft = n ? String(this.entranceBuildingId) : ''; this.nameError = '';
+    },
+    async savePoint() {
+      const n = this.selected;
+      if (!n || this.savingPoint || this.lockedNow('save changes to a point')) return;
+      this.savingPoint = true; this.savedNote = '';
+      try {
+        if (this.nameDraft.trim() !== this.labelOf(n)) { await this.renameSelected(); if (this.nameError) return; }
+        const entranceChanged = String(this.entranceDraft) !== String(this.entranceBuildingId);
+        if (entranceChanged) await this.setEntrance(this.entranceDraft);   // an entrance point is also set to the entrance type
+        if (this.typeDraft !== this.selected.node_type && !(entranceChanged && this.entranceDraft !== '')) await this.changeType(this.typeDraft);
+        this.resetDrafts(); this.savedNote = 'Saved'; this.liveMsg = 'Point saved';
+        setTimeout(() => { this.savedNote = ''; }, 2500);
+      } finally { this.savingPoint = false; }
+    },
+
+    // ---- smooth sharp turns: extra points that round each corner; every existing point stays exactly where it is ----
+    // A plain bend (a junction joined to exactly two others, not an entrance or gate) is replaced by a short curve. The old
+    // corner point is kept, tied to the middle of the curve by a tiny link, so nothing that referred to it is lost.
+    smoothPlan() {
+      const M = 111320, out = [];
+      const deg = new Map();
+      this.edges.forEach((e) => { [e.node_a_id, e.node_b_id].forEach((id) => { const k = String(id); (deg.get(k) || deg.set(k, []).get(k)).push(e); }); });
+      this.nodes.forEach((c) => {
+        const es = deg.get(String(c.id)) || [];
+        if (es.length !== 2 || c.node_type !== 'junction' || this.buildings.some((b) => String(b.entrance_node_id) === String(c.id))) return;
+        const other = (e) => this.nodes.find((x) => String(x.id) === String(String(e.node_a_id) === String(c.id) ? e.node_b_id : e.node_a_id));
+        const A = other(es[0]), B = other(es[1]); if (!A || !B) return;
+        const kx = M * Math.cos(c.lat * Math.PI / 180);
+        const va = [(A.lng - c.lng) * kx, (A.lat - c.lat) * M], vb = [(B.lng - c.lng) * kx, (B.lat - c.lat) * M];
+        const la = Math.hypot(...va), lb = Math.hypot(...vb); if (la < 3 || lb < 3) return;
+        const cos = (va[0] * vb[0] + va[1] * vb[1]) / (la * lb), turn = 180 - Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI;
+        if (turn < 30) return;                                          // already gentle
+        const d = Math.min(8, la * 0.4, lb * 0.4), ua = va.map((x) => x / la), ub = vb.map((x) => x / lb);
+        const P1 = [ua[0] * d, ua[1] * d], P2 = [ub[0] * d, ub[1] * d];
+        const curve = [0.25, 0.5, 0.75].map((s) => {                    // quadratic curve P1 -> (corner) -> P2
+          const w = [(1 - s) * (1 - s), 2 * s * (1 - s), s * s];
+          return [w[0] * P1[0] + w[2] * P2[0], w[0] * P1[1] + w[2] * P2[1]];
+        });
+        const pt = (v) => ({ lat: c.lat + v[1] / M, lng: c.lng + v[0] / kx });
+        out.push({ corner: c, A, B, edges: es, points: [P1, ...curve, P2].map(pt), turn: Math.round(turn) });
+      });
+      return out;
+    },
+    async smoothSharpTurns() {
+      if (this.lockedNow('smooth the paths')) return;
+      const plan = this.smoothPlan();
+      if (!plan.length) { Swal.fire({ icon: 'info', title: 'Nothing to smooth', text: 'No plain bend is sharper than 30 degrees. Gates, entrances and forks are left alone.' }); return; }
+      const added = plan.length * 5;
+      const r = await Swal.fire({ icon: 'question', title: 'Round ' + plan.length + ' sharp turn' + (plan.length === 1 ? '' : 's') + '?', text: 'This adds ' + added + ' points to make the corners curve. Your existing points are not moved or removed.', showCancelButton: true, confirmButtonText: 'Smooth them' });
+      if (!r.isConfirmed) return;
+      this.smoothing = true;
+      try {
+        for (const s of plan) {
+          const ids = [];
+          for (const p of s.points) { const id = await this.createNode(p.lat, p.lng); if (id === null) throw new Error('Could not add a point'); ids.push(id); }
+          for (const e of s.edges) await this.dropEdge(e);
+          await this.connect(s.A.id, ids[0]); // the straight part up to the curve
+          for (let i = 0; i < ids.length - 1; i++) await this.connect(ids[i], ids[i + 1]);
+          await this.connect(ids[ids.length - 1], s.B.id);
+          await this.connect(s.corner.id, ids[2]);           // tiny link keeps the old corner attached
+        }
+        this.undo = null; this.liveMsg = 'Smoothed ' + plan.length + ' turns';
+        Swal.fire({ toast: true, position: 'bottom', icon: 'success', title: 'Smoothed ' + plan.length + ' turn' + (plan.length === 1 ? '' : 's'), showConfirmButton: false, timer: 2200 });
+      } catch (e) { Swal.fire({ icon: 'error', title: 'Stopped early', text: e.message }); }
+      finally { this.smoothing = false; this.rebuild(); this.redraw(); }
+    },
+    async dropEdge(edge) {
+      const out = await this.save({ type: 'edge.delete', payload: { id: edge.id }, label: 'Replaced a corner with a curve' }, () => this.request(API + '?edge_id=' + edge.id, 'DELETE'));
+      if (out && !out.queued) this.baseGraph.edges = this.baseGraph.edges.filter((e) => String(e.id) !== String(edge.id));
+      this.rebuild();
     },
 
     // ---- naming ----

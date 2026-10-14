@@ -252,3 +252,28 @@ html.is-embed .card { box-shadow: none; }
 .nav-more[open] > summary::after { transform: rotate(-135deg); }
 .nav-more > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { .nav-more > summary::after { transition: none; } }
+
+/* Folding sections (<details class="dd-anim">): one look for every dropdown in the admin */
+.dd-anim > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; min-height: 2.75rem; }
+.dd-anim > summary::-webkit-details-marker { display: none; }
+.dd-anim > summary::after { content: ''; margin-left: auto; flex: none; width: 0.55rem; height: 0.55rem; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); opacity: .6; transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1); }
+.dd-anim[open] > summary::after { transform: rotate(-135deg); }
+.dd-anim > summary:focus-visible { outline: 2px solid var(--v2-blue, #2e3192); outline-offset: 2px; border-radius: 0.6rem; }
+.dd-anim > summary:active { transform: scale(0.99); }
+.pts-dd { margin-top: 0.6rem; border-top: 1px solid var(--v2-line, #e3e5f1); padding-top: 0.2rem; }
+.pts-dd .points-list.is-open { max-height: none; overflow: visible; }
+.jump-select { width: 100%; min-height: 2.75rem; }
+.save-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.9rem 0 0.4rem; }
+.save-note { font-size: 0.8125rem; color: var(--v2-soft, #5b5f82); }
+/* the doors page: the building picker is a dropdown */
+.dr-dd-sum { padding: 0.15rem 0.2rem; flex-wrap: wrap; }
+.dr-dd-label { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--v2-soft, #5b5f82); }
+.dr-dd-sum strong { font-size: 1rem; flex: 1 1 8rem; min-width: 0; }
+.dr-dd-prog { font-size: 0.75rem; color: var(--v2-soft, #5b5f82); }
+.dr-dd-body { padding-top: 0.7rem; }
+@media (min-width: 1000px) { .dr-buildings { max-height: calc(100vh - 17rem); } }
+
+/* closed for maintenance */
+.closed-note { color: #b3261e; font-weight: 700; font-size: 0.8125rem; }
+.rooms-flag.is-closed { color: #b3261e; }
+.is-closed-btn { border-color: #b3261e !important; color: #b3261e !important; }

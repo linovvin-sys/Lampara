@@ -45,13 +45,16 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/doors.js');
       </header>
 
       <div class="dr-layout">
-        <aside class="dr-list" aria-label="Buildings">
-          <div class="dr-progress">
-            <div class="dr-progress-text"><strong id="drDone">&ndash;</strong><span>buildings have both doors set</span></div>
-            <div class="dr-meter" aria-hidden="true"><span id="drMeter"></span></div>
+        <details class="dr-list dd-anim dr-dd" id="drDd" open>
+          <summary class="dr-dd-sum"><span class="dr-dd-label">Building</span><strong id="drCurrent">Choose a building</strong><span class="dr-dd-prog"><span id="drDone2"></span></span></summary>
+          <div class="dr-dd-body">
+            <div class="dr-progress">
+              <div class="dr-progress-text"><strong id="drDone">&ndash;</strong><span>buildings have both doors set</span></div>
+              <div class="dr-meter" aria-hidden="true"><span id="drMeter"></span></div>
+            </div>
+            <ul id="drBuildings" class="dr-buildings"></ul>
           </div>
-          <ul id="drBuildings" class="dr-buildings"></ul>
-        </aside>
+        </details>
 
         <section class="dr-work" id="drWork" aria-live="polite">
           <div class="dr-empty" id="drEmpty">Loading buildings&hellip;</div>
@@ -85,6 +88,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/doors.js');
 </div>
 
 <script src="../../assets/vendor/sweetalert2/sweetalert2-11.26.25.all.min.js"></script>
+<script src="../../Js/Include/admin-dropdown.js?v=<?= filemtime(__DIR__ . '/../../Js/Include/admin-dropdown.js') ?>"></script>
 <script src="../../Js/Admin/doors.js?v=<?= $pageJsVer ?>"></script>
 </body>
 </html>

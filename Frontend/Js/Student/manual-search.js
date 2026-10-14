@@ -129,6 +129,8 @@ window.LamparaGuide = createApp({
       } catch (e) { /* storage blocked */ }
     },
     hl(text) { return highlight(text, this.qd); },
+    // Why a room can't be visited right now (the room itself or its whole building is closed), or ''.
+    closedOf(r) { return r.closed_note || r.building_closed_note || ''; },
     clearSearch() { this.q = ''; this.$refs.box && this.$refs.box.focus(); },
     chooseFloor(c) {
       this.me = { building_id: c.building_id, building_name: c.building_name, floor: c.floor };

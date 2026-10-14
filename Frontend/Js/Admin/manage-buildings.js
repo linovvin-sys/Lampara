@@ -24,14 +24,16 @@ window.LamparaListApp = createApp({
   },
   methods: {
     // Buildings saved offline have string ids ("t_…"), not numbers.
+    // Close the building for maintenance (students see it as closed), or open it again.
+    async toggleClosed(b) {
+      const out = await Lockdown.set('building', b.id, b.name, b.closed_note || '');
+      if (out) { b.closed_note = out.closed_note; const base = this.baseBuildings.find((x) => String(x.id) === String(b.id)); if (base) base.closed_note = out.closed_note; }
+    },
     colorFor(id) { return COLORS[(Number(id) || 0) % COLORS.length]; },
     initMap() {
       // The campus centre (from the school's settings) until real data loads.
       this.map = L.map(this.$refs.mapArea, CampusBounds.mapOptions()).setView(CampusBounds.CENTER, 17);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        bounds: CampusBounds.BOUNDS, maxZoom: 19
-      }).addTo(this.map);
+      TopoBase.add(this.map);   // the campus 2D topo export
     },
     renderMarkers() {
       if (!this.map) return;

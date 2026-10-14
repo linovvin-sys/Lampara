@@ -106,3 +106,5 @@ body { font-family: 'Outfit', sans-serif; color: var(--ink); background: #f6f6fb
 .room-sub { margin-top: 0.1rem; font-size: 0.9rem; font-weight: 600; color: var(--blue-700, var(--t-blue2, #23267a)); overflow-wrap: anywhere; }
 .room-sub mark { background: var(--yellow-400); color: inherit; border-radius: 0.2rem; padding: 0 0.1rem; }
 .tour-btn { margin-left: auto; border: 0; font: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer; }
+
+.act-closed { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; padding: 0.4rem 0.8rem; border-radius: 0.8rem; background: #fdecea; color: #b3261e; font-weight: 700; font-size: 0.875rem; text-align: center; }

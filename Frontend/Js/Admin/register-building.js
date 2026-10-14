@@ -187,14 +187,7 @@ window.LamparaBuildingApp = createApp({
       const el = this.$refs.pickMap;
       if (!el || this._pickMap || typeof L === 'undefined') return;
       const map = L.map(el, CampusBounds.mapOptions({ zoomControl: true })).setView(CampusBounds.CENTER, 18);
-      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
-      });
-      const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri', bounds: CampusBounds.BOUNDS, maxZoom: 21, maxNativeZoom: 19
-      });
-      sat.addTo(map);
-      L.control.layers({ Satellite: sat, Streets: osm }, null, { position: 'topright' }).addTo(map);
+      TopoBase.add(map);   // the campus 2D topo export, not street or satellite tiles
       this._pickOthers = L.layerGroup().addTo(map);
       map.on('click', (e) => this.setPin(e.latlng.lat, e.latlng.lng));
       this._pickMap = map;
@@ -865,6 +858,7 @@ window.LamparaBuildingApp = createApp({
           if (!data.success) throw new Error(data.error || 'unknown');
           return data;
         });
+        this.markClean();   // saved: nothing is unsaved any more, so leaving the page must not ask
         // Inside the Buildings workspace the parent page reloads this editor on the saved building.
         if (window.parent !== window && !out.queued) {
           const id = editing || (out && (out.id || (out.data && out.data.id))) || null;

@@ -645,6 +645,11 @@ window.LamparaRoomApp = createApp({
         this.submitting = false;
       }
     },
+    // Close the room for maintenance (students see it as closed), or open it again.
+    async toggleClosed(r) {
+      const out = await Lockdown.set('room', r.id, r.room_name || ('room ' + r.room_number), r.closed_note || '');
+      if (out) r.closed_note = out.closed_note;
+    },
     async deleteRoom(r) {
       if (!(await AdminOffline.guardOnline('Deleting a room'))) return;
       const result = await Swal.fire({

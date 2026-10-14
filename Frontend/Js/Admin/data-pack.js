@@ -7,13 +7,38 @@
 
   const msg = (t, bad) => { const m = $('dpMsg'); m.textContent = t || ''; m.classList.toggle('bad', !!bad); m.hidden = !t; if (t) m.scrollIntoView({ block: 'nearest' }); };
   const li = (ul, items) => { ul.textContent = ''; items.forEach((t) => { const x = document.createElement('li'); x.textContent = t; ul.append(x); }); };
-  async function send(action, field, file, extra) {
+  // Everything here needs the administrator to prove who they are again (password, plus the two-step code if it is on).
+  // Good for 5 minutes on the server; a download uses it up.
+  async function verify() {
+    for (let tries = 0; tries < 3; tries++) {
+      const r = await Swal.fire({
+        title: 'Confirm it is you', text: 'Data packs hold your whole directory, so enter your password again.', icon: 'info',
+        html: '<input id="vPw" class="swal2-input" type="password" autocomplete="current-password" placeholder="Your password" aria-label="Your password">' +
+              '<input id="vCode" class="swal2-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Two-step code (only if you use one)" aria-label="Two-step code">',
+        focusConfirm: false, showCancelButton: true, confirmButtonText: 'Confirm',
+        preConfirm: () => ({ password: document.getElementById('vPw').value, code: document.getElementById('vCode').value })
+      });
+      if (!r.isConfirmed) return false;
+      const res = await fetch(API + '?action=verify', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r.value) });
+      let d = {}; try { d = await res.json(); } catch (e) { /* handled below */ }
+      if (d.success) return true;
+      await Swal.fire({ icon: 'error', title: 'Not confirmed', text: d.error || 'Try again.' });
+      if (res.status === 429) return false;
+    }
+    return false;
+  }
+  async function send(action, field, file, extra, retried) {
     const f = new FormData(); f.append(field, file); Object.entries(extra || {}).forEach(([k, v]) => f.append(k, v));
     const r = await fetch(API + '?action=' + action, { method: 'POST', credentials: 'same-origin', body: f });
     let d; try { d = await r.json(); } catch (e) { throw new Error('The server gave an unexpected answer (' + r.status + ').'); }
+    if (d.needs_verify && !retried) { if (await verify()) return send(action, field, file, extra, true); throw new Error('Not confirmed.'); }
     if (!d.success && !d.problems) throw new Error(d.error || 'Something went wrong.');
     return d;
   }
+  $('dpExport').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (await verify()) { window.location.href = API + '?action=export'; msg('Your download is starting. You will be asked again for the next one.'); }
+  });
 
   // ---------- data pack ----------
   $('dpFile').addEventListener('change', () => { $('dpCheck').disabled = !$('dpFile').files.length; $('dpPreview').hidden = true; msg(''); });

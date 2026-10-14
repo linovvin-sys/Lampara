@@ -317,3 +317,7 @@ body > canvas { position: fixed !important; inset: 0; z-index: 0; }
 .start-gender span { font-weight: 700; margin-right: 0.2rem; }
 .start-gender button { min-height: 2.4rem; padding: 0.3rem 0.9rem; border: 2px solid var(--t-accent, #ffd100); background: transparent; color: inherit; font: inherit; font-weight: 700; border-radius: 999px; cursor: pointer; }
 .start-gender button.on { background: var(--t-accent, #ffd100); color: var(--t-ink2, #161850); }
+
+.closed-bar { display: flex; align-items: center; gap: 0.5rem; background: #b3261e; color: #fff; border-radius: 1rem; padding: 0.6rem 0.9rem; font-size: 0.9rem; font-weight: 700; }
+.closed-x { border: 0; background: transparent; color: #fff; font-size: 1.3rem; line-height: 1; min-width: 2rem; min-height: 2rem; cursor: pointer; }
+.dd-cur.is-closed { color: #fecaca; font-weight: 800; }

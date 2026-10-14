@@ -152,7 +152,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
             </span>
           </div>
           <div class="room-actions">
-            <a :href="'scan.php?room=' + r.id" class="act act-inside" @click="remember(r)">
+<span v-if="closedOf(r)" class="act act-closed" role="status">Closed: {{ closedOf(r) }}</span>
+                        <a v-else :href="'scan.php?room=' + r.id" class="act act-inside" @click="remember(r)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
               Find inside
             </a>

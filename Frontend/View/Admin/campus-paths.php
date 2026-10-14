@@ -92,6 +92,11 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
               <span class="view-switch-track" aria-hidden="true"></span>
               <span>Show point names</span>
             </label>
+            <label class="view-switch">
+              <input type="checkbox" v-model="pathsOnly">
+              <span class="view-switch-track" aria-hidden="true"></span>
+              <span>Show campus paths only</span>
+            </label>
             <div class="view-route">
               <label for="view-from">Show only the path from</label>
               <select id="view-from" v-model="viewFrom">
@@ -127,6 +132,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
               {{ locating ? 'Locating…' : 'Drop a point here' }}
             </button>
             <button type="button" class="btn btn-secondary" :disabled="locked" @click="addAtCenter">Add point at map centre</button>
+            <button type="button" class="btn btn-secondary" :disabled="locked || smoothing" @click="smoothSharpTurns" title="Adds extra points to round off sharp corners. Your existing points stay where they are.">{{ smoothing ? 'Smoothing…' : 'Smooth sharp turns' }}</button>
             <button type="button" class="btn btn-secondary" :disabled="locating || recording || locked" @click="captureLocation">
               {{ locating ? 'Locating…' : 'Capture my location' }}
             </button>
@@ -154,10 +160,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 
               <div class="field u-1c0307">
                 <label for="point-name">Name</label>
-                <div class="name-row">
-                  <input id="point-name" v-model="nameDraft" type="text" maxlength="40" :disabled="locked" @keydown.enter.prevent="renameSelected">
-                  <button type="button" class="btn btn-secondary" :disabled="locked" @click="renameSelected">Rename</button>
-                </div>
+                <input id="point-name" v-model="nameDraft" type="text" maxlength="40" :disabled="locked" @keydown.enter.prevent="savePoint">
                 <p v-if="nameError" class="name-error">{{ nameError }}</p>
               </div>
 
@@ -182,7 +185,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 
               <div class="field">
                 <label>Type</label>
-                <select :value="selected.node_type" :disabled="locked" @change="changeType($event.target.value)">
+                <select v-model="typeDraft" :disabled="locked">
                   <option value="junction">Junction (turn / fork)</option>
                   <option value="gate">Gate</option>
                   <option value="entrance">Building entrance</option>
@@ -191,68 +194,23 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
 
               <div class="field">
                 <label>Entrance of building</label>
-                <select :value="entranceBuildingId" :disabled="locked" @change="setEntrance($event.target.value)">
+                <select v-model="entranceDraft" :disabled="locked">
                   <option value="">— none —</option>
                   <option v-for="b in buildings" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
                 <p class="hint u-d93599">The route to that building ends at this point.</p>
               </div>
 
+              <div class="save-bar">
+                <button type="button" class="btn btn-primary" :disabled="locked || !pointDirty || savingPoint" @click="savePoint">{{ savingPoint ? 'Saving…' : 'Save point' }}</button>
+                <button type="button" class="btn btn-secondary" :disabled="!pointDirty || savingPoint" @click="resetDrafts">Undo edits</button>
+                <span class="save-note" role="status">{{ savedNote || (pointDirty ? 'Unsaved changes' : '') }}</span>
+              </div>
               <div class="side-actions">
                 <button type="button" class="btn btn-secondary" @click="select(null)">Deselect</button>
                 <button type="button" class="btn-link danger" :disabled="locked" @click="deleteSelected">Delete point</button>
               </div>
             </div>
-          </div>
-
-          <!-- Outdoor AR anchors — one QR per gate/junction/entrance, so a
-               student who skips the main gate can still scan whichever
-               outdoor node they actually pass to fix their starting
-               position instead of trusting GPS alone near buildings. -->
-          <div class="tinted-card" style="padding:0.9rem 1rem;">
-            <p class="u-c7d2f6">Outdoor AR anchors ({{ campusAnchors.length }})</p>
-
-            <p class="u-32e0ef" v-if="!campusAnchors.length">
-              None yet. Select a point on the map — a gate, junction, or entrance — and set it as an AR anchor. Add one at every spot students actually enter from, not just the main gate.
-            </p>
-
-            <div v-for="(a, i) in campusAnchors" :key="a.id" style="padding:0.6rem 0;" :style="{ borderTop: i > 0 ? '1px solid var(--line, #e5e7eb)' : 'none' }">
-              <p style="font-size:0.75rem; color:var(--muted); margin:0 0 0.4rem;">
-                <button type="button" class="btn-link" style="font-size:0.75rem; padding:0;" @click="focusNode(a.campus_node_id)"><strong>{{ a.label || 'this point' }}</strong></button>
-              </p>
-              <div class="u-a6db54">
-                <button type="button" class="btn btn-secondary u-6196eb" @click="showCampusQr(a)">View / print</button>
-                <button type="button" class="btn-link u-615d80" @click="removeCampusQr(a)">Remove</button>
-              </div>
-              <!-- Which way a person faces while scanning the sign. With this the AR guide
-                   lines the paths up the instant the QR is scanned; without it, only the
-                   position is fixed. -->
-              <div style="margin-top:0.6rem;">
-                <p style="font-size:0.75rem; font-weight:700; color:var(--ink); margin:0 0 0.25rem;">
-                  Direction faced when scanning:
-                  <span v-if="a.scan_heading != null">{{ a.scan_heading }}°</span>
-                  <span v-else style="color:var(--red-600);">not set</span>
-                </p>
-                <template v-if="pickingDirectionFor !== a.id">
-                  <button type="button" class="btn btn-primary" style="font-size:0.75rem; padding:0.45rem 0.8rem;" @click="startPickDirection(a)">
-                    {{ a.scan_heading != null ? 'Change direction' : 'Set direction' }}
-                  </button>
-                  <p style="font-size: 0.75rem; color:var(--muted); margin:0.35rem 0 0;">Then tap the map where the sign is. That's it.</p>
-                </template>
-                <template v-else>
-                  <p style="font-size:0.8rem; font-weight:700; color:var(--ink); margin:0 0 0.35rem;">Now tap the map where the sign is.</p>
-                  <button type="button" class="btn-link" style="font-size:0.75rem;" @click="pickingDirectionFor = null">Cancel</button>
-                </template>
-                <div style="display:flex; gap:0.4rem; align-items:center; margin-top:0.4rem;">
-                  <input type="number" min="0" max="359.99" step="1" v-model="headingDrafts[a.id]" placeholder="or type degrees (optional)" style="font-size:0.75rem; flex:1; padding:0.35rem 0.5rem;">
-                  <button type="button" class="btn btn-secondary u-150f02" @click="saveHeadingDraft(a)">Save</button>
-                </div>
-              </div>
-            </div>
-
-            <button type="button" class="btn btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.7rem; margin-top:0.75rem;" :disabled="selectedId === null || qrBusy || !!selectedAnchor" @click="setCampusQr">
-              {{ qrBusy ? 'Generating…' : (selectedAnchor ? 'Selected point already has an anchor' : (selectedId === null ? 'Select a point first' : 'Set selected point as AR anchor')) }}
-            </button>
           </div>
 
           <div class="card">
@@ -266,16 +224,26 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
               <button type="button" class="undo-x" aria-label="Dismiss" @click="undo = null">&times;</button>
             </div>
             <p v-if="!pointList.length" class="side-empty">No points yet. Tap the map to add Point A.</p>
-            <div v-else class="points-list" role="list">
-              <button v-for="p in listPoints" :key="p.id" type="button" role="listitem" class="pt-row" :class="{ sel: String(p.id) === String(selectedId) }" @click="focusNode(p.id)">
-                <span class="pt-badge" :class="p.type">{{ p.short }}</span>
-                <span class="pt-main">
-                  <span class="pt-name">{{ p.name }}<span v-if="p.pending" class="pt-pend">not synced</span></span>
-                  <span class="pt-sub">{{ p.typeLabel }}<template v-if="p.entranceOf"> · entrance of {{ p.entranceOf }}</template> · <template v-if="p.links.length">to {{ p.links.join(', ') }}</template><template v-else>not connected</template></span>
-                  <span class="pt-coords mono">{{ p.lat.toFixed(5) }}, {{ p.lng.toFixed(5) }}</span>
-                </span>
-              </button>
-            </div>
+            <template v-else>
+              <label class="sr-only" for="jump-point">Jump to a point</label>
+              <select id="jump-point" class="jump-select" :value="selectedId === null ? '' : String(selectedId)" @change="$event.target.value && focusNode($event.target.value)">
+                <option value="">Jump to a point…</option>
+                <option v-for="p in listPoints" :key="p.id" :value="String(p.id)">{{ p.name }} ({{ p.typeLabel }})</option>
+              </select>
+              <details class="dd-anim pts-dd">
+                <summary>Show the full list ({{ listPoints.length }})</summary>
+                <div class="dd-body"><div class="points-list is-open" role="list">
+                  <button v-for="p in listPoints" :key="p.id" type="button" role="listitem" class="pt-row" :class="{ sel: String(p.id) === String(selectedId) }" @click="focusNode(p.id)">
+                    <span class="pt-badge" :class="p.type">{{ p.short }}</span>
+                    <span class="pt-main">
+                      <span class="pt-name">{{ p.name }}<span v-if="p.pending" class="pt-pend">not synced</span></span>
+                      <span class="pt-sub">{{ p.typeLabel }}<template v-if="p.entranceOf"> · entrance of {{ p.entranceOf }}</template> · <template v-if="p.links.length">to {{ p.links.join(', ') }}</template><template v-else>not connected</template></span>
+                      <span class="pt-coords mono">{{ p.lat.toFixed(5) }}, {{ p.lng.toFixed(5) }}</span>
+                    </span>
+                  </button>
+                </div></div>
+              </details>
+            </template>
           </div>
 
           <div class="card">
@@ -291,28 +259,6 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
         </div>
       </div>
 
-      <teleport to="body">
-        <div class="modal-overlay" :class="{ 'is-open': showingCampusQr }" :aria-hidden="!showingCampusQr">
-          <div class="modal-backdrop" @click="showingCampusQr = false"></div>
-          <div class="modal-sheet" style="text-align:center;" role="dialog" aria-modal="true" aria-label="Outdoor AR anchor QR">
-            <div class="modal-head">
-              <h3>Outdoor AR anchor</h3>
-              <button type="button" class="modal-close" @click="showingCampusQr = false" aria-label="Close">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-              </button>
-            </div>
-            <div class="modal-body u-82c013">
-              <div class="qr-print-canvas" ref="qrCanvas"></div>
-              <p class="u-2565fb">
-                Print this and post it at <strong>{{ qrModalAnchor ? (qrModalAnchor.label || 'this spot') : '' }}</strong>. Scanning it when starting the outdoor AR guide sets the exact starting anchor instead of relying on GPS alone.
-              </p>
-            </div>
-            <div class="modal-foot">
-              <button type="button" class="btn btn-primary" @click="showingCampusQr = false">Done</button>
-            </div>
-          </div>
-        </div>
-      </teleport>
 
     </div>
   </main>

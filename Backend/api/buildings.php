@@ -46,8 +46,9 @@ function save_entrance_floor(mysqli $conn, int $id, $input): void
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $ef = column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor' : 'NULL AS entrance_floor';
     $io = column_exists($conn, 'buildings', 'is_open') ? 'b.is_open' : '0 AS is_open';
+    $cn = column_exists($conn, 'buildings', 'closed_note') ? 'b.closed_note' : 'NULL AS closed_note';
     $result = $conn->query(
-        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, $ef, $io, b.building_number, b.directory, b.photo_path, b.updated_at,
+        "SELECT b.id, b.name, b.lat, b.lng, b.entrance_node_id, b.floor_count, $ef, $io, $cn, b.building_number, b.directory, b.photo_path, b.updated_at,
                 (SELECT COUNT(*) FROM rooms r WHERE r.building_id = b.id) AS room_count,
                 (SELECT COUNT(*) FROM outdated_flags f
                     JOIN rooms r2 ON r2.id = f.room_id

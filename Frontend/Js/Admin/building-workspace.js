@@ -53,6 +53,7 @@
     openedWorkspace = true;
     const b = building();
     $('bwName').textContent = state.isNew ? 'New building' : (b ? b.name : 'Building');
+    const lock = $('bwLock'); lock.hidden = state.isNew || !b; lock.textContent = b && b.closed_note ? 'Reopen building' : 'Close for maintenance';
     document.title = 'Lampara — Admin · ' + $('bwName').textContent;
     drawChips(b); drawTabs(b);
     const t = TABS.find((x) => x.key === state.tab);
@@ -70,6 +71,7 @@
         '<span class="bw-chip">' + (b.room_count || 0) + ' room' + (b.room_count == 1 ? '' : 's') + '</span>' +
         (b.is_open ? '' : '<span class="bw-chip ' + (d.entry && d.exit ? 'ok' : 'todo') + '">' + (d.entry && d.exit ? 'Doors set' : !d.entry && !d.exit ? 'No entrance or exit' : (d.entry ? 'No exit' : 'No entrance')) + '</span>')
       : '';
+    if (b && b.closed_note) $('bwChips').insertAdjacentHTML('afterbegin', '<span class="bw-chip todo">Closed: ' + esc(b.closed_note) + '</span>');
   }
   function drawTabs(b) {
     $('bwTabs').innerHTML = TABS.filter((t) => !(t.key === 'doors' && b && b.is_open)).map((t) => { // an open building has no doors to set
@@ -79,6 +81,11 @@
         (off ? ' disabled title="Save the building first"' : '') + '>' + esc(t.key === 'details' && b && b.is_open ? 'Details' : t.label) + count + '</button>';
     }).join('');
   }
+  $('bwLock').addEventListener('click', async () => {
+    const b = building(); if (!b) return;
+    const out = await Lockdown.set('building', b.id, b.name, b.closed_note || '');
+    if (out) { b.closed_note = out.closed_note; render(); }
+  });
   $('bwTabs').addEventListener('click', (e) => { const t = e.target.closest('.bw-tab'); if (t && !t.disabled && t.dataset.tab !== state.tab) go({ b: state.b, tab: t.dataset.tab }); });
 
   // ---- the embedded page: keep its links inside the workspace ----

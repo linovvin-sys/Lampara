@@ -26,7 +26,7 @@
   // ---- left: every building and whether its doors are set ----
   function drawList() {
     const done = buildings.filter((b) => ready(b.id)).length;
-    $('drDone').textContent = done + ' of ' + buildings.length;
+    $('drDone').textContent = done + ' of ' + buildings.length; $('drDone2').textContent = done + '/' + buildings.length + ' done';
     $('drMeter').style.width = (buildings.length ? (done / buildings.length) * 100 : 0) + '%';
     $('drBuildings').innerHTML = buildings.map((b) => {
       const d = doorsOf(b.id), on = String(b.id) === String(bid);
@@ -42,7 +42,8 @@
   async function select(id) {
     bid = id; popNode = null; hidePop(); drawList();
     const b = buildings.find((x) => String(x.id) === String(id));
-    $('drEmpty').hidden = true; $('drPanel').hidden = false; $('drName').textContent = b.name;
+    $('drEmpty').hidden = true; $('drPanel').hidden = false; $('drName').textContent = b.name; $('drCurrent').textContent = b.name;
+    const dd = $('drDd'); if (dd && dd.open && window.LamparaDropdown && matchMedia('(max-width: 999px)').matches) LamparaDropdown.close(dd);   // on a phone the list folds away once you pick
     $('drPlan').innerHTML = '<div class="dr-loading">Loading the floor plans&hellip;</div>';
     try {
       const [g, p] = await Promise.all([get('floor-plan-graph.php?building_id=' + id), get('floor-plans.php?building_id=' + id)]);

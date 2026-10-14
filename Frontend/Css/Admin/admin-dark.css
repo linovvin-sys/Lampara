@@ -30,3 +30,10 @@ html[data-admin-theme="dark"] .theme-toggle .ico-moon { display: none; }
 .nav-group > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .nav-group > a { margin-left: 0.5rem; }
 @media (prefers-reduced-motion: reduce) { .nav-group > summary::after { transition: none; } }
+
+/* switching theme: the old page stays put while the new one ripples over it */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+html.theme-fade { transition: filter 450ms ease; }
+html.theme-fade body { transition: background-color 450ms ease; }

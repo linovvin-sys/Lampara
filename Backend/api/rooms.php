@@ -80,7 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $extra = (column_exists($conn, 'rooms', 'subtitle') ? 'r.subtitle' : 'NULL AS subtitle') . ', '
-           . (column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor AS building_entrance_floor' : 'NULL AS building_entrance_floor') . ',';
+           . (column_exists($conn, 'buildings', 'entrance_floor') ? 'b.entrance_floor AS building_entrance_floor' : 'NULL AS building_entrance_floor') . ', '
+           . (column_exists($conn, 'rooms', 'closed_note') ? 'r.closed_note' : 'NULL AS closed_note') . ', '
+           . (column_exists($conn, 'buildings', 'closed_note') ? 'b.closed_note AS building_closed_note' : 'NULL AS building_closed_note') . ',';
     $sql = "SELECT r.id, r.building_id, b.name AS building_name, b.building_number, r.room_number, r.room_name, $extra
                    r.floor, r.room_type, r.category, r.hours, r.notes, r.map_x, r.map_y, r.path_node_id, r.photo_path, r.updated_at,
                    (SELECT COUNT(*) FROM outdated_flags f WHERE f.room_id = r.id AND f.resolved = 0) AS open_flags

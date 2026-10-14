@@ -281,6 +281,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <span class="round-dot" :class="(statusOk && headingInit && locationOn) ? 'ok' : ''" aria-hidden="true"></span>
       </button>
     </div>
+    <p v-if="closedNotice" class="top-note closed-bar" role="alert">{{ closedNotice }} <button type="button" class="closed-x" aria-label="Dismiss" @click="closedNotice = ''">&times;</button></p>
     <p v-if="refreshing" class="top-note" role="status">{{ refreshNote || 'Refreshing…' }}</p>
 
     <!-- The rest of the controls, out of the way until needed. -->
@@ -289,7 +290,8 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
         <div class="dd-head">{{ target ? 'Switch destination' : (searchQuery.trim().length >= 2 ? (dropdownList.length > 1 ? 'Did you mean…' : 'Tap to select') : 'All buildings') }}</div>
         <button v-for="b in dropdownList" :key="b.id" type="button" role="option" class="dd-item" :class="{ cur: target && target.id === b.id }" :aria-selected="!!(target && target.id === b.id)" @mousedown.prevent @click="pickFromList(b)">
           <span class="dd-name">{{ b.name }}</span>
-          <span v-if="target && target.id === b.id" class="dd-cur">Current</span>
+          <span v-if="b.closed_note" class="dd-cur is-closed">Closed</span>
+          <span v-else-if="target && target.id === b.id" class="dd-cur">Current</span>
           <span v-else class="dd-dist">{{ distLabel(b) }}</span>
         </button>
         <div v-if="ddRooms.length" class="dd-head">Offices and rooms</div>

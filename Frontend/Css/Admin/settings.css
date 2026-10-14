@@ -33,3 +33,9 @@
 .st-msg[hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .st-track, .st-track::after { transition: none; } }
 .st-prox input { max-width: 8rem; }
+
+/* the campus-area corner handles and the distance sliders */
+.st-handle { display: block; width: 22px; height: 22px; margin: 2px; border-radius: 6px; background: #fff; border: 3px solid #2e3192; box-shadow: 0 4px 10px rgba(21, 23, 63, .35); cursor: grab; }
+.leaflet-marker-draggable:active .st-handle { cursor: grabbing; transform: scale(1.08); }
+.st input[type="range"] { width: 100%; min-height: 2.5rem; accent-color: #2e3192; padding: 0; }
+.px-out { display: block; font-weight: 700; font-size: 0.85rem; color: var(--v2-blue, #2e3192); }

@@ -369,7 +369,8 @@
     bldDir.textContent = dir;
     bldDir.hidden = !dir;
     const walk = $('bldWalk');
-    if (walk) { walk.hidden = !b; if (b) walk.href = 'guide-ar.php?to=' + encodeURIComponent(b.id); }
+    if (walk) { walk.hidden = !b || !!(b && b.closed_note); if (b) walk.href = 'guide-ar.php?to=' + encodeURIComponent(b.id); }
+    if (b && b.closed_note) bldMeta.textContent = 'Closed: ' + b.closed_note;
     if (b && b.photo_path) { bldPhoto.src = '../../' + b.photo_path; bldPhoto.alt = 'Photo of ' + b.name; bldPhoto.hidden = false; }
     else { bldPhoto.hidden = true; bldPhoto.removeAttribute('src'); }
     setRoomsMessage('Loading rooms…');

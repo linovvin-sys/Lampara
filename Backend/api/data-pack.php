@@ -1,7 +1,8 @@
 <?php
 
 // Move a whole school's directory between installs, and load rooms from a spreadsheet. Administrators only (not PSMO).
-//   GET  ?action=export        -> the data pack (a zip) as a download
+//   POST ?action=verify        body {password, code?} -> proves it is really the signed-in administrator (needed for everything below; good for 5 minutes)
+//   GET  ?action=export        -> the data pack (a zip) as a download (one verification per download)
 //   POST ?action=preview       multipart field "pack"  -> what is in the pack, what is wrong with it, and what an import would remove
 //   POST ?action=import        multipart "pack" + "confirm=REPLACE"  -> replaces the school's content with the pack (one transaction)
 //   POST ?action=csv-preview   multipart "csv" -> which rows would be added, and the problem with each row that would not
@@ -13,6 +14,7 @@ require_once __DIR__ . '/_require_admin.php';
 require_once __DIR__ . '/../rate_limit.php';
 require_once __DIR__ . '/../audit_log.php';
 require_once __DIR__ . '/../data_pack.php';
+require_once __DIR__ . '/../totp.php';
 
 $conn = (new Database())->connect();
 $action = $_GET['action'] ?? '';
@@ -28,6 +30,34 @@ function dp_fail(int $code, string $msg, array $extra = []): void
 if (lampara_admin_role() === 'psmo') dp_fail(403, 'Only an administrator can use data packs.');
 rate_limit_or_die('data_pack', 20, 300, 'Too many data pack requests. Wait a few minutes.');
 
+// Step-up check: a stolen or left-open session must not be enough to take or replace the whole directory. Everything on this
+// page asks the administrator to enter their password again (and their two-step code when that is switched on).
+function dp_verified(bool $consume = false): bool
+{
+    $until = (int) ($_SESSION['dp_verified_until'] ?? 0);
+    if ($until < time()) return false;
+    if ($consume) unset($_SESSION['dp_verified_until']);
+    return true;
+}
+if ($action === 'verify') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') dp_fail(405, 'Use POST.');
+    rate_limit_or_die('data_pack_verify', 6, 900, 'Too many attempts. Wait 15 minutes and try again.');
+    $in = json_decode(file_get_contents('php://input'), true) ?: [];
+    $me = $conn->query('SELECT username, password_hash, totp_secret FROM admins WHERE id = ' . (int) ($_SESSION['admin_id'] ?? 0))->fetch_assoc();
+    $okPw = $me && password_verify((string) ($in['password'] ?? ''), $me['password_hash']);
+    $okCode = !$me || empty($me['totp_secret']) || totp_verify($me['totp_secret'], (string) ($in['code'] ?? ''));
+    if (!$okPw || !$okCode) {
+        audit_log($conn, 'data_pack_verify_failed', $me['username'] ?? '?', $okPw ? 'wrong two-step code' : 'wrong password');
+        dp_fail(403, !$okPw ? 'That password is not right.' : 'That two-step code is not right.', ['needs_code' => !empty($me['totp_secret'])]);
+    }
+    $_SESSION['dp_verified_until'] = time() + 300;
+    audit_log($conn, 'data_pack_verified', $me['username'], 'step-up check passed');
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'valid_for' => 300]);
+    exit;
+}
+if (!dp_verified(false)) dp_fail(401, 'Confirm your password first.', ['needs_verify' => true]);
+
 // The uploaded file from a multipart field, or a failure.
 function dp_upload(string $field): string
 {
@@ -41,6 +71,7 @@ function dp_upload(string $field): string
 
 if ($action === 'export') {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') dp_fail(405, 'Use GET.');
+    if (!dp_verified(true)) dp_fail(401, 'Confirm your password first.', ['needs_verify' => true]);   // one download per verification
     if (!class_exists('ZipArchive')) dp_fail(500, 'This server cannot make zip files (the PHP zip extension is off).');
     $tmp = tempnam(sys_get_temp_dir(), 'lpk');
     if (!data_pack_zip(data_pack_collect($conn), $tmp)) { @unlink($tmp); dp_fail(500, 'Could not build the data pack.'); }
