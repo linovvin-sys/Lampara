@@ -151,9 +151,10 @@ include __DIR__ . '/../Include/buildings-head.php';
            <h1 id="bwName">Building</h1>
            <div class="bw-chips" id="bwChips"></div>
          </div>
-         <button type="button" class="btn btn-secondary" id="bwLock">Close for maintenance</button>
-         <a class="btn btn-secondary" id="bwPreview" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a>
+         <div class="bw-actions"><button type="button" class="btn btn-secondary" id="bwLock">Close for maintenance</button>
+         <a class="btn btn-secondary" id="bwPreview" href="../Public/map.php" target="_blank" rel="noopener">Preview as student</a></div>
        </div>
+       <div class="bw-next" id="bwNext" hidden></div>
        <div class="bw-tabs" role="tablist" aria-label="Building sections" id="bwTabs"></div>
        <div class="bw-body">
          <div class="bw-loading" id="bwLoading">Loading&hellip;</div>

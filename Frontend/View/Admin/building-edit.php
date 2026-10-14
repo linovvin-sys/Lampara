@@ -33,7 +33,7 @@ include __DIR__ . '/../Include/buildings-head.php';
 
         <div id="building-app" v-cloak>
           <div class="admin-container narrow u-57ce1f">
-            <div class="edit-banner" :class="{ 'is-editing': editingId }" role="status">
+            <div class="edit-banner hide-embed" :class="{ 'is-editing': editingId }" role="status">
               <div class="edit-banner-text">
                 <strong>{{ editingId ? 'Editing ' + (form.name || 'building') : 'Registering a new building' }}</strong>
                 <span>{{ editingId ? "Change the details, then save. Other buildings stay as they are." : 'Pin it on the map and give it a name. Works offline: changes are saved on this device and synced later. Rooms are added separately.' }}</span>
@@ -152,7 +152,7 @@ include __DIR__ . '/../Include/buildings-head.php';
               </form>
 
               <div style="display:flex; flex-direction:column; gap:1.25rem;">
-                <div class="tinted-card">
+                <div class="tinted-card hide-embed">
                   <div class="u-fd5ed7">
                     <span class="dot dot-green"></span>
                     <h3 class="u-4e9d62">Why this matters</h3>
@@ -176,7 +176,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                   </ol>
                 </div>
 
-                <div class="quick-nav">
+                <div class="quick-nav hide-embed">
                   <h3 class="section-title">Registered Buildings ({{ buildings.length }})</h3>
                   <div class="card quick-list">
                     <div v-if="!loaded" aria-hidden="true">

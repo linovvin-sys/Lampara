@@ -13,7 +13,7 @@
     { key: 'rooms', label: 'Rooms', src: (id, room) => 'room-edit.php?building=' + id + (room ? '&room=' + room : '') + '&embed=1' },
     { key: 'doors', label: 'Entrance & exit', src: (id) => 'doors.php?building=' + id + '&embed=1' }
   ];
-  let buildings = [], doors = {}, state = { b: null, isNew: false, tab: 'details', room: null }, openedWorkspace = false;
+  let health = {}, buildings = [], doors = {}, state = { b: null, isNew: false, tab: 'details', room: null }, openedWorkspace = false;
 
   const get = async (u) => (await fetch(API + u, { credentials: 'same-origin', cache: 'no-store' })).json();
   const toast = (title, icon) => (window.Swal ? Swal.mixin({ toast: true, position: 'bottom-end', showConfirmButton: false, timer: 2400, timerProgressBar: true }).fire({ icon: icon || 'success', title }) : null);
@@ -22,6 +22,7 @@
     try {
       const [b, d] = await Promise.all([get('buildings.php'), get('building-doors.php')]);
       buildings = b.buildings || []; doors = d.doors || {};
+      try { const h = await get('setup-health.php'); health = {}; (h.buildings || []).forEach((x) => { health[String(x.id)] = x; }); } catch (e) { /* the next-step bar just stays hidden */ }
     } catch (e) { /* offline: the workspace still opens, just without the name and counts */ }
   }
 
@@ -55,7 +56,7 @@
     $('bwName').textContent = state.isNew ? 'New building' : (b ? b.name : 'Building');
     const lock = $('bwLock'); lock.hidden = state.isNew || !b; lock.textContent = b && b.closed_note ? 'Reopen building' : 'Close for maintenance';
     document.title = 'Lampara — Admin · ' + $('bwName').textContent;
-    drawChips(b); drawTabs(b);
+    drawChips(b); drawTabs(b); drawNext(state.isNew ? null : b);
     const t = TABS.find((x) => x.key === state.tab);
     const src = t.src(state.b, state.room);
     if (!frame.getAttribute('src') || frame.getAttribute('src') !== src) {
@@ -73,10 +74,25 @@
       : '';
     if (b && b.closed_note) $('bwChips').insertAdjacentHTML('afterbegin', '<span class="bw-chip todo">Closed: ' + esc(b.closed_note) + '</span>');
   }
+  // Which workspace tab a setup step belongs to.
+  const tabOf = (href) => /tab=rooms|room-edit/.test(href || '') ? 'rooms' : /building-edit/.test(href || '') ? 'details' : /doors/.test(href || '') ? 'doors' : null;
+  function drawNext(b) {
+    const el = $('bwNext'), h = b && health[String(b.id)];
+    if (!h || !h.next) { el.hidden = !(h && !h.next); if (h && !h.next) el.innerHTML = '<span class="bw-next-ok">&#10003; Everything for this building is set up.</span>'; return; }
+    const n = h.next, tab = tabOf(n.href);
+    el.hidden = false;
+    el.innerHTML = '<span class="bw-next-step"><b>Next:</b> ' + esc(n.label) + '<small>' + esc(n.hint) + '</small></span>' +
+      (tab ? '<button type="button" class="btn btn-primary" data-go="' + tab + '">' + esc(n.cta) + '</button>' : '<a class="btn btn-primary" href="' + esc(n.href) + '">' + esc(n.cta) + '</a>');
+    const btn = el.querySelector('[data-go]'); if (btn) btn.addEventListener('click', () => go({ b: state.b, tab: btn.dataset.go }));
+  }
   function drawTabs(b) {
     $('bwTabs').innerHTML = TABS.filter((t) => !(t.key === 'doors' && b && b.is_open)).map((t) => { // an open building has no doors to set
       const off = state.isNew && t.key !== 'details';
-      const count = t.key === 'rooms' && b ? ' <span class="bw-count">' + (b.room_count || 0) + '</span>' : '';
+      const h = b && health[String(b.id)];
+      const steps = h ? h.steps.filter((s) => tabOf(s.href) === t.key) : [];
+      const done = steps.length && steps.every((s) => s.done), todo = steps.some((s) => !s.done);
+      const mark = done ? ' <span class="bw-mark ok" title="Done" aria-label="done">&#10003;</span>' : (todo ? ' <span class="bw-mark todo" title="Still to do" aria-label="still to do">&bull;</span>' : '');
+      const count = (t.key === 'rooms' && b ? ' <span class="bw-count">' + (b.room_count || 0) + '</span>' : '') + mark;
       return '<button type="button" role="tab" class="bw-tab' + (state.tab === t.key ? ' is-on' : '') + '" data-tab="' + t.key + '" aria-selected="' + (state.tab === t.key) + '"' +
         (off ? ' disabled title="Save the building first"' : '') + '>' + esc(t.key === 'details' && b && b.is_open ? 'Details' : t.label) + count + '</button>';
     }).join('');

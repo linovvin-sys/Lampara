@@ -52,7 +52,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                     <button v-if="!isOpen" type="button" :class="{ on: viewMode === 'plan' }" :aria-pressed="viewMode === 'plan'" @click="setView('plan')">Floor plan</button>
                   </div>
                 </div>
-                <div class="field">
+                <div class="field hide-embed">
                   <label for="pickBuilding">Building</label>
                   <select id="pickBuilding" v-model="form.building_id" @change="onBuildingChange">
                     <option value="" disabled>Choose a building…</option>
