@@ -43,7 +43,7 @@ createApp({
       mkType: 'entrance',  // what a click on the map drops
       mkBuilding: '',
       mkLabel: '',
-      quickPlaces: ['Admission', 'Treasury', 'Clinic', 'Faculty', 'Registrar', 'Library', 'Cashier', 'Guidance'],
+      quickPlaces: ['Admission', 'Treasury', 'Clinic', 'Faculty', 'Registrar', 'Library', 'Cashier', 'Guidance', "Men's restroom", "Women's restroom", 'Restroom'],
       selectedId: null,
       mkBusy: false,
       dragMoved: false,

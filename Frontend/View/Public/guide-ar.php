@@ -170,6 +170,12 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
             </li>
           </ul>
           <template v-if="gateRooms.length">
+            <div v-if="restroomAsk" class="start-gender" role="group" aria-label="Which restroom">
+              <span>Which restroom?</span>
+              <button type="button" :class="{ on: !askedGender }" @click="pickGender('')">Any</button>
+              <button type="button" :class="{ on: askedGender === 'men' }" @click="pickGender('men')">Men</button>
+              <button type="button" :class="{ on: askedGender === 'women' }" @click="pickGender('women')">Women</button>
+            </div>
             <h2 class="start-group">Offices and rooms</h2>
             <ul class="start-list" aria-label="Offices and rooms">
               <li v-for="r in gateRooms" :key="'r' + r.id">

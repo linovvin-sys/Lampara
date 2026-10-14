@@ -35,6 +35,9 @@ createApp({
         String(a.building_name).localeCompare(String(b.building_name)) || (floorRank(a.floor) ?? 99) - (floorRank(b.floor) ?? 99));
     },
     meKey() { return this.me ? this.me.building_id + '|' + this.me.floor : ''; },
+    // A restroom search (or the CR filter): offer Men / Women.
+    restroomAsk() { return this.filterType === 'cr' || RoomSearch.isRestroomQuery(this.qd); },
+    askedGender() { return RoomSearch.queryGender(this.qd); },
     searching() { return this.qd.trim().length > 0; },
     // Somewhere to ask when search is not enough: an information-type office from the directory.
     helpRoom() { return this.rooms.find((r) => /admission|information|registrar/i.test(r.room_name)) || null; },
@@ -63,7 +66,13 @@ createApp({
     filtered() {
       let list = this.rooms;
       if (this.filterType !== 'all') list = list.filter((r) => (r.category || (r.room_type === 'office' ? 'office' : 'classroom')) === this.filterType);
-      const words = RoomSearch.words(this.qd);
+      let words = RoomSearch.words(this.qd);
+      // "cr women": only restrooms for women (and ones that do not say), searched by the rest of the words
+      const g = RoomSearch.queryGender(this.qd);
+      if (g && this.restroomAsk) {
+        list = list.filter((r) => RoomSearch.isRestroom(r) && [g, ''].includes(RoomSearch.restroomFor(r)));
+        words = RoomSearch.words(RoomSearch.withGender(this.qd, ''));
+      }
       if (!words.length) return list;
       const scored = [];
       list.forEach((r) => {
@@ -108,6 +117,10 @@ createApp({
     if (this.$refs.box && matchMedia('(min-width: 700px)').matches) this.$refs.box.focus();
   },
   methods: {
+    pickGender(g) {
+      const base = RoomSearch.isRestroomQuery(this.q) ? RoomSearch.withGender(this.q, '') : (RoomSearch.queryGender(this.q) ? 'cr' : (this.q.trim() || 'cr'));
+      this.q = g ? (base + ' ' + g).trim() : (this.filterType === 'cr' && base === 'cr' ? '' : base);
+    },
     // Remember the rooms you open, newest first (kept on this device only).
     remember(r) {
       try {

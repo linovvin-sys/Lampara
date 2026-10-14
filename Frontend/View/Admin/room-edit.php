@@ -260,7 +260,16 @@ include __DIR__ . '/../Include/buildings-head.php';
                     <label>Room name</label>
                     <input v-model="form.room_name" type="text" required placeholder="Treasury">
                   </div>
-                  <div class="field">
+                  <div class="field" v-if="form.category === 'cr'">
+                    <label for="roomFor">Restroom for</label>
+                    <select id="roomFor" v-model="form.subtitle">
+                      <option value="">Not set</option>
+                      <option value="Men">Men</option>
+                      <option value="Women">Women</option>
+                    </select>
+                    <p class="hint">Students choose Men or Women when they search for a restroom. This is what they are matched on.</p>
+                  </div>
+                  <div class="field" v-else>
                     <label for="roomSubtitle">Subtitle <small>(optional)</small></label>
                     <input id="roomSubtitle" v-model="form.subtitle" type="text" maxlength="120" placeholder="e.g. Computer Science, 40 seats">
                     <p class="hint">Shown under the name in search, so rooms with the same name can be told apart.</p>

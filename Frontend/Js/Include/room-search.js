@@ -74,5 +74,30 @@ const RoomSearch = (() => {
     }
     return out;
   }
-  return { norm, words, wordScore, rank, highlight };
+  // ---- Restrooms for men or women. A restroom says which in its subtitle, name or notes ("Men", "Women's CR").
+  const WOMEN = /\b(women|womens|woman|female|females|ladies|lady|girls?)\b/, MEN = /\b(men|mens|man|male|males|gents?|boys?)\b/;
+  const clean = (t) => norm(t).replace(/['\u2019]/g, '');
+  const genderWord = (w) => (WOMEN.test(clean(w)) ? 'women' : MEN.test(clean(w)) ? 'men' : '');
+  const isRestroom = (r) => r.category === 'cr' || /\b(comfort|restroom|toilet|bathroom|washroom)\b/.test(norm(r.room_name)) || /^(cr|c\.r\.)$/.test(norm(r.room_name));
+  function restroomFor(r) {                 // 'men', 'women' or '' (not said)
+    const t = clean([r.subtitle, r.room_name, r.notes].join(' '));
+    return WOMEN.test(t) ? 'women' : MEN.test(t) ? 'men' : '';
+  }
+  // Does this search ask for a restroom ("cr", "comfort room", "toilet", "restroom")?
+  function isRestroomQuery(q) { return words(q).some((w) => /^(cr|crs|comfort|restroom|restrooms|toilet|toilets|bathroom|washroom|lavatory)$/.test(clean(w))); }
+  function queryGender(q) { for (const w of words(q)) { const g = genderWord(w); if (g) return g; } return ''; }
+  // The same search with the gender word replaced ('' = any).
+  function withGender(q, g) { const rest = words(q).filter((w) => !genderWord(w)).join(' '); return g ? (rest + ' ' + g).trim() : rest; }
+  // A search with a gender word ("cr women") shows the restrooms for that gender, plus restrooms that do not say.
+  const rankPlain = rank;
+  rank = function (rooms, query, limit) {
+    const g = queryGender(query);
+    if (g) {
+      const rest = withGender(query, '');
+      const list = rankPlain((rooms || []).filter(isRestroom), rest, 0).filter((r) => { const f = restroomFor(r); return !f || f === g; });
+      if (list.length || isRestroomQuery(query)) return limit ? list.slice(0, limit) : list;
+    }
+    return rankPlain(rooms, query, limit);
+  };
+  return { norm, words, wordScore, rank, highlight, isRestroom, restroomFor, isRestroomQuery, queryGender, withGender };
 })();

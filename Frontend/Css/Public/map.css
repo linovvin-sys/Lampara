@@ -228,3 +228,19 @@ body {
 /* a tall room photo is shown whole instead of cropped into the wide frame */
 .room-dlg-photo.is-portrait { aspect-ratio: 3 / 4; max-height: 60vh; background: var(--blue-50, #f1f1fb); }
 .room-dlg-photo.is-portrait img { object-fit: contain; }
+
+/* restroom pins: blue for men, red for women, teal when it is for everyone */
+.mk.restroom .mk-dot { background: #0b7f8a; }
+.mk.restroom.men .mk-dot { background: #1565c0; }
+.mk.restroom.women .mk-dot { background: #c62828; }
+.mk.restroom .mk-dot::after { content: 'WC'; font: 700 11px/1 system-ui, sans-serif; }
+.mk.restroom.men .mk-dot::after { content: 'M'; }
+.mk.restroom.women .mk-dot::after { content: 'W'; }
+.mk.restroom .mk-label { background: #0b7f8a; }
+.mk.restroom.men .mk-label { background: #1565c0; }
+.mk.restroom.women .mk-label { background: #c62828; }
+.mk.rr-off { display: none; }
+.key-places .rr-pick { display: inline-flex; gap: 0.35rem; flex: none; padding-right: 0.6rem; margin-right: 0.2rem; border-right: 2px solid var(--line, #e3e3f0); }
+.key-places .rr-btn.on { background: #161850; border-color: #161850; color: #fff; }
+.key-places .rr-chip.men .star { color: #1565c0; font-weight: 700; } .key-places .rr-chip.women .star { color: #c62828; font-weight: 700; } .key-places .rr-chip.any .star { color: #0b7f8a; font-weight: 700; }
+.key-places .rr-chip.on .star { color: #fff; }

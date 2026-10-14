@@ -141,7 +141,7 @@
   // ---------------- details of the destination room
   function roomKind(r) {
     const n = String(r.room_name || '').toLowerCase(), c = String(r.category || r.room_type || '').toLowerCase();
-    if (c === 'cr' || /comfort|restroom|toilet/.test(n)) return 'Restroom';
+    if (c === 'cr' || /comfort|restroom|toilet/.test(n)) { const g = String(r.subtitle || '').toLowerCase(); return g === 'men' ? "Men's restroom" : g === 'women' ? "Women's restroom" : 'Restroom'; }
     if (c === 'canteen') return 'Canteen';
     if (/cubicle|counter|window/.test(n)) return 'Cubicle';
     if (/\blab/.test(n)) return 'Laboratory';

@@ -219,6 +219,8 @@ window.LamparaGuide = createApp({
       return list.sort((a, b) => a.name.localeCompare(b.name)).slice(0, q || this.gateAll ? 12 : 4);
     },
     gateRooms() { return this.findRooms(this.gateQuery); },
+    restroomAsk() { return RoomSearch.isRestroomQuery(this.gateQuery); },
+    askedGender() { return RoomSearch.queryGender(this.gateQuery); },
     ddRooms() { return this.findRooms(this.searchQuery); },
     // Two ways into a building, for two different moments:
     //   - doorHref, on the "You've arrived" card: the visitor is at the door of the building just walked to, so show the floor plan
@@ -1142,6 +1144,7 @@ window.LamparaGuide = createApp({
     },
     // Rooms and offices matching what was typed: every word must appear in the name, number, floor or building. Best matches first.
     // Rooms and offices matching what was typed (number, name, initials, building, floor...), the same search as Manual Search.
+    pickGender(g) { this.gateQuery = (RoomSearch.withGender(this.gateQuery, '') + (g ? ' ' + g : '')).trim(); },
     findRooms(query) {
       if (String(query || '').trim().length < 2) return [];
       return RoomSearch.rank(this.rooms, query, 5);

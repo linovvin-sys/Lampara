@@ -533,6 +533,20 @@
 
   const PIN_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg>';
 
+  // A key place that is a restroom, and who it is for, read from its name ("Men's restroom", "Women's CR").
+  const isRestroomPin = (m) => m.marker_type === 'landmark' && /\b(restroom|comfort|toilet|bathroom|washroom|cr)\b/i.test(m.label || '');
+  const pinGender = (m) => { const t = String(m.label || '').toLowerCase().replace(/['\u2019]/g, ''); return /\b(women|womens|woman|female|ladies|girls?)\b/.test(t) ? 'women' : (/\b(men|mens|man|male|gents?|boys?)\b/.test(t) ? 'men' : ''); };
+  let rrFilter = '';        // '' = every restroom, 'men' or 'women' = only those
+  function applyRr() {
+    keyPlaces.querySelectorAll('[data-rr]').forEach((b) => b.classList.toggle('on', b.dataset.rr === rrFilter));
+    markers.forEach((m) => {
+      if (!isRestroomPin(m)) return;
+      const g = pinGender(m), hide = rrFilter && g && g !== rrFilter;
+      const el = mkLayer.querySelector('.mk[data-id="' + m.id + '"]'); if (el) el.classList.toggle('rr-off', !!hide);
+      const chip = keyPlaces.querySelector('button[data-id="' + m.id + '"]'); if (chip) chip.hidden = !!hide;
+    });
+  }
+
   async function loadMarkers(mine) {
     const list = await fetchMarkers(kind);
     if (mine !== token) return;
@@ -540,7 +554,7 @@
     mkLayer.innerHTML = '';
     markers.forEach((m) => {
       const el = document.createElement('div');
-      el.className = 'mk ' + m.marker_type;
+      el.className = 'mk ' + m.marker_type + (isRestroomPin(m) ? ' restroom ' + (pinGender(m) || 'any') : '');
       el.dataset.id = String(m.id);
       el.style.left = m.x + '%'; el.style.top = m.y + '%';
       const pin = document.createElement('div'); pin.className = 'mk-pin';
@@ -551,6 +565,7 @@
     });
     pinsBtn.hidden = !markers.length;
     renderKeyPlaces();
+    applyRr();
     renderPinsList();
     apply();
   }
@@ -560,11 +575,21 @@
     keyPlaces.innerHTML = '';
     const key = markers.filter((m) => m.marker_type === 'landmark');
     keyPlaces.hidden = !key.length;
+    if (key.some(isRestroomPin)) {          // choose whose restroom to look for
+      const wrap = document.createElement('span'); wrap.className = 'rr-pick'; wrap.setAttribute('role', 'group'); wrap.setAttribute('aria-label', 'Restrooms');
+      [['', 'All restrooms'], ['men', 'Men'], ['women', 'Women']].forEach(([v, t]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.dataset.rr = v; b.className = 'rr-btn'; b.textContent = t;
+        b.addEventListener('click', () => { rrFilter = v; applyRr(); });
+        wrap.appendChild(b);
+      });
+      keyPlaces.appendChild(wrap);
+    }
     key.forEach((m) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.dataset.id = String(m.id);
-      b.innerHTML = '<span class="star">\u2605</span>';
+      b.innerHTML = '<span class="star">' + (isRestroomPin(m) ? (pinGender(m) === 'men' ? 'M' : pinGender(m) === 'women' ? 'W' : 'WC') : '\u2605') + '</span>';
+      if (isRestroomPin(m)) b.classList.add('rr-chip', pinGender(m) || 'any');
       b.appendChild(document.createTextNode(m.label || m.name));
       b.addEventListener('click', () => focusMarker(m));
       keyPlaces.appendChild(b);
@@ -589,7 +614,7 @@
     });
   }
 
-  const typeLabel = (m) => (m.marker_type === 'gate' ? 'Campus gate' : (m.marker_type === 'landmark' ? 'Key place' : 'Building entrance'))
+  const typeLabel = (m) => (m.marker_type === 'gate' ? 'Campus gate' : (m.marker_type === 'landmark' ? (isRestroomPin(m) ? (pinGender(m) === 'men' ? "Men's restroom" : pinGender(m) === 'women' ? "Women's restroom" : 'Restroom') : 'Key place') : 'Building entrance'))
     + (m.approx ? ' · approximate location' : '');
 
   function selectMarker(m) {

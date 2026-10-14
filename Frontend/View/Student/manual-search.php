@@ -65,6 +65,13 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       <button v-for="k in kinds" :key="k[0]" type="button" @click="filterType = k[0]" class="filter-pill" :class="{ 'is-active': filterType === k[0] }" :aria-pressed="filterType === k[0] ? 'true' : 'false'">{{ k[1] }}</button>
     </div>
 
+    <div v-if="restroomAsk" class="gender-row" role="group" aria-label="Which restroom">
+      <span class="gender-label">Which restroom?</span>
+      <button type="button" class="filter-pill" :class="{ 'is-active': !askedGender }" :aria-pressed="!askedGender ? 'true' : 'false'" @click="pickGender('')">Any</button>
+      <button type="button" class="filter-pill" :class="{ 'is-active': askedGender === 'men' }" :aria-pressed="askedGender === 'men' ? 'true' : 'false'" @click="pickGender('men')">Men</button>
+      <button type="button" class="filter-pill" :class="{ 'is-active': askedGender === 'women' }" :aria-pressed="askedGender === 'women' ? 'true' : 'false'" @click="pickGender('women')">Women</button>
+    </div>
+
     <div class="here-card">
       <div class="here-row">
         <span class="here-label">You are on</span>
