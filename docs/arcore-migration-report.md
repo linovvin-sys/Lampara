@@ -1,5 +1,8 @@
 # Moving Lampara from AR.js to ARCore: how buildings get anchored
 
+> **Note (Oct 2026):** indoor AR was removed from the product. Mentions of the indoor AR guide, calibration and `indoor-ar` below are historical.
+
+
 Report based on the code on this branch (`guide-ar.js`, `indoor-ar.js`, `indoor-nav.js`, `qr-anchors.php`, `schema.sql`). Statements about ARCore come from general knowledge of the SDK, not from testing on your campus. Items marked **verify** need a check before you commit to them.
 
 ---

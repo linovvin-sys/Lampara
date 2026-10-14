@@ -19,7 +19,7 @@
 // - Each op runs under its own savepoint: one failing op never undoes the others.
 //
 // Op types: building.create/update, room.create/update, node.create/update/delete,
-// edge.create/delete, entrance.set, calibration.set.
+// edge.create/delete, entrance.set.
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -136,8 +136,8 @@ function syncExtras($conn, $table, $id, array $p) {
 }
 
 function applyOp($conn, $type, array $p, $force, array &$tempMap) {
-    // A PSMO account may change buildings, rooms and floor calibration, not the outdoor walkways (node., edge., entrance.).
-    if (lampara_admin_role() === 'psmo' && !preg_match('/^(building|room|calibration)\\./', (string) $type)) return failure('This account can only change buildings and rooms.');
+    // A PSMO account may change buildings, and rooms, not the outdoor walkways (node., edge., entrance.).
+    if (lampara_admin_role() === 'psmo' && !preg_match('/^(building|room)\\./', (string) $type)) return failure('This account can only change buildings and rooms.');
     switch ($type) {
 
         case 'building.create': {
@@ -334,24 +334,6 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
                 throw $e;
             }
             return ['status' => 'ok'];
-        }
-
-        case 'calibration.set': {
-            $id = resolveId($conn, $p['plan_id'] ?? null, $tempMap);
-            $row = fetchRow($conn, "SELECT north_offset, meters_per_unit_x, meters_per_unit_y, updated_at FROM floor_plans WHERE id = ?", 'i', $id);
-            if (!$row) return failure('This floor plan no longer exists on the server.');
-            if (!$force && !empty($p['base_updated_at']) && $row['updated_at'] !== $p['base_updated_at']) {
-                return conflict('This floor was calibrated or changed on the server after you calibrated it offline.', $row);
-            }
-            $north = isset($p['north_offset']) ? fmod((float) $p['north_offset'] + 360, 360) : null;
-            $mx = (float) ($p['meters_per_unit_x'] ?? 0);
-            $my = (float) ($p['meters_per_unit_y'] ?? 0);
-            if ($north === null || $mx <= 0 || $my <= 0) return failure('Calibration needs a direction and a positive size.');
-            $stmt = $conn->prepare("UPDATE floor_plans SET north_offset = ?, meters_per_unit_x = ?, meters_per_unit_y = ? WHERE id = ?");
-            $stmt->bind_param('dddi', $north, $mx, $my, $id);
-            $stmt->execute();
-            $stmt->close();
-            return ['status' => 'ok', 'server_id' => $id];
         }
     }
     return failure("Unknown change type: $type");

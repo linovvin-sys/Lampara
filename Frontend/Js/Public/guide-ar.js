@@ -172,7 +172,7 @@ window.LamparaGuide = createApp({
       chatLoading: false,
       // The campus's one registered AR anchor (Campus Paths admin page), or
       // null if none is set — gates whether starting requires scanning it
-      // first. Mirrors indoor-ar.js's floor anchor, same idea: fix the real
+      // first. Fixes the real
       // starting position from a known point instead of trusting GPS's
       // first fix alone, which can be a few meters off near buildings.
       campusAnchor: null,

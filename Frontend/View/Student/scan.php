@@ -427,10 +427,6 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           {{ room.building_id === destination.building_id ? 'Watch the route to ' + destination.room_name : 'Show me the way to ' + destination.building_name }}
         </a>
-        <a v-if="arGuideUrl" :href="arGuideUrl" class="rt-cta rt-cta-alt">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>
-          Use my camera inside
-        </a>
 
         <!-- Secondary: details about the CURRENT room — still useful, just
              no longer competing with "where do you want to go" for top billing. -->

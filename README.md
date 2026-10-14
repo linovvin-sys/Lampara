@@ -23,7 +23,6 @@ lampara/
 │   │   ├── Student/
 │   │   │   ├── scan.php               indoor room lookup + destination search + "report outdated info"
 │   │   │   ├── manual-search.php      offline-fallback directory browser
-│   │   │   └── ar-test.php            isolated AR.js camera/GPS diagnostic scratch page
 │   │   ├── Admin/
 │   │   │   ├── login.php, logout.php
 │   │   │   ├── dashboard.php          stats, recent buildings, open outdated-info reports

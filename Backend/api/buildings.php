@@ -67,7 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $row['open_flags'] = (int) $row['open_flags'];
         $buildings[] = $row;
     }
-    echo json_encode(['success' => true, 'buildings' => $buildings]);
+    require_once __DIR__ . '/../etag.php';
+    json_with_etag(['success' => true, 'buildings' => $buildings]);
     exit;
 }
 

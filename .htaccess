@@ -1,6 +1,9 @@
 # Lampara: keep project internals out of reach and send basic safe headers.
 # Needs Apache with AllowOverride All (the default in XAMPP's htdocs). Harmless where it is not understood.
 
+# no file listings for folders without an index page
+Options -Indexes
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   # on a real server everything goes over HTTPS (a laptop, a local network address and a tunnel that already did HTTPS are left alone)

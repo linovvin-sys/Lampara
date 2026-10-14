@@ -1,5 +1,8 @@
 # Lampara — feature checklist (setup + verification)
 
+> **Note (Oct 2026):** indoor AR was removed from the product. Mentions of the indoor AR guide, calibration and `indoor-ar` below are historical.
+
+
 Tick each box as you go. **Setup** = what you must prepare first. **Check** = what to test and what "working" looks like.
 Step-by-step instructions for the AR features are in `ar-navigation-setup.md`.
 

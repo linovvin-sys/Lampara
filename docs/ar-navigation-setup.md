@@ -1,5 +1,8 @@
 # AR navigation — setup and testing guide
 
+> **Note (Oct 2026):** indoor AR was removed from the product. Mentions of the indoor AR guide, calibration and `indoor-ar` below are historical.
+
+
 Covers the features added in the AR-navigation session: the **outdoor ground ribbon**
 (Campus Paths), the **indoor AR arrow** (Floor Calibration), and **offline caching**.
 

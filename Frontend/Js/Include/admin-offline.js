@@ -5,7 +5,7 @@
 //   * sw.js keeps the admin pages, libraries and API reads available offline.
 //   * This file keeps a list of PENDING CHANGES on the device (localStorage) for
 //     everything an admin can do offline: buildings, rooms, campus walkway points,
-//     entrances and floor calibration.
+//     and entrances.
 //   * Pages call AdminOffline.run(...) around each save. Online, the save goes
 //     straight to the server exactly as before. If the server can't be reached (or
 //     the login expired), the change is added to the pending list instead.
@@ -148,16 +148,6 @@ const AdminOffline = (() => {
         }
         break;
       }
-      case 'calibration.set': {
-        const existing = ops.find((o) => o.type === 'calibration.set' && same(o.payload.plan_id, payload.plan_id));
-        if (existing) {
-          const base = existing.payload.base_updated_at;
-          Object.assign(existing.payload, payload);
-          existing.payload.base_updated_at = base;
-          existing.label = label || existing.label; existing.status = 'pending'; existing.message = ''; touched = existing;
-        }
-        break;
-      }
       default: break;
     }
 
@@ -232,15 +222,7 @@ const AdminOffline = (() => {
     return graph;
   }
 
-  function overlayPlans(base) {
-    const out = clone(base || []);
-    ops.forEach((o) => {
-      if (o.type !== 'calibration.set') return;
-      const plan = out.find((x) => same(x.id, o.payload.plan_id));
-      if (plan) Object.assign(plan, { north_offset: o.payload.north_offset, meters_per_unit_x: o.payload.meters_per_unit_x, meters_per_unit_y: o.payload.meters_per_unit_y, _pending: true });
-    });
-    return out;
-  }
+  function overlayPlans(base) { return clone(base || []); }
 
   // ---------- talking to the server ----------
   const state = { reachable: navigator.onLine !== false, admin: null, syncing: false };

@@ -26,7 +26,7 @@
 // student data fresh is done by Js/Include/student-offline.js.
 
 // Bump this whenever phones must drop their saved copies (old versions' caches are deleted on activate).
-const VERSION = 'lampara-sw-v36';
+const VERSION = 'lampara-sw-v37';
 const CACHE_PAGES = VERSION + '-pages';           // admin pages (private)
 const CACHE_API = VERSION + '-api';               // admin-only API reads (private)
 const CACHE_STUDENT_PAGES = VERSION + '-student-pages'; // public
@@ -40,7 +40,7 @@ const NETWORK_TIMEOUT_MS = 10000; // slow connection: give up on the network and
 const MAX_TILES = 700;
 
 const LIB_HOSTS = [
-  'unpkg.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'aframe.io', 'cdn.tailwindcss.com',
+  'unpkg.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'cdn.tailwindcss.com',
   'fonts.googleapis.com', 'fonts.gstatic.com'
 ];
 const TILE_HOSTS = ['tile.openstreetmap.org', 'server.arcgisonline.com'];
@@ -148,7 +148,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Student-facing pages (landing, guides, scan, manual search, indoor AR).
+  // Student-facing pages (landing, guides, scan, manual search).
   if ((path.includes('/View/Public/') || path.includes('/View/Student/')) && path.endsWith('.php')) {
     event.respondWith((async () => {
       try {

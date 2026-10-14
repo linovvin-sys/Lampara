@@ -1,5 +1,8 @@
 # Student offline mode
 
+> **Note (Oct 2026):** indoor AR was removed from the product. Mentions of the indoor AR guide, calibration and `indoor-ar` below are historical.
+
+
 Visitors can open Lampara and navigate with **no signal**: the pages load, the directory data is
 there, routes are drawn, and both AR guides work (GPS, compass and camera don't need internet).
 When the phone gets a connection back, the saved data refreshes by itself.

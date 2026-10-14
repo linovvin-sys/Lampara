@@ -46,4 +46,12 @@ Dropping the calibration columns, per-building room-number uniqueness (needs a m
 Tasks 2 to 4 verified as above; branch pushed; "Result" filled in below.
 
 ## Result
-_(fill in)_
+Done on branch `cleanup`.
+
+- **Removed:** `indoor-ar.php/.js/.css`, `locar-indoor.js`, `indoor-nav.js`, `ar-ribbon.js`, `ar-test.php/.js/.css`, and `assets/vendor/aframe/` (1.3 MB). The "Use my camera inside" button and `arGuideUrl` in `scan.js` / `scan.php` are gone, and so are the offline cache entry and the `aframe.io` allow-list entry.
+- **Calibration plumbing removed:** the `?action=calibrate` handler, the `calibration.set` sync case (server and offline queue; `AdminOffline.overlayPlans` now just returns a copy), the calibration lines in `setup-audit.php`. The database columns stay.
+- **Service worker** version bumped to `lampara-sw-v37`.
+- **Directory listing off** (`Options -Indexes`): `/Backend/api/` and `/Frontend/Js/Admin/` return 403.
+- **ETag** on `rooms.php` and `buildings.php` via the new `Backend/etag.php`: repeat requests with the tag return 304 with no body.
+- **Checked:** a grep for the removed names finds nothing; 10 student pages and 7 admin pages load with no console errors (only the existing OCR CDN error on `scan.php`).
+- **Left alone:** per-building room-number uniqueness, the OCR CDN worker.

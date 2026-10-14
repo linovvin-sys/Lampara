@@ -218,19 +218,6 @@ createApp({
       if (this.room.map_x === null || this.room.map_y === null || this.destination.map_x === null || this.destination.map_y === null) return null;
       return `journey.php?from=${this.room.id}&to=${this.destination.id}`;
     },
-    arGuideUrl() {
-      if (!this.room || !this.destination) return null;
-      const calibrated = (p) => !!p && p.north_offset !== null && p.north_offset !== undefined &&
-        p.meters_per_unit_x > 0 && p.meters_per_unit_y > 0;
-      if (this.mapMode === 'same-floor') {
-        if (!this.routePath || !calibrated(this.floorPlans.room)) return null;
-      } else if (this.mapMode === 'multi-floor') {
-        if (!this.routeSegments.every((seg) => calibrated(this.segmentFloorPlans[seg.floorPlanId]))) return null;
-      } else {
-        return null;
-      }
-      return `indoor-ar.php?from=${this.room.id}&to=${this.destination.id}`;
-    },
     currentSegment() {
       return this.mapMode === 'multi-floor' ? this.routeSegments[this.currentSegmentIndex] : null;
     }

@@ -218,11 +218,6 @@ foreach ($buildings as $b) {
             }
         }
 
-        // calibration
-        if ($p['north_offset'] !== null && (float) $p['mx'] > 0 && (float) $p['my'] > 0) {
-            ok(sprintf('Calibrated: about %.1f m wide, plan-up points %d deg from north.', (float) $p['mx'] * 100, (int) round((float) $p['north_offset'])));
-        }
-
         // rooms
         $rooms = rows($conn, "SELECT id, room_number, room_name, map_x, map_y FROM rooms WHERE building_id = $bid AND floor = '" . $conn->real_escape_string($p['floor']) . "' ORDER BY room_number");
         if (!$rooms) { echo "  (no rooms registered on this floor)\n"; }

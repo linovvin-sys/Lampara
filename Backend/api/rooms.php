@@ -104,7 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
     $stmt->close();
 
-    echo json_encode(['success' => true, 'rooms' => $rooms]);
+    require_once __DIR__ . '/../etag.php';
+    json_with_etag(['success' => true, 'rooms' => $rooms]);
     exit;
 }
 
