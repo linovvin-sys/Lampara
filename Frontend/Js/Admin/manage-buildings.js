@@ -3,14 +3,23 @@ const { createApp } = Vue;
 const COLORS = ['#2e3192', '#ffd100', '#ff0000', '#6a6dd0', '#ffe066', '#9b9ce6'];
 
 window.LamparaListApp = createApp({
-  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [], loaded: false, health: [], healthLoaded: false, drawer: null, photoBusy: false, photoOver: false, menuFor: null }; },
+  data() { return { baseBuildings: [], buildings: [], q: '', map: null, markers: [], loaded: false, health: [], healthLoaded: false, drawer: null, photoBusy: false, photoOver: false, menuFor: null, sortBy: (() => { try { return localStorage.getItem('lampara_bsort') || 'attention'; } catch (e) { return 'attention'; } })() }; },
   computed: {
+    // The list in the order you picked. "Needs attention" puts closed buildings and the ones with the most setup problems first, so the
+    // first row is always the best place to start.
     filtered() {
-      if (!this.q.trim()) return this.buildings;
-      const q = this.q.toLowerCase();
-      return this.buildings.filter(b => b.name.toLowerCase().includes(q));
+      const q = this.q.trim().toLowerCase();
+      const list = q ? this.buildings.filter(b => b.name.toLowerCase().includes(q)) : this.buildings.slice();
+      const by = {
+        attention: (a, b) => (this.fixesFor(b) + (b.open_flags || 0)) - (this.fixesFor(a) + (a.open_flags || 0)) || a.name.localeCompare(b.name),
+        name: (a, b) => a.name.localeCompare(b.name),
+        recent: (a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')),
+        rooms: (a, b) => (b.room_count || 0) - (a.room_count || 0) || a.name.localeCompare(b.name)
+      };
+      return list.sort(by[this.sortBy] || by.name);
     }
   },
+  watch: { sortBy(v) { try { localStorage.setItem('lampara_bsort', v); } catch (e) { /* not remembered */ } } },
   mounted() {
     document.addEventListener('click', () => { this.menuFor = null; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.menuFor = null; });

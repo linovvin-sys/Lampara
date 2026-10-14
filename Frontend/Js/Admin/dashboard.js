@@ -48,6 +48,19 @@ createApp({
       return bits.length ? bits.join(' and ') + '. Start here:' : 'A few optional improvements:';
     },
     visibleChanges() { return this.showAllChanges ? this.changes : this.changes.slice(0, 5); },
+    // How complete the directory is, as plain bars, plus the one gap worth closing first.
+    coverage() {
+      const rs = this.rooms || [], n = rs.length; if (!n) return null;
+      const has = (f) => rs.filter(f).length;
+      const bars = [
+        { key: 'pins', label: 'Rooms placed on a floor plan', got: has((r) => r.map_x !== null && r.map_x !== undefined), href: 'buildings.php?tab=rooms', fix: 'Place the rest on their floor plans' },
+        { key: 'paths', label: 'Rooms joined to a walking path', got: has((r) => r.path_node_id !== null && r.path_node_id !== undefined), href: 'buildings.php?tab=rooms', fix: 'Link rooms to the path so Find inside can draw a route' },
+        { key: 'desc', label: 'Rooms with a description', got: has((r) => (r.notes || '').trim() !== ''), href: 'buildings.php?tab=rooms', fix: 'Add a short description so visitors know what each room is for' },
+        { key: 'num', label: 'Rooms with a room number', got: has((r) => (r.room_number || '').trim() !== ''), href: 'buildings.php?tab=rooms', fix: 'Add numbers so visitors can search by the sign' }
+      ].map((b) => Object.assign(b, { total: n, pct: Math.round(100 * b.got / n) }));
+      const worst = bars.slice().sort((a, b) => a.pct - b.pct)[0];
+      return { bars, worst, tip: worst.pct >= 100 ? 'Every room is fully covered.' : worst.fix + ' (' + (worst.total - worst.got) + ' to go).' };
+    },
     allCollapsed() { return Object.values(this.collapsed).every(Boolean); },
     noneCollapsed() { return !Object.values(this.collapsed).some(Boolean); },
     // ---- building setup progress ----

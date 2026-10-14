@@ -46,6 +46,18 @@ $routeJsVer = filemtime(__DIR__ . '/../../Js/Include/floor-route.js');
      list), and inheriting "hidden" from here made it permanently stuck with
      no way to reach anything below the fold. -->
 <div id="app" v-cloak :style="{ position: 'relative', width: '100vw', height: '100vh', color: '#fff', overflow: stage === 'result' ? 'auto' : 'hidden' }">
+  <h1 class="sr-only">Scan a room sign</h1>
+  <!-- Location check: the sign says one building, the phone's GPS says another -->
+  <div v-if="locCheck" class="lc-back" role="alertdialog" aria-modal="true" aria-labelledby="lcTitle" aria-describedby="lcText">
+    <div class="lc-card">
+      <h2 id="lcTitle">Are you sure you are here?</h2>
+      <p id="lcText">That sign is in <b>{{ locCheck.building }}</b>, but your phone's GPS puts you about <b>{{ locCheck.meters }} m</b> away<span v-if="locCheck.acc"> (give or take {{ locCheck.acc }} m)</span>. GPS is weaker indoors, so it may be wrong.</p>
+      <div class="lc-actions">
+        <button type="button" id="lcYes" class="lc-btn is-main" @click="locAnswer(true)">Yes, I'm here</button>
+        <button type="button" class="lc-btn" @click="locAnswer(false)">No, scan again</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== STAGE 1: camera + scan, in the same look as the outdoor guide (navy glass, yellow actions) ===== -->
   <template v-if="stage === 'scan'">

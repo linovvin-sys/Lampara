@@ -12,7 +12,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lampara — Walking Guide</title>
 <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg?v=3">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png?v=3">

@@ -22,6 +22,8 @@
     if (status === 'pending') $('hzPending').textContent = d.reports.length ? '(' + d.reports.length + ')' : '';
     empty.hidden = d.reports.length > 0;
     empty.textContent = status === 'pending' ? 'No reports are waiting for approval.' : status === 'active' ? 'No warnings are showing to visitors right now.' : 'Nothing has been cleared yet.';
+    // Most urgent first (urgent, unverified ones lead), then the newest, so the top card is always the one to deal with.
+    d.reports.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || (a.verified ? 1 : 0) - (b.verified ? 1 : 0) || (a.age_min || 0) - (b.age_min || 0));
     list.innerHTML = d.reports.map((r) => {
       const place = r.building_name || 'On the campus grounds';
       const map = r.lat !== null ? '<a class="alt" href="https://www.google.com/maps?q=' + r.lat + ',' + r.lng + '" target="_blank" rel="noopener">Open on map</a>' : '';

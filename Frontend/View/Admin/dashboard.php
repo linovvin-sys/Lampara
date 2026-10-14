@@ -103,6 +103,17 @@ $cssVer = filemtime(__DIR__ . '/../../Css/Admin/admin.css');
       </section>
 
 
+      <section v-if="coverage" class="card cov-card" aria-labelledby="covTitle">
+        <h2 class="section-title flush" id="covTitle">Directory coverage</h2>
+        <ul class="cov-list">
+          <li v-for="b in coverage.bars" :key="b.key">
+            <div class="cov-row"><span>{{ b.label }}</span><b>{{ b.got }} of {{ b.total }}</b></div>
+            <div class="cov-bar" role="progressbar" :aria-label="b.label" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="b.pct"><span :class="{ ok: b.pct >= 90, mid: b.pct >= 60 && b.pct < 90 }" :style="{ width: b.pct + '%' }"></span></div>
+          </li>
+        </ul>
+        <p class="cov-tip"><strong>Next best step:</strong> {{ coverage.tip }} <a v-if="coverage.worst.pct < 100" :href="coverage.worst.href" class="link-sm">Go there</a></p>
+      </section>
+
       <section class="card health-card" aria-labelledby="healthTitle">
         <div class="card-head">
           <h2 class="section-title flush" id="healthTitle">Setup health</h2>

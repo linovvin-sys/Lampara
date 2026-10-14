@@ -16,6 +16,7 @@ const CAMPUS_RADIUS_METERS = 500;
 createApp({
   data() {
     return {
+      locCheck: null, locDeclined: false,
       stage: 'scan', scanning: false, manualNumber: '', room: null, reported: false,
       pickRooms: [], altRooms: [], cameraReady: false, cameraFailed: false, detectedNumber: null, aiReadFailed: false, cameraStream: null,
       sceneHtml: window.LamparaPixelScene ? LamparaPixelScene.html({ walker: false, moon: false, stars: 36, seed: 19 }) : '',
@@ -409,8 +410,21 @@ createApp({
         if (r) { this.room = r; this.altRooms = list.filter((x) => x.id !== r.id); }
         else this.pickRooms = list;
       } else this.room = list[0] || null;
+      if (this.room && !(await this.confirmHere(this.room))) { this.room = null; this.locDeclined = true; return; }
       if (this.room) { LamparaCache.setMyFloor(this.room); this.noteScan(); }
     },
+    // "Are you sure you are here?" A coarse GPS fix (even a weak one from inside) is compared with the building the sign belongs to.
+    // Far away: ask first. No fix at all (no signal, no permission): say nothing, never block a real scan.
+    async confirmHere(room) {
+      const b = (LamparaCache.getBuildings() || []).find((x) => String(x.id) === String(room.building_id));
+      if (!b || b.lat == null || b.lng == null) return true;
+      const fix = await this.quickFix();
+      if (!fix) return true;
+      const d = haversineMeters({ lat: fix.lat, lng: fix.lng }, { lat: Number(b.lat), lng: Number(b.lng) });
+      if (d <= 90 + Math.min(fix.acc || 0, 150)) return true;          // within the building's size plus how unsure the phone is
+      return new Promise((resolve) => { this.locCheck = { building: b.name, room: room.room_name, meters: Math.round(d), acc: Math.round(fix.acc || 0), resolve }; this.$nextTick(() => { const el = document.getElementById('lcYes'); if (el) el.focus(); }); });
+    },
+    locAnswer(yes) { const c = this.locCheck; this.locCheck = null; if (c) c.resolve(yes); },
     chooseBuilding(r) {
       this.altRooms = this.pickRooms.filter((x) => x.id !== r.id); this.pickRooms = []; this.room = r;
       LamparaCache.setMyFloor(r); this.noteScan();
@@ -434,7 +448,7 @@ createApp({
       return LamparaCache.getRooms().find((r) => String(r.id) === String(id)) || null;
     },
     async performScan() {
-      this.detectedNumber = null;
+      this.detectedNumber = null; this.locDeclined = false;
       this.pickRooms = []; this.altRooms = [];
       this.aiReadFailed = false;
       const typedNumber = this.manualNumber.trim();
@@ -447,7 +461,7 @@ createApp({
           await this.applyMatches(await this.lookupRooms(typedNumber));
         } finally {
           this.scanning = false;
-          this.stage = 'result';
+          if (!this.locDeclined) this.stage = 'result';
         }
         return;
       }
@@ -479,12 +493,12 @@ createApp({
         if (!data.room_number) {
           this.aiReadFailed = true;
           this.room = null;
-          this.stage = 'result';
+          if (!this.locDeclined) this.stage = 'result';
           return;
         }
         this.detectedNumber = data.room_number;
         await this.applyMatches(await this.lookupRooms(data.room_number));
-        this.stage = 'result';
+        if (!this.locDeclined) this.stage = 'result';
       } catch (e) {
         alert("Couldn't reach the AI service — check your connection and try again.");
       } finally {

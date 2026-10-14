@@ -27,7 +27,7 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/journey.js');
 <div class="jr" id="jr">
   <header class="jr-top">
     <button type="button" class="jr-back jr-act back" id="back" aria-label="Go back"><i data-px="back" aria-hidden="true"></i><span>Back</span></button>
-    <div class="jr-title" id="title">Preparing your route&hellip;</div>
+    <h1 class="jr-title" id="title">Preparing your route&hellip;</h1>
     <button type="button" class="jr-act jr-info-btn" id="infoBtn" hidden aria-haspopup="dialog"><span>Room info</span></button>
   </header>
 

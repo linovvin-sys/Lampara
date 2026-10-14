@@ -216,6 +216,15 @@ window.LamparaRoomApp = createApp({
       if (this.floorDigit === null) return null;
       return String(b.building_number).replace(/\D/g, '') + String(this.floorDigit);   // "2-A" and "2-B" both start their rooms with 2
     },
+    // The next free number on this floor (highest used + 1, or prefix + "01"), offered as one tap so a new room never needs typing a number.
+    suggestedNumber() {
+      const p = this.expectedPrefix; if (!p || this.editingId !== null) return '';
+      const used = this.rooms.filter((r) => String(r.building_id) === String(this.form.building_id) && r.floor === this.form.floor && r.room_number)
+        .map((r) => parseInt(RoomNumber.base(RoomNumber.normalize(r.room_number)), 10)).filter((n) => !isNaN(n) && String(n).startsWith(p));
+      const next = used.length ? Math.max(...used) + 1 : parseInt(p + '01', 10);
+      const key = RoomNumber.compact(String(next));
+      return this.rooms.some((r) => r.room_number && RoomNumber.compact(r.room_number) === key && this.sameNumberGroup(r.building_id, this.form.building_id)) ? '' : String(next);
+    },
     // Buildings that share a first digit (2-A and 2-B) also share their room numbers, so a number cannot repeat across them.
     roomNumberError() {
       if (this.form.noSignage || this.forcesNoNumber) return ''; // nothing to validate — this room deliberately has no number

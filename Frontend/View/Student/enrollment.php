@@ -36,7 +36,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/enrollment.css');
   </header>
 
   <section class="en-progress" aria-label="Your progress">
-    <div class="en-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="enBar"><span id="enFill"></span></div>
+    <div class="en-bar" role="progressbar" aria-label="Enrollment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="enBar"><span id="enFill"></span></div>
     <p id="enCount">Loading&hellip;</p>
   </section>
 

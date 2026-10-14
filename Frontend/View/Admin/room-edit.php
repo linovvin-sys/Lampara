@@ -183,6 +183,7 @@ include __DIR__ . '/../Include/buildings-head.php';
                       <p v-if="!form.noSignage && !forcesNoNumber && (expectedPrefix || roomNumberError)" style="font-size: 0.75rem; margin:0.3rem 0 0;" :style="{ color: roomNumberError ? '#ff0000' : 'var(--muted)' }">
                         {{ roomNumberError || ('Should start with ' + expectedPrefix + ' — building ' + selectedBuilding.building_number + (isOpen ? '' : ', floor ' + floorDigit) + '. A section can follow a dash, like ' + expectedPrefix + '01 - A.') }}
                       </p>
+                      <button v-if="suggestedNumber && !String(form.room_number || '').trim() && !form.noSignage && !forcesNoNumber" type="button" class="btn btn-secondary suggest-btn" @click="form.room_number = suggestedNumber">Use the next free number: {{ suggestedNumber }}</button>
                       <p v-if="roomNumberPreview && !roomNumberError" style="font-size: 0.75rem; margin:0.3rem 0 0; color:var(--green-700, #15803d); font-weight:600;">
                         Will be saved as {{ roomNumberPreview }}
                       </p>

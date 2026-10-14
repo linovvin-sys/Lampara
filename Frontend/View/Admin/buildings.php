@@ -36,6 +36,15 @@ include __DIR__ . '/../Include/buildings-head.php';
               <label for="buildingSearch" class="sr-only">Search buildings</label>
               <input id="buildingSearch" v-model="q" type="search" placeholder="Search buildings">
             </div>
+            <div class="sort-box">
+              <label for="buildingSort">Sort</label>
+              <select id="buildingSort" v-model="sortBy">
+                <option value="attention">Needs attention first</option>
+                <option value="name">Name</option>
+                <option value="recent">Recently updated</option>
+                <option value="rooms">Most rooms</option>
+              </select>
+            </div>
           </div>
 
           <div class="manage-grid">
