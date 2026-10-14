@@ -1,4 +1,4 @@
-/* The enrollment process at NCST, one stop after another, shared by the Enrollment guide page and the indoor route page.
+/* The enrollment process, one stop after another (the built-in list below is NCST's, kept as a sample), shared by the Enrollment guide page and the indoor route page.
    Offices are named by room number inside one building (building number 1 = Amafel Building, Main), so the stops follow the real rooms
    in the directory: if an office moves, change its room number here. Plain <script>; exposes `LamparaEnroll`.
    The normal way to change the process is Admin > Enrollment steps (saved in the database). `DEFAULTS` below is what the app shows
@@ -32,7 +32,9 @@ const LamparaEnroll = (() => {
     { heading: 'Get your school email', key: 'email', title: 'Get your school email', room: '1101', place: 'Admission',
       what: 'Admission creates your school email account. That finishes your enrollment.' }
   ];
-  // The list in use: an admin's edited copy (kept on this phone so it works offline) or, failing that, DEFAULTS above.
+  // A school that has not saved its own steps starts with none, unless it is the NCST this sample was made for.
+  const FALLBACK = (window.LAMPARA_CONFIG && LAMPARA_CONFIG.shortName && LAMPARA_CONFIG.shortName !== 'NCST') ? [] : DEFAULTS;
+  // The list in use: an admin's edited copy (kept on this phone so it works offline) or, failing that, the fallback above.
   // `match` arrives from the server as text; it becomes a regex here.
   const CK = 'lampara_enroll_steps', STOPS = [], TITLES = {};
   const norm = (s) => ({ ...s, match: s.match ? new RegExp(s.match, 'i') : undefined, houses: s.houses === true ? HOUSES : s.houses });
@@ -45,7 +47,7 @@ const LamparaEnroll = (() => {
   const plain = (s) => ({ key: s.key, heading: s.heading, sub: s.sub, title: s.title, room: s.room, room_id: s.room_id, match: s.match && (s.match.source || s.match), place: s.place, what: s.what, houses: s.houses ? true : undefined });
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(CK)); } catch (e) { /* no saved copy */ }
-  try { use(Array.isArray(saved) && saved.length ? saved : DEFAULTS); } catch (e) { use(DEFAULTS); }
+  try { use(Array.isArray(saved) && saved.length ? saved : FALLBACK); } catch (e) { use(FALLBACK); }
   // Ask the server for the current list. Resolves true when the list in use changed. Any failure keeps what we have.
   async function refresh() {
     try {
@@ -53,10 +55,10 @@ const LamparaEnroll = (() => {
       if (!d.success) return false;
       const next = Array.isArray(d.stops) && d.stops.length ? d.stops : null;
       const before = JSON.stringify(STOPS.map(plain));
-      use(next || DEFAULTS);
+      use(next || FALLBACK);
       try { next ? localStorage.setItem(CK, JSON.stringify(next)) : localStorage.removeItem(CK); } catch (e) { /* not kept */ }
       return JSON.stringify(STOPS.map(plain)) !== before;
-    } catch (e) { use(STOPS.length ? STOPS.map(plain) : DEFAULTS); return false; }
+    } catch (e) { use(STOPS.length ? STOPS.map(plain) : FALLBACK); return false; }
   }
   const get = (key) => STOPS.find((s) => s.key === key) || null;
   // Is this the main building? Its number was "1" and is now "1-A", so both count (used only by the built-in DEFAULTS).

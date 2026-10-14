@@ -167,7 +167,7 @@
     const facts = [];
     if (r.hours) facts.push(['Hours', r.hours]);
     const stop = typeof LamparaEnroll !== 'undefined' && q.get('enroll') ? LamparaEnroll.get(q.get('enroll')) : null;     // coming from the Enrollment guide
-    if (stop) { facts.push(['Step ' + stop.step + ' of enrollment', stop.what]); if (stop.houses) facts.push(['Houses of Hero', stop.houses.join(', ')]); }
+    if (stop) { facts.push(['Step ' + stop.step + ' of enrollment', stop.what]); if (stop.houses) facts.push(['Houses', stop.houses.join(', ')]); }
     if (r.notes) facts.push(['How to spot it', r.notes]);
     $('infoFacts').innerHTML = facts.map((f) => '<li><b></b><span></span></li>').join('');
     $('infoFacts').querySelectorAll('li').forEach((li, k) => { li.firstChild.textContent = facts[k][0]; li.lastChild.textContent = facts[k][1]; });

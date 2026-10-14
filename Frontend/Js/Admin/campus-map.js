@@ -28,9 +28,9 @@ createApp({
   data() {
     return {
       kinds: [
-        { kind: '2d', short: '2D', label: '2D map', help: 'A flat, top-down map of the campus. PNG, JPG, WebP, SVG or PDF.', placeholder: 'e.g. NCST campus map',
+        { kind: '2d', short: '2D', label: '2D map', help: 'A flat, top-down map of the campus. PNG, JPG, WebP, SVG or PDF.', placeholder: 'e.g. Main campus map',
           formats: ['png', 'jpeg', 'webp', 'svg', 'pdf'], accept: 'image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.svg,.pdf' },
-        { kind: '3d', short: '3D', label: '3D map', help: 'A 3D model of the campus (.obj) that students can rotate, or a 3D render as a picture.', placeholder: 'e.g. NCST campus in 3D',
+        { kind: '3d', short: '3D', label: '3D map', help: 'A 3D model of the campus (.obj) that students can rotate, or a 3D render as a picture.', placeholder: 'e.g. Main campus in 3D',
           formats: ['png', 'jpeg', 'webp', 'obj'], accept: 'image/png,image/jpeg,image/webp,.obj' }
       ],
       loaded: false,       // first answer from the server has arrived (until then previews show a skeleton)

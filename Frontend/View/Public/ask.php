@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../Backend/security_headers.php';
 require_once __DIR__ . '/../../../Backend/institution.php';
+if (!inst_feature('chat')) { header('Location: index.php'); exit; }   // this school switched the feature off (Admin > School settings)
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $f = fn($p) => filemtime(__DIR__ . '/../../' . $p);
 ?>

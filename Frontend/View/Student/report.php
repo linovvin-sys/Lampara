@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../Backend/security_headers.php';
+require_once __DIR__ . '/../../../Backend/institution.php';
+if (!inst_feature('hazards')) { header('Location: ../Public/index.php'); exit; }   // this school switched the feature off (Admin > School settings)
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/report.css');
 $pageJsVer = filemtime(__DIR__ . '/../../Js/Student/report.js');

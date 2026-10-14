@@ -56,3 +56,10 @@
 
 /* Vue roots stay hidden until the app mounts, so raw {{ templates }} never flash (or stay) on screen. */
 [v-cloak] { display: none !important; }
+
+/* ---- Features a school switched off (classes set by Js/Include/theme.js) ---- */
+html.no-enrollment a[href$="enrollment.php"], html.no-enrollment .enroll-cta, html.no-enrollment .enroll-banner, html.no-enrollment .enroll-fab,
+html.no-enrollment li:has(> a[href$="enrollment.php"]),
+html.no-hazards a[href$="report.php"], html.no-hazards .wh-report, html.no-hazards .lh-bar, html.no-hazards li:has(> a[href$="report.php"]),
+html.no-chat a[href$="ask.php"], html.no-chat li:has(> a[href$="ask.php"]),
+html.no-game [data-game-hud], html.no-game [data-game-buddy], html.no-game .lm-toast { display: none !important; }

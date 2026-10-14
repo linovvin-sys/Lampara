@@ -1,4 +1,6 @@
 <?php require_once __DIR__ . '/../../../Backend/security_headers.php';
+require_once __DIR__ . '/../../../Backend/institution.php';
+if (!inst_feature('enrollment')) { header('Location: ../Public/index.php'); exit; }   // this school switched the feature off (Admin > School settings)
 $themeVer = filemtime(__DIR__ . '/../../Css/theme.css');
 $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/enrollment.css');
 ?>
@@ -30,7 +32,7 @@ $pageCssVer = filemtime(__DIR__ . '/../../Css/Student/enrollment.css');
   <header class="en-head">
     <div class="en-buddy" data-game-buddy data-lines="Enrolling? I will walk you through it.|One office at a time.|Tap Show me the way at each stop.|Seven steps and you are in!"></div>
     <h1>Enrollment guide</h1>
-    <p>Seven steps, one office after another. Tap <b>Show me the way</b> at each stop and Lampara guides you there on the floor plan.</p>
+    <p><span id="enCount">Step by step</span>, one office after another. Tap <b>Show me the way</b> at each stop and Lampara guides you there on the floor plan.</p>
   </header>
 
   <section class="en-progress" aria-label="Your progress">

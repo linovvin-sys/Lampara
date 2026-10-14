@@ -78,4 +78,13 @@ Multi-tenant, translation of strings, room-number rules, deleting indoor AR (bri
 Defaults reproduce today's UI; every row in the task 4 table reads config; switches work; branch pushed; "Result" filled in below.
 
 ## Result
-_(fill in)_
+Done on branch `institution-config` (built on `cleanup`).
+
+- **Backend:** `Backend/institution.php` (defaults = today's NCST values, `inst()`, `inst_h()`, `inst_feature()`, `inst_persona()`, validation), `Backend/api/institution.php` (public read incl. `?format=js`, admin-only write and logo upload, PSMO refused, audit entry on save). The `institution` table is created on first use. With no row, everything reads the defaults, so a fresh install looks exactly as before.
+- **Settings page:** Admin > School settings (`settings.php`, admin only, not in the PSMO menu): name, short name, headline, logo upload, default theme, assistant introduction (`{short_name}` placeholder), contact, campus area (map + "use the current map view"), four feature switches.
+- **Replaced hard-coded values:** home, Ask and Map wording, the logo on the home page, headline, `campus-bounds.js` boundary, `guide-ar.js` centre, the building-outlines map centre, the default theme in `theme.js`, the AI persona sentence in `chat_lib.php`, and the building-id door map (`KNOWN`) in `building-doors.js` (doors come from the database). Placeholders in the admin (building name, map names) are generic.
+- **Enrollment:** the built-in NCST steps now apply only while the short name is `NCST` and no steps are saved; any other school starts with none and the page says so. The "seven steps" sentence is counted from the steps in use (this also fixes the seven-versus-nine mismatch). "Houses of Hero" labels became "Houses"; the house names themselves are still an NCST sample in `enrollment-steps.js`.
+- **Feature switches:** enrollment, game, hazards, chat. Switched-off features hide their links and widgets everywhere (classes on `<html>` set by `theme.js`, rules at the end of `theme.css`), the pages `enrollment.php`, `report.php`, `ask.php` redirect home, and the admin menu drops Reports, Enrollment steps and Try the chat. The APIs stay available; this hides the UI, it is not a security boundary.
+- **Checked:** with defaults, the home page looks identical to before; changing the short name and headline changed the home page, the enrollment banner and the chat persona; bad bounds are refused; all four switches off then on again; 10 student pages and 6 admin pages load without console errors (only the old OCR CDN error on `scan.php`). Test settings were deleted afterwards, so the install is back on defaults.
+- **Service worker** bumped to `lampara-sw-v38`.
+- **Not done:** the room-number rule is still fixed (building digit + floor digit); no translation; the first-visit page for a non-NCST school with no steps is only a message.

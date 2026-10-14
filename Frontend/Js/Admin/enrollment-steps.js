@@ -124,7 +124,7 @@
       mf.append(labeled('Small label', 'Optional, e.g. "Pay for it"', input(i, 'sub')));
       const h = document.createElement('label'); h.className = 'chk';
       const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!s.houses; c.addEventListener('change', () => { stops[i].houses = c.checked || undefined; status(); });
-      h.append(c, 'Show the four Houses of Hero here'); mf.append(h);
+      h.append(c, 'Show the school houses here'); mf.append(h);
       more.append(mf); fields.append(more);
 
       const wrap = document.createElement('div'); wrap.className = 'es-body'; const inner = document.createElement('div'); inner.className = 'es-inner'; inner.append(fields); wrap.append(inner); card.append(wrap);
@@ -166,7 +166,7 @@
     const bsel = $('esPickBuilding'); bsel.textContent = '';
     const names = [...new Set(rooms.map((r) => r.building_name))];
     names.forEach((n) => { const o = document.createElement('option'); o.value = n; o.textContent = n; bsel.append(o); });
-    const main = names.find((n) => /amafel/i.test(n) && /main/i.test(n)) || names[0]; if (main) bsel.value = main;
+    const first = rooms.find((r) => /^1(-A)?$/i.test(String(r.building_number == null ? '' : r.building_number).trim())); const main = (first && first.building_name) || names[0]; if (main) bsel.value = main;   // the building numbered 1 first, as the built-in steps assume
     fillPick(chosen); addPanel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
   function fillPick(chosen) {
@@ -207,7 +207,7 @@
     stops.forEach((s) => {
       if (s.room_id) return;
       let r = null;
-      if (s.room) r = rooms.find((x) => String(x.room_number) === String(s.room) && /amafel/i.test(x.building_name) && /main/i.test(x.building_name)) || rooms.find((x) => String(x.room_number) === String(s.room));
+      if (s.room) r = rooms.find((x) => String(x.room_number) === String(s.room) && /^1(-A)?$/i.test(String(x.building_number == null ? '' : x.building_number).trim())) || rooms.find((x) => String(x.room_number) === String(s.room));
       if (!r && s.match) { try { const re = new RegExp(s.match, 'i'); r = rooms.find((x) => re.test(x.room_name)); } catch (e) { /* bad pattern */ } }
       if (r) { s.room_id = r.id; delete s.room; delete s.match; n++; }
     });

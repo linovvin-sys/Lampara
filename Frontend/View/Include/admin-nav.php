@@ -118,6 +118,11 @@ $navSections = [
     'Tools'            => ['test-chat'],
     'Your account'     => ['account', 'settings'],
 ];
+require_once __DIR__ . '/../../../Backend/institution.php';
+// Pages of features this school switched off are left out of the menu.
+$off = array_filter(['hazards' => !inst_feature('hazards'), 'enrollment-steps' => !inst_feature('enrollment'), 'test-chat' => !inst_feature('chat')]);
+foreach ($navSections as $sn => $ks) $navSections[$sn] = array_values(array_diff($ks, array_keys($off)));
+$navSections = array_filter($navSections);   // a section with nothing left disappears
 // A PSMO account sees only the building and room pages.
 $isPsmo = lampara_admin_role() === 'psmo';
 if ($isPsmo) $navSections = ['Buildings' => ['manage-buildings'], 'Your account' => ['account']]; // buildings and their rooms; doors are a tab inside a building

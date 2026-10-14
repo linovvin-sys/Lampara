@@ -1,4 +1,4 @@
-// Enrollment guide: the seven steps (nine stops) of enrolling at NCST, with a button at each stop that opens the indoor route to that
+// Enrollment guide: the steps (and their stops) of enrolling, with a button at each stop that opens the indoor route to that
 // office (Student/journey.php), and a tick for every stop you finish. Progress is kept only on this phone. The steps themselves are in
 // Js/Include/enrollment-steps.js. Needs offline-cache.js, enrollment-steps.js and mascots.js.
 (() => {
@@ -31,6 +31,9 @@
 
   function render() {
     const S = LamparaEnroll.STOPS, total = S.length, n = S.filter((s) => done[s.key]).length;
+    const steps = Object.keys(LamparaEnroll.TITLES).length;
+    $('enCount').textContent = steps ? steps + (steps === 1 ? ' step' : ' steps') : 'Step by step';   // counted from the steps in use, never typed
+    if (!total) { $('enError').textContent = "The enrollment steps have not been set up yet. Please ask the school office."; $('enError').hidden = false; $('enSteps').textContent = ''; return; }
     const next = S.findIndex((s) => !done[s.key]);
     // Undo only the stop finished last, and nothing once everything is done (then only "Start over" clears it)
     const last = n === total ? null : S.reduce((a, s) => (done[s.key] && (!a || done[s.key] >= done[a.key]) ? s : a), null);
@@ -57,7 +60,7 @@
       el('p', 'en-where', row, s.place + (room && room.room_number ? ' · Room ' + room.room_number : '') + (room && room.floor ? ' · ' + room.floor : ''));
       el('p', 'en-what', row, s.what);
       if (s.houses) {
-        const h = el('p', 'en-houses', row); h.appendChild(document.createTextNode('Houses of Hero: '));
+        const h = el('p', 'en-houses', row); h.appendChild(document.createTextNode('Houses: '));
         s.houses.forEach((x) => el('span', 'en-house', h, x));
       }
       if (room && room.hours) el('p', 'en-hours', row, 'Open ' + room.hours);
