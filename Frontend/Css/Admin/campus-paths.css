@@ -85,3 +85,4 @@
 .extra-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
 .extra-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.45rem 0.7rem; border-radius: 0.7rem; background: #fff3d6; font-size: 0.875rem; }
 .extra-list small { color: #6b4600; }
+.ctl-under-map { flex: none; margin-top: 0.75rem; }

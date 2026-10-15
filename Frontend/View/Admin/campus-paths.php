@@ -124,6 +124,9 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
                 <button type="button" class="btn btn-secondary view-gap-btn" :disabled="locked" @click="connectGap">Connect</button></span></p>
           </div>
           <div ref="mapArea" class="paths-map" aria-label="Campus walkway map. Use the buttons below and the Selected point panel to edit without a mouse."></div>
+          <div class="ctl-group ctl-under-map" role="group" aria-labelledby="grpPick"><span class="ctl-title" id="grpPick">Remove points</span><div class="ctl-buttons">
+              <button type="button" class="btn" :class="multi ? 'btn-primary' : 'btn-secondary'" :aria-pressed="multi" :disabled="locked" @click="toggleMulti">{{ multi ? 'Done selecting' : 'Select several' }}</button>
+            </div></div>
           <div v-if="multi" class="multi-bar flex flex-wrap gap-2" role="region" aria-label="Selected points">
             <span class="multi-count"><b>{{ pickedIds.length }}</b> selected. Tap points on the map to add or remove them.</span>
             <button type="button" class="btn btn-secondary" @click="pickInView">Select all in view</button>
@@ -142,9 +145,6 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/campus-paths.js');
             <button type="button" class="btn btn-secondary" :disabled="locating || recording || locked" @click="captureLocation">
               {{ locating ? 'Locating…' : 'Capture my location' }}
             </button>
-            </div></div>
-            <div class="ctl-group" role="group" aria-labelledby="grpPick"><span class="ctl-title" id="grpPick">Remove points</span><div class="ctl-buttons">
-              <button type="button" class="btn" :class="multi ? 'btn-primary' : 'btn-secondary'" :aria-pressed="multi" :disabled="locked" @click="toggleMulti">{{ multi ? 'Done selecting' : 'Select several' }}</button>
             </div></div>
             <div class="ctl-group" role="group" aria-labelledby="grpWalk"><span class="ctl-title" id="grpWalk">Record a walk</span><div class="ctl-buttons">
             <button type="button" class="btn" :class="recording ? 'btn-rec-on' : 'btn-secondary'" :disabled="locating || locked" @click="toggleWalk">

@@ -26,7 +26,7 @@
 // student data fresh is done by Js/Include/student-offline.js.
 
 // Bump this whenever phones must drop their saved copies (old versions' caches are deleted on activate).
-const VERSION = 'lampara-sw-v68';
+const VERSION = 'lampara-sw-v70';
 const CACHE_PAGES = VERSION + '-pages';           // admin pages (private)
 const CACHE_API = VERSION + '-api';               // admin-only API reads (private)
 const CACHE_STUDENT_PAGES = VERSION + '-student-pages'; // public
