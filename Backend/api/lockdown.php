@@ -17,6 +17,14 @@ $in = json_decode(file_get_contents('php://input'), true) ?: [];
 $type = $in['type'] ?? '';
 $id = (int) ($in['id'] ?? 0);
 $reason = trim((string) ($in['reason'] ?? ''));
+$until = null;   // optional "reopens at", local time as YYYY-MM-DDTHH:MM
+if (!empty($in['until'])) {
+    $dt = DateTime::createFromFormat('Y-m-d\TH:i', (string) $in['until']);
+    if (!$dt || $dt->format('Y-m-d\TH:i') !== (string) $in['until']) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'That reopening date and time is not valid.']); exit; }
+    if ($dt <= new DateTime()) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'The reopening time must be in the future.']); exit; }
+    $until = $dt->format('Y-m-d H:i:s');
+}
+if ($reason !== '' && $until === null) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'Choose the date and time it reopens.']); exit; }
 if (mb_strlen($reason) > 160) $reason = mb_substr($reason, 0, 160);
 if (!in_array($type, ['building', 'room'], true) || $id <= 0) { http_response_code(400); echo json_encode(['success' => false, 'error' => 'Say which building or room.']); exit; }
 
@@ -31,7 +39,8 @@ $row = $stmt->get_result()->fetch_assoc(); $stmt->close();
 if (!$row) { http_response_code(404); echo json_encode(['success' => false, 'error' => 'That ' . $type . ' no longer exists.']); exit; }
 
 $val = $reason === '' ? null : $reason;
-$stmt = $conn->prepare("UPDATE $table SET closed_note = ? WHERE id = ?");
-$stmt->bind_param('si', $val, $id); $stmt->execute(); $stmt->close();
-audit_log($conn, $val === null ? 'reopened' : 'closed', $type, $row['n'] . ($val === null ? '' : ': ' . $val));
-echo json_encode(['success' => true, 'type' => $type, 'id' => $id, 'closed_note' => $val]);
+if ($val === null) $until = null;
+$stmt = $conn->prepare("UPDATE $table SET closed_note = ?, closed_until = ? WHERE id = ?");
+$stmt->bind_param('ssi', $val, $until, $id); $stmt->execute(); $stmt->close();
+audit_log($conn, $val === null ? 'reopened' : 'closed', $type, $row['n'] . ($val === null ? '' : ': ' . $val . ($until ? ' until ' . $until : '')));
+echo json_encode(['success' => true, 'type' => $type, 'id' => $id, 'closed_note' => $val === null ? null : $val . ($until ? ' (until ' . date('D M j, g:i A', strtotime($until)) . ')' : ''), 'closed_until' => $until]);
