@@ -65,8 +65,10 @@
       }
       if (room && room.hours) el('p', 'en-hours', row, 'Open ' + room.hours);
       const acts = el('div', 'en-acts', row);
-      if (href && !done[s.key]) { const a = el('a', 'en-btn primary', acts, (!room && s.key === 'entrance') ? 'Walk to the building (outside)' : 'Show me the way'); a.href = href; }
-      else if (!href && !done[s.key]) el('p', 'en-missing', acts, 'This office is not in the directory yet. Ask at the front desk.');
+      if (href) {                                              // a finished stop keeps its route, so you can see it again
+        const a = el('a', 'en-btn' + (done[s.key] ? ' alt' : ' primary'), acts, done[s.key] ? 'See the way again' : (!room && s.key === 'entrance') ? 'Walk to the building (outside)' : 'Show me the way');
+        a.href = href;
+      } else if (!href && !done[s.key]) el('p', 'en-missing', acts, 'This office is not in the directory yet. Ask at the front desk.');
       if (done[s.key] && s !== last) return;
       const b = el('button', 'en-btn' + (done[s.key] ? '' : ' alt'), acts, done[s.key] ? 'Undo' : 'I am done here');
       b.type = 'button';
