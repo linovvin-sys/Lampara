@@ -54,6 +54,17 @@ $pageJsVer = filemtime(__DIR__ . '/../../Js/Admin/account.js');
       <!-- MY ACCOUNT -->
       <div class="ac-pane grid gap-4" id="paneMe" role="tabpanel">
         <div class="ac-two grid grid-cols-1 gap-4 min-[720px]:grid-cols-2">
+          <section class="ac-box" aria-labelledby="unH">
+            <h2 id="unH">Username</h2>
+            <p class="ac-sub">The name you sign in with. Your password and two-step sign-in stay the same. Past activity keeps the old name.</p>
+            <form id="unForm" autocomplete="off" class="ac-form grid gap-3">
+              <label class="ac-field grid gap-1.5" for="unNew"><span>New username</span><input id="unNew" type="text" autocomplete="username" minlength="3" maxlength="30" pattern="[A-Za-z0-9._\-]{3,30}" required></label>
+              <label class="ac-field grid gap-1.5" for="unPw"><span>Your password</span><input id="unPw" type="password" autocomplete="current-password" required></label>
+              <button type="submit" class="btn btn-primary">Change username</button>
+              <p class="ac-msg" id="unMsg" role="status"></p>
+            </form>
+          </section>
+
           <section class="ac-box" aria-labelledby="pwH">
             <h2 id="pwH">Password</h2>
             <p class="ac-sub">Use at least 10 characters. A phrase of a few words is easy to remember and hard to guess.</p>

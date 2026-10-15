@@ -65,6 +65,12 @@
     $('pwBar').style.width = (s * 25) + '%'; $('pwBar').dataset.level = s;
     $('pwHint').textContent = !v ? 'At least 10 characters.' : v.length < 10 ? (10 - v.length) + ' more character' + (10 - v.length === 1 ? '' : 's') + ' needed.' : ['', 'Okay. A longer phrase is stronger.', 'Good.', 'Strong.', 'Very strong.'][s] || 'Good.';
   });
+  $('unForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const r = await call('?action=username', { username: $('unNew').value.trim(), password: $('unPw').value });
+    if (!r.success) return say($('unMsg'), r.error || 'Could not change it.', false);
+    $('unForm').reset(); say($('unMsg'), 'Username changed to ' + r.username + '.', true); load();
+  });
   $('pwForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if ($('pwNew').value !== $('pwNew2').value) return say($('pwMsg'), 'The two new passwords are not the same.', false);

@@ -5,6 +5,7 @@
 // GET  /api/account.php?list=1             -> admin only: every account { username, role, disabled, two_step, created_at }
 // GET  /api/account.php?audit=1            -> admin only: the latest 100 security events (sign-ins, report decisions, account changes)
 // POST /api/account.php?action=password    body { current, new }      change your password
+// POST /api/account.php?action=username   body { username, password }   change your own username (needs your password)
 // POST /api/account.php?action=2fa_begin                              start two-step sign-in: returns { secret, uri } to add to an authenticator app
 // POST /api/account.php?action=2fa_confirm body { code }              finish it with a code from the app
 // POST /api/account.php?action=2fa_off     body { password, code? }   switch it off (needs your password, and a code when it is on)
@@ -92,6 +93,20 @@ if ($action === 'password') {
     echo json_encode(['success' => true]);
     exit;
 }
+if ($action === 'username') {
+    $u = trim((string) ($in['username'] ?? ''));
+    if (!password_verify((string) ($in['password'] ?? ''), $me['password_hash'])) { audit_log($conn, 'username_change_failed', $me['username'], 'wrong password'); acc_fail(403, 'Your password is not right'); }
+    if (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $u)) acc_fail(400, 'Use 3 to 30 letters, numbers, dots, dashes or underscores for the username');
+    if ($u === $me['username']) acc_fail(400, 'That is already your username');
+    $ex = $conn->prepare('SELECT 1 FROM admins WHERE username = ? AND id <> ?'); $ex->bind_param('si', $u, $id); $ex->execute();
+    if ($ex->get_result()->fetch_row()) acc_fail(409, 'That username is already taken');
+    $stmt = $conn->prepare('UPDATE admins SET username = ? WHERE id = ?'); $stmt->bind_param('si', $u, $id); $stmt->execute();
+    $_SESSION['admin_username'] = $u;
+    audit_log($conn, 'username_changed', $u, 'was ' . $me['username']);
+    echo json_encode(['success' => true, 'username' => $u]);
+    exit;
+}
+
 if ($action === '2fa_begin') {
     if (!empty($me['totp_secret'])) acc_fail(400, 'Two-step sign-in is already on');
     $secret = totp_new_secret();
