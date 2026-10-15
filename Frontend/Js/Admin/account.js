@@ -65,8 +65,11 @@
     $('pwBar').style.width = (s * 25) + '%'; $('pwBar').dataset.level = s;
     $('pwHint').textContent = !v ? 'At least 10 characters.' : v.length < 10 ? (10 - v.length) + ' more character' + (10 - v.length === 1 ? '' : 's') + ' needed.' : ['', 'Okay. A longer phrase is stronger.', 'Good.', 'Strong.', 'Very strong.'][s] || 'Good.';
   });
+  // Ask before a change that affects how you sign in. Resolves true when confirmed.
+  const sure = async (title, text, button) => (await Swal.fire({ icon: 'question', title, text, showCancelButton: true, confirmButtonText: button, cancelButtonText: 'Cancel', focusCancel: true })).isConfirmed;
   $('unForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    if (!(await sure('Change your username?', 'You will sign in as "' + $('unNew').value.trim() + '" from now on. Your password stays the same.', 'Change username'))) return;
     const r = await call('?action=username', { username: $('unNew').value.trim(), password: $('unPw').value });
     if (!r.success) return say($('unMsg'), r.error || 'Could not change it.', false);
     $('unForm').reset(); say($('unMsg'), 'Username changed to ' + r.username + '.', true); load();
@@ -74,6 +77,7 @@
   $('pwForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if ($('pwNew').value !== $('pwNew2').value) return say($('pwMsg'), 'The two new passwords are not the same.', false);
+    if (!(await sure('Change your password?', 'Use the new password the next time you sign in.', 'Change password'))) return;
     const r = await call('?action=password', { current: $('pwCur').value, new: $('pwNew').value });
     if (r.success) { say($('pwMsg'), 'Password changed.', true); $('pwForm').reset(); $('pwBar').style.width = '0'; } else say($('pwMsg'), r.error || 'Could not change it.', false);
   });
