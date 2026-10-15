@@ -232,6 +232,7 @@ window.LamparaGuide = createApp({
       gateStage: '',          // what start-up is doing: 'map' | 'camera' | 'gps' | 'ready'
       gateAcc: null,          // GPS accuracy while waiting for a fix
       clearNav: (() => { try { return localStorage.getItem('lampara_ar_clear') !== '0'; } catch (e) { return true; } })(),   // clear navigation switch (on by default)
+      whereOpen: false, whereMode: 'fix', whereList: [], anchorFix: false, accShown: 0, arriveOK: {}, arriveAsked: {},
       refreshNote: '',   // what it is doing right now (shown on the button)
       anchorNote: '',   // short confirmation after the scan: what the QR fixed
       headingLocked: false, // true once walking along a drawn path has auto-corrected the compass heading
@@ -1098,6 +1099,11 @@ window.LamparaGuide = createApp({
       if (!tgt || !ri || !here) { this.guidance = tgt && window.LamparaTutorial && LamparaTutorial.active ? LamparaTutorial.sampleGuidance() : null; return; }
       const eta = (m) => Math.max(1, Math.round(m / NAV_WALK_M_PER_MIN));
       const acc = this._acc || 0;
+      if (ri.status === 'arrived' && this.needsArriveCheck(tgt, here)) {
+        if (!this.arriveAsked[tgt.id]) { this.arriveAsked[tgt.id] = true; this.openWhere('arrive'); }
+        this.guidance = { icon: 'warn', title: 'Check where you are', dist: '', detail: 'GPS is off by about ' + Math.round(acc) + ' m, so confirm this is ' + tgt.name + ' (menu, Where am I?)', badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 };
+        return;
+      }
       if (ri.status === 'arrived') { try { this.rewardArrival(tgt); } catch (e) { /* the reward must never get in the way of the directions */ } this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name + (this._entPick && this._entPick.t === tgt.id && !this._entPick.main && this._entPick.label ? ', ' + this._entPick.label : ''), badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
       if (ri.status === 'far') { this.guidance = { icon: 'warn', title: 'Too far to guide you', dist: '', detail: ri.remaining + ' m from ' + tgt.name + '. Are you on campus?', badge: '', facing: null, totalM: ri.remaining, etaMin: 0, step: -1 }; return; }
       const steps = this._steps || [];
@@ -1211,6 +1217,48 @@ window.LamparaGuide = createApp({
       this.pickFromList(b);
     },
     // A building closed for maintenance cannot be walked to: say so instead of drawing a path.
+    // ---- "Where am I?" ----
+    // One row per building near you (its closest entrance), nearest first. `radius` in metres.
+    placesNear(here, radius) {
+      const nodes = new Map(((this.campusGraph && this.campusGraph.nodes) || []).map((n) => [String(n.id), n]));
+      const best = new Map();
+      (this.buildings || []).forEach((b) => {
+        if (b.gate) return;
+        const pts = [], add = (id, label) => { const n = nodes.get(String(id)); if (n) pts.push({ lat: n.lat, lng: n.lng, label }); };
+        if (b.entrance_node_id !== null && b.entrance_node_id !== undefined) add(b.entrance_node_id, 'Main entrance');
+        (b.extra_entrances || []).forEach((e) => add(e.node_id, e.label || 'Second entrance'));
+        if (!pts.length && b.lat != null) pts.push({ lat: Number(b.lat), lng: Number(b.lng), label: '' });
+        pts.forEach((pt) => { const d = haversineMeters(here, pt), k = String(b.id); if (!best.has(k) || d < best.get(k).d) best.set(k, { b, label: pt.label, lat: pt.lat, lng: pt.lng, d }); });
+      });
+      return [...best.values()].filter((x) => x.d <= radius).sort((a, c) => a.d - c.d);
+    },
+    openWhere(mode) {
+      const here = this._pos || this.myPos; if (!here) { this.anchorNote = 'Waiting for a GPS position first.'; setTimeout(() => { this.anchorNote = ''; }, 3000); return; }
+      this.whereMode = mode; this.accShown = this._acc || 0;
+      const radius = Math.max(60, (this._acc || 0) * 3);
+      let list = this.placesNear(here, radius);
+      if (mode === 'arrive' && this.target && !list.some((x) => String(x.b.id) === String(this.target.id))) list = this.placesNear(here, 1e9).filter((x) => String(x.b.id) === String(this.target.id)).concat(list);
+      this.whereList = list.slice(0, 6); this.whereOpen = true; this.menuOpen = false;
+    },
+    // The visitor says which building they are at: line the position up with that door and keep the correction for later GPS fixes.
+    pickPlace(p) {
+      const raw = LamparaLocar.lastRawFix();
+      const corr = raw && Date.now() - raw.t < 20000 ? { lat: raw.lat - p.lat, lng: raw.lng - p.lng } : null;
+      LamparaLocar.resetPosition(p.lat, p.lng, corr || undefined);
+      this._pos = { lat: p.lat, lng: p.lng }; if (this.locationOn) this.myPos = this._pos; this._mmPos = null;
+      if (this.target && String(p.b.id) === String(this.target.id)) this.arriveOK[this.target.id] = true;
+      this.whereOpen = false; this.anchorFix = false;
+      this.anchorNote = 'Position set at ' + p.b.name + (p.label ? ', ' + p.label : '') + '. The path is lined up from there.';
+      setTimeout(() => { this.anchorNote = ''; }, 6000);
+      if (this.target) { this.updateTargetDistance(); this.updateRoute(true); }
+    },
+    // Arriving is only announced at once when GPS is good and no other building is just as close; otherwise the visitor confirms first.
+    needsArriveCheck(tgt, here) {
+      if (this.arriveOK[tgt.id]) return false;
+      const acc = this._acc || 0;
+      const others = this.placesNear(here, Math.max(acc, 10) * 1.2).filter((x) => String(x.b.id) !== String(tgt.id));
+      return acc > 15 || others.length > 0;
+    },
     // A building with more than one entrance (say one on the street and one inside the campus): walk to whichever is closer along the paths.
     // The first choice sticks unless the other is clearly closer (15 m), so the arrow does not flip while you stand between two doors.
     pickEntrance(me) {
@@ -1255,6 +1303,7 @@ window.LamparaGuide = createApp({
     },
     // Clear navigation: stop navigating and take the path away (the route, the chevrons, the directions, the markers).
     clearNavigation() {
+      this.arriveOK = {}; this.arriveAsked = {};
       this.pendingRoom = null;
       this.menuOpen = false;
       this.directionsOpen = false;
@@ -1273,6 +1322,7 @@ window.LamparaGuide = createApp({
     async refreshPath() {
       if (this.refreshing || !window.LamparaLocar || !LamparaLocar.ready) return;
       this.refreshing = true;
+      const accBefore = this._acc || 0;
       try {
         this.refreshNote = 'Recapturing your location…';
         const p = await LamparaLocar.refresh((best, n) => { this.refreshNote = 'Recapturing your location… ±' + Math.round(best.acc) + ' m'; });
@@ -1287,15 +1337,18 @@ window.LamparaGuide = createApp({
           this.updateTargetDistance();
           this.updateRoute(true);
         }
-        this.anchorNote = !p.fresh ? 'No new GPS reading yet. Try again in a moment.'
-          : p.acc > 25 ? 'Path refreshed, but GPS is weak (±' + Math.round(p.acc) + ' m). Move into open sky and refresh again.'
-          : 'Location recaptured, path refreshed (±' + Math.round(p.acc) + ' m)';
+        const was = accBefore ? ' (was ±' + Math.round(accBefore) + ' m)' : '';
+        this.anchorFix = !p.fresh || p.acc > 15;
+        this.anchorNote = !p.fresh ? 'No new GPS reading arrived. Try again, or tell us where you are.'
+          : p.acc > 25 ? 'GPS is still weak: ±' + Math.round(p.acc) + ' m' + was + '. It may put you at the wrong building.'
+          : p.acc > 15 ? 'Location updated: ±' + Math.round(p.acc) + ' m' + was + '. Not sure it is right?'
+          : 'Location updated: ±' + Math.round(p.acc) + ' m' + was + '. The path was laid again from here.';
       } catch (e) {
         this.anchorNote = 'Could not refresh the path.';
       }
       this.refreshing = false;
       this.refreshNote = '';
-      setTimeout(() => { this.anchorNote = ''; }, 4000);
+      setTimeout(() => { this.anchorNote = ''; this.anchorFix = false; }, this.anchorFix ? 9000 : 5000);
     },
     // Plain-words reason the ground route is missing, for AR debug.
     routeWhyNot() {

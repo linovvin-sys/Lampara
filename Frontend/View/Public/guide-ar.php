@@ -242,6 +242,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
 
       <p class="opts-label" id="optsB">Your route</p>
       <div class="opts-group" role="group" aria-labelledby="optsB">
+                <button type="button" role="menuitem" data-tut="m-where" @click="menuOpen = false; openWhere('fix')" class="menu-item"><span class="opt-ico"><svg class="opt-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg></span><span class="opt-text"><b>Where am I?</b><small>Not pointing to the right place? Tell Lampara which building you are at</small></span><svg class="opt-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
         <button type="button" role="menuitem" data-tut="m-refresh" :disabled="refreshing" @click="refreshPath(); menuOpen = false" class="menu-item"><span class="opt-ico"><svg class="opt-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" :class="refreshing ? 'ar-spin' : ''" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></span><span class="opt-text"><b>Refresh the path</b><small>Arrows floating or off the walkway? Recapture your location</small></span><svg class="opt-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
         <button v-if="target" type="button" role="menuitem" data-tut="m-clear" @click="clearNavigation()" class="menu-item is-danger"><span class="opt-ico"><svg class="opt-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></span><span class="opt-text"><b>Clear navigation</b><small>Stop and remove the path</small></span><svg class="opt-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
       </div>
@@ -282,6 +283,7 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       </button>
     </div>
     <p v-if="closedNotice" class="top-note closed-bar" role="alert">{{ closedNotice }} <button type="button" class="closed-x" aria-label="Dismiss" @click="closedNotice = ''">&times;</button></p>
+    <p v-if="anchorNote && !refreshing" class="top-note anchor-note" role="status">{{ anchorNote }} <button v-if="anchorFix" type="button" class="note-act" @click="openWhere('fix')">Set where I am</button></p>
     <p v-if="refreshing" class="top-note" role="status">{{ refreshNote || 'Refreshing…' }}</p>
 
     <!-- The rest of the controls, out of the way until needed. -->
@@ -368,6 +370,34 @@ $cacheJsVer = filemtime(__DIR__ . '/../../Js/Include/offline-cache.js');
       Ask Lampara
     </button>
   </div>
+
+  <!-- "Where am I?": GPS can be off by a few metres, so you can tell Lampara which building you are standing at. -->
+  <transition name="sheet">
+    <div v-if="whereOpen" class="dir-back" @click.self="whereOpen = false">
+      <section class="dir-sheet where-sheet" role="dialog" aria-modal="true" aria-labelledby="whereTitle">
+        <header class="dir-head">
+          <div>
+            <h2 id="whereTitle">{{ whereMode === 'arrive' && target ? 'Are you at ' + target.name + '?' : 'Where are you standing?' }}</h2>
+            <p>Your GPS can be off by about &plusmn;{{ Math.round(accShown) }} m, so it may place you at the wrong building. Pick the one you are at and Lampara lines the path up from there.</p>
+          </div>
+          <button type="button" class="dir-close" aria-label="Close" @click="whereOpen = false">&times;</button>
+        </header>
+        <ul class="where-list">
+          <li v-for="p in whereList" :key="p.b.id">
+            <button type="button" class="where-opt" :class="{ 'is-target': target && String(p.b.id) === String(target.id) }" @click="pickPlace(p)">
+              <span class="where-name"><b>{{ p.b.name }}</b><small>{{ p.label ? p.label + ' · ' : '' }}about {{ Math.round(p.d) }} m from where GPS puts you</small></span>
+              <span v-if="target && String(p.b.id) === String(target.id)" class="where-tag">Your destination</span>
+            </button>
+          </li>
+          <li v-if="!whereList.length" class="dir-empty">No building entrance is close to you. Move toward a building, or refresh your GPS.</li>
+        </ul>
+        <div class="where-actions">
+          <button type="button" class="where-alt" :disabled="refreshing" @click="whereOpen = false; refreshPath()">Use my GPS again</button>
+          <button type="button" class="where-alt" @click="whereOpen = false">Not now</button>
+        </div>
+      </section>
+    </div>
+  </transition>
 
   <!-- Every instruction on the way, in order, with where you are now. -->
   <transition name="sheet">
