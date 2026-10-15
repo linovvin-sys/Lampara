@@ -19,7 +19,7 @@
 // - Each op runs under its own savepoint: one failing op never undoes the others.
 //
 // Op types: building.create/update, room.create/update, node.create/update/delete,
-// edge.create/delete, entrance.set.
+// edge.create/delete, entrance.set, extra_entrance.add/remove.
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -137,7 +137,7 @@ function syncExtras($conn, $table, $id, array $p) {
 
 function applyOp($conn, $type, array $p, $force, array &$tempMap) {
     // A PSMO account may change buildings, and rooms, not the outdoor walkways (node., edge., entrance.).
-    if (lampara_admin_role() === 'psmo' && !(lampara_admin_can('buildings') && preg_match('/^(building|room)\\./', (string) $type)) && !(lampara_admin_can('campus') && preg_match('/^(node|edge|entrance)\\./', (string) $type))) return failure('This account does not have access to that.');
+    if (lampara_admin_role() === 'psmo' && !(lampara_admin_can('buildings') && preg_match('/^(building|room)\\./', (string) $type)) && !(lampara_admin_can('campus') && preg_match('/^(node|edge|entrance|extra_entrance)\\./', (string) $type))) return failure('This account does not have access to that.');
     switch ($type) {
 
         case 'building.create': {
@@ -335,6 +335,32 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
             }
             return ['status' => 'ok'];
         }
+        case 'extra_entrance.add': {
+            require_once __DIR__ . '/../building_entrances.php';
+            $buildingId = resolveId($conn, $p['building_id'] ?? null, $tempMap);
+            $nodeId = resolveId($conn, $p['node_id'] ?? null, $tempMap);
+            $label = trim(preg_replace('/\s+/', ' ', (string) ($p['label'] ?? ''))); if (mb_strlen($label) > 40) $label = mb_substr($label, 0, 40);
+            $row = fetchRow($conn, "SELECT entrance_node_id FROM buildings WHERE id = ?", 'i', $buildingId);
+            if (!$row) return failure('This building no longer exists on the server.');
+            if (nullableInt($row['entrance_node_id']) === (int) $nodeId) return ['status' => 'ok'];   // it became the main entrance meanwhile
+            if (!ensure_extra_entrances_table($conn)) return failure('The server could not prepare the second-entrance table.');
+            try {
+                $stmt = $conn->prepare('INSERT INTO building_entrances (building_id, node_id, label) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE label = VALUES(label)');
+                $stmt->bind_param('iis', $buildingId, $nodeId, $label); $stmt->execute(); $stmt->close();
+            } catch (mysqli_sql_exception $e) {
+                if ($conn->errno === 1452) return failure('That building or walkway point no longer exists on the server.');
+                throw $e;
+            }
+            return ['status' => 'ok'];
+        }
+
+        case 'extra_entrance.remove': {
+            require_once __DIR__ . '/../building_entrances.php';
+            $buildingId = resolveId($conn, $p['building_id'] ?? null, $tempMap);
+            $nodeId = resolveId($conn, $p['node_id'] ?? null, $tempMap);
+            if (ensure_extra_entrances_table($conn)) { $stmt = $conn->prepare('DELETE FROM building_entrances WHERE building_id = ? AND node_id = ?'); $stmt->bind_param('ii', $buildingId, $nodeId); $stmt->execute(); $stmt->close(); }
+            return ['status' => 'ok'];
+        }
     }
     return failure("Unknown change type: $type");
 }
@@ -343,6 +369,8 @@ function applyOp($conn, $type, array $p, $force, array &$tempMap) {
 
 $results = [];
 $tempMap = [];
+// Creating a table inside a transaction would end it early, so the second-entrance table is made before the batch starts.
+foreach ($ops as $op) { if (strpos((string) ($op['type'] ?? ''), 'extra_entrance.') === 0) { require_once __DIR__ . '/../building_entrances.php'; ensure_extra_entrances_table($conn); break; } }
 $conn->begin_transaction();
 
 foreach ($ops as $op) {

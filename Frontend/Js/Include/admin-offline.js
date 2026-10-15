@@ -78,7 +78,7 @@ const AdminOffline = (() => {
     payload = clone(payload);
     const findCreate = (t, key, id) => ops.find((o) => o.type === t && same(o.payload[key], id));
     const refsNode = (o, id) => (o.type === 'edge.create' && (same(o.payload.node_a_id, id) || same(o.payload.node_b_id, id))) ||
-      (o.type === 'entrance.set' && same(o.payload.node_id, id));
+      ((o.type === 'entrance.set' || o.type === 'extra_entrance.add' || o.type === 'extra_entrance.remove') && same(o.payload.node_id, id));
     let touched = null;
 
     switch (type) {
@@ -148,6 +148,17 @@ const AdminOffline = (() => {
         }
         break;
       }
+      case 'extra_entrance.add': {
+        const dupe = ops.find((o) => o.type === 'extra_entrance.add' && same(o.payload.building_id, payload.building_id) && same(o.payload.node_id, payload.node_id));
+        if (dupe) { dupe.payload.label = payload.label; dupe.label = label || dupe.label; dupe.status = 'pending'; dupe.message = ''; touched = dupe; }
+        break;
+      }
+      case 'extra_entrance.remove': {
+        // removing one that was only added offline: both disappear
+        const add = ops.find((o) => o.type === 'extra_entrance.add' && same(o.payload.building_id, payload.building_id) && same(o.payload.node_id, payload.node_id));
+        if (add) { ops = ops.filter((o) => o !== add); touched = 'gone'; }
+        break;
+      }
       default: break;
     }
 
@@ -174,6 +185,12 @@ const AdminOffline = (() => {
       } else if (o.type === 'entrance.set') {
         const b = find(p.building_id);
         if (b) { b.entrance_node_id = p.node_id ?? null; b._pending = true; }
+      } else if (o.type === 'extra_entrance.add') {
+        const b = find(p.building_id);
+        if (b) { b.extra_entrances = (b.extra_entrances || []).filter((e) => !same(e.node_id, p.node_id)).concat([{ node_id: p.node_id, label: p.label || '', _pending: true }]); b._pending = true; }
+      } else if (o.type === 'extra_entrance.remove') {
+        const b = find(p.building_id);
+        if (b) { b.extra_entrances = (b.extra_entrances || []).filter((e) => !same(e.node_id, p.node_id)); b._pending = true; }
       }
     });
     return out;

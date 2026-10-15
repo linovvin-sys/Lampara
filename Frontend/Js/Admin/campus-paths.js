@@ -671,15 +671,26 @@ createApp({
     // ---- second entrances ----
     async addExtra() {
       const n = this.selected; if (!n || !this.extraBuilding || this.lockedNow('add an entrance')) return;
-      if (!(await AdminOffline.guardOnline('Adding a second entrance'))) return;
-      try { await this.request(API + '?action=extra_entrance', 'POST', { building_id: this.extraBuilding, node_id: n.id, label: this.extraLabel });
-        this.extraBuilding = ''; this.extraLabel = ''; await this.loadAll(); AdminOffline.toast('Entrance added'); }
-      catch (e) { Swal.fire({ icon: 'error', title: 'Could not add it', text: e.message }); }
+      const b = this.buildings.find((x) => String(x.id) === String(this.extraBuilding)), label = this.extraLabel.trim();
+      const out = await this.save(
+        { type: 'extra_entrance.add', payload: { building_id: this.extraBuilding, node_id: n.id, label }, label: `Added a second entrance to "${b ? b.name : 'a building'}"` },
+        () => this.request(API + '?action=extra_entrance', 'POST', { building_id: this.extraBuilding, node_id: n.id, label })
+      );
+      if (!out) return;
+      this.extraBuilding = ''; this.extraLabel = '';
+      if (out.queued) this.rebuild(); else await this.loadAll();
+      AdminOffline.toast(out.queued ? 'Saved on this device. It syncs when you are back online.' : 'Entrance added', out.queued ? 'info' : undefined);
     },
     async removeExtra(x) {
-      if (this.lockedNow('remove an entrance') || !(await AdminOffline.guardOnline('Removing an entrance'))) return;
-      try { await this.request(API + '?extra_entrance=1&building_id=' + x.building.id + '&node_id=' + this.selectedId, 'DELETE'); await this.loadAll(); AdminOffline.toast('Entrance removed'); }
-      catch (e) { Swal.fire({ icon: 'error', title: 'Could not remove it', text: e.message }); }
+      if (this.lockedNow('remove an entrance')) return;
+      const nodeId = this.selectedId;
+      const out = await this.save(
+        { type: 'extra_entrance.remove', payload: { building_id: x.building.id, node_id: nodeId }, label: `Removed a second entrance of "${x.building.name}"` },
+        () => this.request(API + '?extra_entrance=1&building_id=' + x.building.id + '&node_id=' + nodeId, 'DELETE')
+      );
+      if (!out) return;
+      if (out.queued) this.rebuild(); else await this.loadAll();
+      AdminOffline.toast(out.queued ? 'Saved on this device. It syncs when you are back online.' : 'Entrance removed', out.queued ? 'info' : undefined);
     },
 
     // ---- naming ----
