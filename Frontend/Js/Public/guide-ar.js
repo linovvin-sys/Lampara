@@ -1098,7 +1098,7 @@ window.LamparaGuide = createApp({
       if (!tgt || !ri || !here) { this.guidance = tgt && window.LamparaTutorial && LamparaTutorial.active ? LamparaTutorial.sampleGuidance() : null; return; }
       const eta = (m) => Math.max(1, Math.round(m / NAV_WALK_M_PER_MIN));
       const acc = this._acc || 0;
-      if (ri.status === 'arrived') { try { this.rewardArrival(tgt); } catch (e) { /* the reward must never get in the way of the directions */ } this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name, badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
+      if (ri.status === 'arrived') { try { this.rewardArrival(tgt); } catch (e) { /* the reward must never get in the way of the directions */ } this.guidance = { icon: 'arrive', title: "You've arrived", dist: '', detail: tgt.name + (this._entPick && this._entPick.t === tgt.id && !this._entPick.main && this._entPick.label ? ', ' + this._entPick.label : ''), badge: '', facing: null, totalM: 0, etaMin: 0, step: -1 }; return; }
       if (ri.status === 'far') { this.guidance = { icon: 'warn', title: 'Too far to guide you', dist: '', detail: ri.remaining + ' m from ' + tgt.name + '. Are you on campus?', badge: '', facing: null, totalM: ri.remaining, etaMin: 0, step: -1 }; return; }
       const steps = this._steps || [];
       if (!steps.length) { this.guidance = { icon: 'straight', title: 'Finding your route', dist: '', detail: tgt.name, badge: '', facing: null, totalM: ri.remaining || 0, etaMin: 0, step: -1 }; return; }
@@ -1215,18 +1215,21 @@ window.LamparaGuide = createApp({
     // The first choice sticks unless the other is clearly closer (15 m), so the arrow does not flip while you stand between two doors.
     pickEntrance(me) {
       const t = this.target, main = t.entrance_node_id;
-      const extra = (t.extra_entrances || []).map((e) => e.node_id);
-      if (!extra.length || !this.campusGraph.edges.length) return main;
+      const extra = (t.extra_entrances || []);
+      if (!extra.length || !this.campusGraph.edges.length) { this._entPick = null; return main; }
+      const labelOf = (id) => { const e = extra.find((x) => String(x.node_id) === String(id)); return e ? (e.label || '') : ''; };
       const lens = [];
-      [main, ...extra].filter((x) => x !== null && x !== undefined).forEach((id) => {
+      [main, ...extra.map((e) => e.node_id)].filter((x) => x !== null && x !== undefined).forEach((id) => {
         const r = CampusRoute.findRoute(this.campusGraph, me, id);
         if (r) lens.push({ id, len: r.length + (r.snapDist || 0) });
       });
       if (!lens.length) return main;
       lens.sort((a, b) => a.len - b.len);
       const keep = this._entPick && this._entPick.t === t.id ? lens.find((x) => x.id === this._entPick.id) : null;
-      const pick = keep && keep.len - lens[0].len < 15 ? keep : lens[0];
-      this._entPick = { t: t.id, id: pick.id };
+      // Standing at a door counts as arriving there, even if the earlier choice was another door; otherwise keep the first choice
+      // unless the other is clearly closer (15 m), so the arrow does not flip while you stand between two doors.
+      const pick = lens[0].len <= ARRIVED_METERS || !keep || keep.len - lens[0].len >= 15 ? lens[0] : keep;
+      this._entPick = { t: t.id, id: pick.id, label: labelOf(pick.id), main: String(pick.id) === String(main) };
       return pick.id;
     },
     selectBuilding(building) {
